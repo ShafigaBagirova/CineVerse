@@ -7,6 +7,12 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <Compile Remove="FileStorage\desktop.ini\**" />
+	  <EmbeddedResource Remove="FileStorage\desktop.ini\**" />
+	  <None Remove="FileStorage\desktop.ini\**" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="MailKit" Version="4.15.1" />
 		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.3" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.3" />
@@ -16,6 +22,8 @@
 		</PackageReference>
 
 		<PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.16.0" />
+
+		<PackageReference Include="Minio" Version="7.0.0" />
 		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.16.0" />
 
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
