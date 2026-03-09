@@ -1,6 +1,7 @@
 ﻿using Application.Auth.Login.Dtos;
 using Application.Auth.Password.Dtos;
 using Application.Auth.Register.Dtos;
+using Application.Auth.User.Dtos;
 using Application.Auth.UserName.Dtos;
 using Application.Common.Interfaces;
 using Application.Common.Responses;
@@ -302,5 +303,30 @@ public sealed class IdentityService : IIdentityService
         }
 
         return BaseResponse.Ok("Email changed successfully.");
+    }
+    public async Task<UserProfileDto?> GetUserByIdAsync(string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+
+        if (user is null)
+            return null;
+
+        return new UserProfileDto(
+            user.Id,
+            user.UserName ?? string.Empty,
+            user.FullName ?? string.Empty
+        );
+    }
+    public async Task<List<UserProfileDto>> GetAllUsersAsync()
+    {
+        var users = _userManager.Users
+            .Select(u => new UserProfileDto(
+                u.Id,
+                u.UserName ?? string.Empty,
+                u.FullName ?? string.Empty
+            ))
+            .ToList();
+
+        return await Task.FromResult(users);
     }
 }

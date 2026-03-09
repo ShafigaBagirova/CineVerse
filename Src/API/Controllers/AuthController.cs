@@ -8,13 +8,14 @@ using Application.Auth.Refresh.Commands;
 using Application.Auth.Refresh.Dtos;
 using Application.Auth.Register.Commands;
 using Application.Auth.Register.Dtos;
+using Application.Auth.User.Dtos;
+using Application.Auth.User.Queries;
 using Application.Auth.UserName.Commands;
 using Application.Auth.UserName.Dtos;
 using Application.Common.Responses;
+using Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Components.Forms;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -58,6 +59,7 @@ public sealed class AuthController : ControllerBase
 
         return Ok(BaseResponse<TokenResponse>.Ok(token));
     }
+
     [HttpPost("refresh")]
     [AllowAnonymous]
     public async Task<ActionResult<BaseResponse<TokenResponse>>> Refresh(
@@ -213,6 +215,39 @@ public sealed class AuthController : ControllerBase
         if (!result.Success)
             return BadRequest(result);
 
+        return Ok(result);
+    }
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<ActionResult<JwtUserInfoDto>> GetCurrentUser(CancellationToken ct)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized();
+
+        var result = await _mediator.Send(new GetCurrentUserQuery(userId), ct);
+
+        if (result is null)
+            return NotFound();
+
+        return Ok(result);
+    }
+    [HttpGet("{id}")]
+    public async Task<ActionResult<UserProfileDto>> GetUserById(string id, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GetUserByIdQuery(id), ct);
+
+        if (result is null)
+            return NotFound();
+
+        return Ok(result);
+    }
+    [HttpGet]
+    [Authorize(Policy = Policies.AdminOnly)]
+    public async Task<ActionResult<List<UserProfileDto>>> GetAllUsers(CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GetAllUsersQuery(), ct);
         return Ok(result);
     }
 }
