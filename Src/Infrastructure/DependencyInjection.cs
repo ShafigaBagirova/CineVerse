@@ -1,6 +1,7 @@
 ﻿using Application.Auth.Options;
 using Application.Common.Interfaces;
 using Infrastructure.Email;
+using Infrastructure.FileStorage;
 using Infrastructure.Identity;
 using Infrastructure.Persistence.Context;
 using Infrastructure.Persistence.Repositories;
@@ -9,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Minio;
 
 namespace Infrastructure;
 
@@ -58,6 +60,24 @@ public static class DependencyInjection
         services.AddScoped<IEmailSender, SmtpEmailSender>();
         services.Configure<FrontendOptions>(
        config.GetSection(FrontendOptions.SectionName));
+
+        services.Configure<MinioOptions>(
+            config.GetSection("Minio"));
+
+        var minioOptions = config
+            .GetSection("Minio")
+            .Get<MinioOptions>()!;
+
+        services.AddSingleton<IMinioClient>(_ =>
+            new MinioClient()
+                .WithEndpoint(minioOptions.Endpoint)
+                .WithCredentials(minioOptions.AccessKey, minioOptions.SecretKey)
+                .WithSSL(minioOptions.UseSSL)
+                .Build());
+
+        services.AddScoped<IFileStorageService, MinioFileStorageService>();
+        services.AddScoped<IFileStorageService, S3MinioFileStorageService>();
+        services.AddScoped<IMoviePosterRepository, MoviePosterRepository>();
 
 
         return services;

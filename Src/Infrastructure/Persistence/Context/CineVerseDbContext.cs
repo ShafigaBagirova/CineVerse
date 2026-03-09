@@ -18,4 +18,6 @@ public class CineVerseDbContext : IdentityDbContext<CineVerseUser>
     }
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<EmailVerificationCode> EmailVerificationCodes { get; set; }
+    public DbSet<Movie> Movies { get; set; }
+    public DbSet<MoviePoster> MoviePosters { get; set; }
 }
