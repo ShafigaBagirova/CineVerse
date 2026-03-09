@@ -20,4 +20,14 @@ public interface IIdentityService
     Task<string?> GeneratePasswordResetTokenAsync(string email);
     Task<BaseResponse> ResetPasswordAsync(ResetPasswordRequest resetPasswordRequest);
      Task<BaseResponse> UpdateUserNameAsync(string userId, string newUserName);
+    Task<BaseResponse> ChangePasswordAsync( string userId, string currentPassword,string newPassword);
+    Task<BaseResponse> UpdateEmailAsync(string userId, string newEmail);
+    Task<(bool Success, string? Token, string? Message)> GenerateChangeEmailTokenAsync(
+    string userId,
+    string newEmail);
+
+    Task<BaseResponse> ConfirmEmailChangeAsync(
+        string userId,
+        string newEmail,
+        string token);
 }

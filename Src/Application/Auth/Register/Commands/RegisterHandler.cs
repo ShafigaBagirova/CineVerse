@@ -1,12 +1,9 @@
-﻿using Application.Auth.Login.Commands;
-using Application.Auth.Login.Dtos;
-using Application.Auth.Register.Dtos;
+﻿using Application.Auth.Register.Dtos;
+using Application.Common.Helpers;
 using Application.Common.Interfaces;
-using Application.Common.Responses;
 using Domain.Entities;
 using MediatR;
 using System.Security.Cryptography;
-using System.Text;
 
 namespace Application.Auth.Register.Commands;
 
@@ -59,7 +56,7 @@ public sealed class RegisterHandler
             userId = createdUserId;
 
             var code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
-            var codeHash = ComputeSha256(code);
+            var codeHash = VerificationCodeHasher.Hash(code);
 
             var existing = await _codeRepository.GetActiveByEmailAsync(req.Email, ct);
 
@@ -117,9 +114,4 @@ public sealed class RegisterHandler
         }
     }
 
-    private static string ComputeSha256(string input)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
-        return Convert.ToHexString(bytes);
-    }
 }

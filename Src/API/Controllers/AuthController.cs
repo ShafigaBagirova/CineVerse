@@ -1,4 +1,6 @@
-﻿using Application.Auth.Login.Commands;
+﻿using Application.Auth.Email.Commands;
+using Application.Auth.Email.Dtos;
+using Application.Auth.Login.Commands;
 using Application.Auth.Login.Dtos;
 using Application.Auth.Password.Commands;
 using Application.Auth.Password.Dtos;
@@ -152,5 +154,65 @@ public sealed class AuthController : ControllerBase
 
         return Ok(result);
     }
- 
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<ActionResult<BaseResponse>> ChangePassword(
+    [FromBody] ChangePasswordRequest request,
+    CancellationToken ct)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized();
+
+        var result = await _mediator.Send(
+            new ChangePasswordCommand(userId, request.CurrentPassword, request.NewPassword),
+            ct);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+    [HttpPost("update-email")]
+    [Authorize]
+    public async Task<ActionResult<BaseResponse>> UpdateEmail(
+        [FromBody] UpdateEmailRequest request,
+        CancellationToken ct)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized();
+
+        var result = await _mediator.Send(
+            new UpdateEmailCommand(userId, request.NewEmail),
+            ct);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    [HttpPost("confirm-update-email")]
+    [Authorize]
+    public async Task<ActionResult<BaseResponse>> ConfirmUpdateEmail(
+        [FromBody] ConfirmUpdateEmailRequest request,
+        CancellationToken ct)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized();
+
+        var result = await _mediator.Send(
+            new ConfirmUpdateEmailCommand(userId, request.NewEmail, request.Code),
+            ct);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
 }

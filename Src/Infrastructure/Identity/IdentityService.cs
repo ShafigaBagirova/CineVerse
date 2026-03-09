@@ -198,4 +198,109 @@ public sealed class IdentityService : IIdentityService
 
         return BaseResponse.Ok("Username updated successfully.");
     }
+    public async Task<BaseResponse> ChangePasswordAsync(
+    string userId,
+    string currentPassword,
+    string newPassword)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+
+        if (user is null)
+            return BaseResponse.Fail("User not found.");
+
+        var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+
+        if (!result.Succeeded)
+        {
+            var errors = result.Errors.Select(e => e.Description).ToList();
+            return BaseResponse.Fail(string.Join(", ", errors));
+        }
+
+        return BaseResponse.Ok("Password changed successfully.");
+    }
+    public async Task<BaseResponse> UpdateEmailAsync(string userId, string newEmail)
+    {
+        if (string.IsNullOrWhiteSpace(newEmail))
+            return BaseResponse.Fail("New email is required.");
+
+        var user = await _userManager.FindByIdAsync(userId);
+
+        if (user is null)
+            return BaseResponse.Fail("User not found.");
+
+        var existingUser = await _userManager.FindByEmailAsync(newEmail);
+        if (existingUser is not null && existingUser.Id != userId)
+            return BaseResponse.Fail("This email is already in use.");
+
+        user.Email = newEmail;
+        user.NormalizedEmail = _userManager.NormalizeEmail(newEmail);
+        user.EmailConfirmed = false;
+
+        var result = await _userManager.UpdateAsync(user);
+
+        if (!result.Succeeded)
+        {
+            var errors = result.Errors.Select(e => e.Description).ToList();
+            return BaseResponse.Fail(string.Join(", ", errors));
+        }
+
+        return BaseResponse.Ok("Email updated successfully. Please confirm your new email.");
+    }
+    public async Task<(bool Success, string? Token, string? Message)> GenerateChangeEmailTokenAsync(
+    string userId,
+    string newEmail)
+    {
+        if (string.IsNullOrWhiteSpace(newEmail))
+            return (false, null, "New email is required.");
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null)
+            return (false, null, "User not found.");
+
+        var existingUser = await _userManager.FindByEmailAsync(newEmail);
+        if (existingUser is not null && existingUser.Id != userId)
+            return (false, null, "This email is already in use.");
+
+        var token = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+
+        return (true, token, null);
+    }
+    public async Task<BaseResponse> ConfirmEmailChangeAsync(
+    string userId,
+    string newEmail,
+    string token)
+    {
+        if (string.IsNullOrWhiteSpace(newEmail))
+            return BaseResponse.Fail("New email is required.");
+
+        if (string.IsNullOrWhiteSpace(token))
+            return BaseResponse.Fail("Token is required.");
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null)
+            return BaseResponse.Fail("User not found.");
+
+        var decodedToken = WebUtility.UrlDecode(token);
+
+        var result = await _userManager.ChangeEmailAsync(user, newEmail, decodedToken);
+
+        if (!result.Succeeded)
+        {
+            var errors = result.Errors.Select(e => e.Description).ToList();
+            return BaseResponse.Fail(string.Join(", ", errors));
+        }
+
+        user.UserName ??= newEmail;
+        user.NormalizedEmail = _userManager.NormalizeEmail(newEmail);
+
+        var updateResult = await _userManager.UpdateAsync(user);
+
+        if (!updateResult.Succeeded)
+        {
+            var errors = updateResult.Errors.Select(e => e.Description).ToList();
+            return BaseResponse.Fail(string.Join(", ", errors));
+        }
+
+        return BaseResponse.Ok("Email changed successfully.");
+    }
 }
