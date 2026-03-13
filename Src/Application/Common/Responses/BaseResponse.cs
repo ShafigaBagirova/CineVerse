@@ -6,6 +6,8 @@ public class BaseResponse<T>
     public bool Success { get; set; }
     public T? Data { get; set; }
     public List<string>? Errors { get; set; }
+    public string? TraceId { get; set; }
+
 
     public static BaseResponse<T> Ok(T? data, string? message = "Success")
     {

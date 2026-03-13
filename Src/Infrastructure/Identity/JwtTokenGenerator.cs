@@ -1,6 +1,6 @@
 ﻿using Application.Auth.Login.Dtos;
-using Application.Auth.Options;
 using Application.Common.Interfaces;
+using Application.Common.Options;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;

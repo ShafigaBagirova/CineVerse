@@ -1,12 +1,12 @@
 ﻿using Application.Common.Responses;
 using FluentValidation;
+using System.Net;
 using System.Text.Json;
 
 namespace API.Middlewares;
 
 public class ExceptionHandlingMiddleware
 {
-
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
@@ -26,44 +26,79 @@ public class ExceptionHandlingMiddleware
         }
         catch (ValidationException ex)
         {
-            if (context.Response.HasStarted)
-                throw;
+            var requestPath = context.Request.Path.Value ?? string.Empty;
+            var method = context.Request.Method;
+            var traceId = context.TraceIdentifier;
+
+            var errorsSummary = string.Join(" | ",
+                ex.Errors.Select(e => $"{e.PropertyName}: {e.ErrorMessage}"));
 
             _logger.LogWarning(
                 ex,
-                "Validation failed. Path: {Path}",
-                context.Request.Path);
+                "Validation failed. Method: {Method}, RequestPath: {RequestPath}, TraceId: {TraceId}, Errors: {Errors}",
+                method,
+                requestPath,
+                traceId,
+                errorsSummary);
 
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            context.Response.ContentType = "application/json";
-
-            var errors = ex.Errors
-           .Select(e => e.ErrorMessage)
-           .Distinct()
-           .ToList();
-
-            var response = BaseResponse.Fail(
-                "Validation failed",
-                errors);
-
-            await context.Response.WriteAsJsonAsync(response);
+            await WriteValidationResponseAsync(context, ex, traceId);
         }
         catch (Exception ex)
         {
-            if (context.Response.HasStarted)
-                throw;
+            var requestPath = context.Request.Path.Value ?? string.Empty;
+            var method = context.Request.Method;
+            var traceId = context.TraceIdentifier;
 
             _logger.LogError(
                 ex,
-                "Unhandled exception. Path: {Path}",
-                context.Request.Path);
+                "Unhandled exception. Method: {Method}, RequestPath: {RequestPath}, TraceId: {TraceId}, ExceptionType: {ExceptionType}",
+                method,
+                requestPath,
+                traceId,
+                ex.GetType().Name);
 
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            context.Response.ContentType = "application/json";
-
-            var response = BaseResponse.Fail("Server error");
-
-            await context.Response.WriteAsJsonAsync(response);
+            await WriteErrorResponseAsync(context, traceId);
         }
+    }
+
+    private static async Task WriteValidationResponseAsync(
+        HttpContext context,
+        ValidationException ex,
+        string traceId)
+    {
+        context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+        context.Response.ContentType = "application/json";
+
+        var errors = ex.Errors
+       .Select(e =>
+        $"{e.PropertyName}: {e.ErrorMessage}")
+        .ToList();
+        var body = new BaseResponse<object>
+        {
+            Success = false,
+            Message = "Validation failed.",
+            Errors = errors,
+            TraceId = traceId
+        };
+
+        await context.Response.WriteAsync(JsonSerializer.Serialize(body));
+    }
+
+    private static async Task WriteErrorResponseAsync(
+        HttpContext context,
+        string traceId)
+    {
+        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+        context.Response.ContentType = "application/json";
+
+        var body = new BaseResponse<object>
+        {
+            Success = false,
+            Message = "An unexpected error occurred.",
+            Errors = null,
+            TraceId = traceId
+        };
+
+        await context.Response.WriteAsync(JsonSerializer.Serialize(body));
     }
 }

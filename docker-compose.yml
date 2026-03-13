@@ -1,13 +1,13 @@
 services:
   mssql:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: cineverse-mssql
-    environment:
+     image: mcr.microsoft.com/mssql/server:2025-CU1-ubuntu-22.04
+     container_name: cineverse-mssql
+     environment:
       - ACCEPT_EULA=Y
       - MSSQL_SA_PASSWORD=Cineverse123!
-    ports:
+     ports:
       - "1435:1433"
-    volumes:
+     volumes:
       - mssql-data:/var/opt/mssql
 
   minio:
@@ -22,7 +22,21 @@ services:
       - MINIO_ROOT_PASSWORD=password
     volumes:
       - minio-data:/data
+   
+  seq:
+   image: datalust/seq:latest
+   container_name: seq
+   environment:
+    - ACCEPT_EULA=Y
+    - SEQ_FIRSTRUN_ADMINPASSWORD=SeqAdmin123!
+   ports:
+    - "5341:80"
+   volumes:
+    - seq_data:/data
+   restart: unless-stopped
+
 
 volumes:
   mssql-data:
   minio-data:
+  seq_data:

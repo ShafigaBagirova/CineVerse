@@ -1,8 +1,10 @@
-﻿using Application.Auth.Options;
+﻿using API.Middlewares;
+using Application.Common.Options;
 using Infrastructure.Identity;
 using Infrastructure.Persistence.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
+using Serilog;
 
 namespace API.Extensions;
 
@@ -19,13 +21,19 @@ public static class WebApplicationExtensions
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "CineVerse API v1");
             });
         }
+
         app.UseHttpsRedirection();
 
         app.UseRouting();
+       
+        app.UseSerilogRequestLogging();
 
         app.UseAuthentication();
         app.UseAuthorization();
+        
 
+        app.UseMiddleware<ExceptionHandlingMiddleware>();
+       
         app.MapControllers();
         return app;
     }
