@@ -1,28 +1,35 @@
-﻿using Application.Auth.Options;
-using Application.Common.Interfaces;
+﻿using Application.Common.Interfaces;
+using Application.Common.Options;
 using Domain.Entities;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
 using System.Security.Cryptography;
-using System.Text;
 
 namespace Application.Auth.Refresh.Commands;
 
 public sealed class CreateRefreshTokenCommandHandler(
     IRefreshTokenRepository refreshTokenRepository,
-    IOptions<JwtOptions> jwtOptions)
+    IOptions<JwtOptions> jwtOptions,
+    ILogger<CreateRefreshTokenCommandHandler> logger)
     : IRequestHandler<CreateRefreshTokenCommand, CreateRefreshTokenResponse>
 {
     private readonly JwtOptions _jwt = jwtOptions.Value;
 
     public async Task<CreateRefreshTokenResponse> Handle(CreateRefreshTokenCommand request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.UserId))
-            throw new InvalidOperationException("UserId cannot be empty.");
+        logger.LogInformation(
+            "Creating refresh token for UserId: {UserId}",
+            request.UserId);
 
-        var token = GenerateSecureHexToken(byteLength: 32); 
+        if (string.IsNullOrWhiteSpace(request.UserId))
+        {
+            logger.LogError("Refresh token creation failed. UserId is empty.");
+            throw new InvalidOperationException("UserId cannot be empty.");
+        }
+
+        var token = GenerateSecureHexToken(byteLength: 32);
+
         var expiresAtUtc = DateTime.UtcNow.AddMinutes(_jwt.RefreshExpirationMinutes);
 
         var entity = new RefreshToken
@@ -33,6 +40,11 @@ public sealed class CreateRefreshTokenCommandHandler(
         };
 
         await refreshTokenRepository.AddAsync(entity, ct);
+
+        logger.LogInformation(
+            "Refresh token created successfully. UserId: {UserId}, ExpiresAtUtc: {ExpiresAtUtc}",
+            request.UserId,
+            expiresAtUtc);
 
         return new CreateRefreshTokenResponse(token, expiresAtUtc);
     }

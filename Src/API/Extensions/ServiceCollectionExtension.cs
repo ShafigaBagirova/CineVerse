@@ -1,4 +1,4 @@
-﻿using Application.Auth.Options;
+﻿using Application.Common.Options;
 using Domain.Constants;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;

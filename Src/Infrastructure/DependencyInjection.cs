@@ -1,5 +1,5 @@
-﻿using Application.Auth.Options;
-using Application.Common.Interfaces;
+﻿using Application.Common.Interfaces;
+using Application.Common.Options;
 using Infrastructure.Email;
 using Infrastructure.FileStorage;
 using Infrastructure.Identity;
@@ -10,7 +10,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Minio;
+using Serilog;
 
 namespace Infrastructure;
 
@@ -78,6 +80,7 @@ public static class DependencyInjection
         services.AddScoped<IFileStorageService, MinioFileStorageService>();
         services.AddScoped<IFileStorageService, S3MinioFileStorageService>();
         services.AddScoped<IMoviePosterRepository, MoviePosterRepository>();
+
 
 
         return services;

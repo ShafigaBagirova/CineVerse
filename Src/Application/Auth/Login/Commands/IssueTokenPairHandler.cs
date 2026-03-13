@@ -1,21 +1,34 @@
 ﻿using Application.Auth.Login.Dtos;
 using Application.Auth.Refresh.Commands;
-using Application.Auth.Register.Commands;
 using Application.Common.Interfaces;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Application.Auth.Login.Commands;
 
 public sealed class IssueTokenPairHandler(
     IJwtTokenGenerator jwtTokenGenerator,
-    IMediator mediator
-) : IRequestHandler<IssueTokenPairCommand, TokenResponse>
+    IMediator mediator,
+    ILogger<IssueTokenPairHandler> logger)
+    : IRequestHandler<IssueTokenPairCommand, TokenResponse>
 {
     public async Task<TokenResponse> Handle(IssueTokenPairCommand request, CancellationToken ct)
     {
-        var (accessToken, expiresAtUtc) = jwtTokenGenerator.GenerateAccessToken(request.User,request.User.Roles);
+        logger.LogInformation(
+            "Issuing token pair for UserId: {UserId}",
+            request.User.UserId);
 
-        var newRt = await mediator.Send(new CreateRefreshTokenCommand(request.User.UserId), ct);
+        var (accessToken, expiresAtUtc) = jwtTokenGenerator.GenerateAccessToken(
+            request.User,
+            request.User.Roles);
+
+        var newRt = await mediator.Send(
+            new CreateRefreshTokenCommand(request.User.UserId), ct);
+
+        logger.LogInformation(
+            "Token pair issued successfully for UserId: {UserId}, AccessTokenExpiresAtUtc: {ExpiresAtUtc}",
+            request.User.UserId,
+            expiresAtUtc);
 
         return new TokenResponse
         {
