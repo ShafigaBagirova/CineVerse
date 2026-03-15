@@ -1,9 +1,10 @@
 ﻿using Domain.Enums;
 
-namespace Domain.Entities;
+namespace Application.Movies.Dtos;
 
-public class Movie: BaseAuditableEntity
+public sealed class UpdateMovieRequest
 {
+    public int Id { get; set; }
     public string Title { get; set; } = null!;
     public string Description { get; set; } = null!;
     public string? Country { get; set; }
@@ -13,12 +14,5 @@ public class Movie: BaseAuditableEntity
     public string? Director { get; set; }
     public int DurationMinutes { get; set; }
     public string? Language { get; set; }
-    public decimal? ImdbRating { get; set; }
-    public string Slug { get; set; } = null!;
     public MovieStatus Status { get; set; }
-    public long? TmdbId { get; set; }
-    public decimal? TmdbRating { get; set; }
-    public decimal? UserAverageRating { get; set; }
-    public int RatingCount { get; set; }
-    public ICollection<MoviePoster> MediaItems { get; set; } = new List<MoviePoster>();
 }

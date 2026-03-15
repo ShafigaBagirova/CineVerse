@@ -5,6 +5,8 @@ using Infrastructure.FileStorage;
 using Infrastructure.Identity;
 using Infrastructure.Persistence.Context;
 using Infrastructure.Persistence.Repositories;
+using Infrastructure.Redis;
+using Infrastructure.Tmdb;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +15,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Minio;
 using Serilog;
+using StackExchange.Redis;
+using System.Net.Http.Headers;
 
 namespace Infrastructure;
 
@@ -80,8 +84,29 @@ public static class DependencyInjection
         services.AddScoped<IFileStorageService, MinioFileStorageService>();
         services.AddScoped<IFileStorageService, S3MinioFileStorageService>();
         services.AddScoped<IMoviePosterRepository, MoviePosterRepository>();
+        services.AddScoped<IMovieRepository, MovieRepository>();
+        services.Configure<RedisOptions>(config.GetSection("Redis"));
 
+        var redisOptions = config.GetSection("Redis").Get<RedisOptions>();
 
+        services.AddSingleton<IConnectionMultiplexer>(_ =>
+            ConnectionMultiplexer.Connect(redisOptions!.ConnectionString));
+
+        services.AddScoped<ICacheService, RedisCacheService>();
+        services.Configure<TmdbOptions>(
+            config.GetSection(TmdbOptions.SectionName));
+
+        services.AddHttpClient<IMovieProvider, TmdbMovieProvider>((sp, client) =>
+        {
+            var options = sp.GetRequiredService<
+                Microsoft.Extensions.Options.IOptions<TmdbOptions>>().Value;
+
+            client.BaseAddress = new Uri(options.BaseUrl);
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", options.ReadAccessToken);
+            client.DefaultRequestHeaders.Accept.Add(
+                new MediaTypeWithQualityHeaderValue("application/json"));
+        });
 
         return services;
     }

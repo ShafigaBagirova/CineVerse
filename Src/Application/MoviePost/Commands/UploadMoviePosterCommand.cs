@@ -1,7 +1,7 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Http;
 
-namespace Application.Movies.Commands;
+namespace Application.MoviePost.Commands;
 
 public sealed record UploadMoviePosterCommand(
     int MovieId,
