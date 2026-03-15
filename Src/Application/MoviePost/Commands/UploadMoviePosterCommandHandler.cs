@@ -2,7 +2,7 @@
 using Domain.Entities;
 using MediatR;
 
-namespace Application.Movies.Commands;
+namespace Application.MoviePost.Commands;
 
 public sealed class UploadMoviePosterCommandHandler
     : IRequestHandler<UploadMoviePosterCommand, int>

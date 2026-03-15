@@ -1,10 +1,13 @@
 ﻿using Application.Common.Options;
 using Domain.Constants;
+using Infrastructure.Tmdb.Mapping;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Security.Claims;
 using System.Text;
+using AutoMapper;
+using Application.Common.Mappings;
 
 namespace API.Extensions;
 
@@ -16,7 +19,6 @@ public static class ServiceCollectionExtensions
 
         services.AddSwaggerGen(options =>
         {
-            // ...
 
             options.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
             {
@@ -84,7 +86,9 @@ public static class ServiceCollectionExtensions
             // Owner policies - hələlik placeholder (sonra handler yazacağıq)
             // options.AddPolicy(Policies.ReviewOwnerOrAdmin, p => p.Requirements.Add(new ReviewOwnerOrAdminRequirement()));
         });
-  
+        services.AddAutoMapper(cfg => { }, AppDomain.CurrentDomain.GetAssemblies());
+
+
         return services;
     }
 }

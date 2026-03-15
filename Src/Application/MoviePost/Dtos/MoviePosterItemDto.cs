@@ -1,4 +1,4 @@
-﻿namespace Application.Movies.Dtos;
+﻿namespace Application.MoviePost.Dtos;
 
 public class MoviePosterItemDto
 {
