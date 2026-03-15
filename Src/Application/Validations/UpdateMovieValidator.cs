@@ -7,15 +7,11 @@ public sealed class UpdateMovieRequestValidator : AbstractValidator<UpdateMovieR
 {
     public UpdateMovieRequestValidator()
     {
-        RuleFor(x => x.Id)
-            .GreaterThan(0);
 
         RuleFor(x => x.Title)
-            .NotEmpty()
             .MaximumLength(200);
 
         RuleFor(x => x.Description)
-            .NotEmpty()
             .MaximumLength(4000);
 
         RuleFor(x => x.Country)
@@ -40,12 +36,12 @@ public sealed class UpdateMovieRequestValidator : AbstractValidator<UpdateMovieR
 
         RuleFor(x => x.DurationMinutes)
             .GreaterThan(0)
-            .LessThanOrEqualTo(600);
-
+            .LessThanOrEqualTo(600)
+            .WithMessage("Duration must be between 1 and 600 minutes.");
 
         RuleFor(x => x.Status)
-            .IsInEnum();
-
+            .IsInEnum()
+            .WithMessage("Invalid movie status.");
 
         RuleFor(x => x.ReleaseDate)
             .LessThanOrEqualTo(DateOnly.FromDateTime(DateTime.UtcNow.AddYears(5)))

@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence.Repositories;
 
-public class MoviePosterRepository : IMoviePosterRepository
+public class MoviePosterRepository :GenericRepository<MoviePoster,int>, IMoviePosterRepository
 {
     private readonly CineVerseDbContext _context;
 
-    public MoviePosterRepository(CineVerseDbContext context)
+    public MoviePosterRepository(CineVerseDbContext context):base(context)
     {
         _context = context;
     }
@@ -22,15 +22,6 @@ public class MoviePosterRepository : IMoviePosterRepository
             .ToListAsync(ct);
     }
 
-    public async Task AddAsync(MoviePoster media, CancellationToken ct)
-    {
-        await _context.MoviePosters.AddAsync(media, ct);
-    }
 
-    public Task DeleteAsync(MoviePoster media, CancellationToken ct)
-    {
-        _context.MoviePosters.Remove(media);
-        return Task.CompletedTask;
-    }
 }
 
