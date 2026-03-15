@@ -6,20 +6,15 @@ using Microsoft.EntityFrameworkCore;
 namespace Infrastructure.Persistence.Repositories;
 
 public sealed class EmailVerificationCodeRepository
-    : IEmailVerificationCodeRepository
+    : GenericRepository<EmailVerificationCode,Guid>,IEmailVerificationCodeRepository
 {
     private readonly CineVerseDbContext _context;
 
-    public EmailVerificationCodeRepository(CineVerseDbContext context)
+    public EmailVerificationCodeRepository(CineVerseDbContext context): base(context)
     {
         _context = context;
     }
 
-    public async Task AddAsync(EmailVerificationCode entity, CancellationToken ct)
-    {
-        await _context.EmailVerificationCodes.AddAsync(entity, ct);
-        await _context.SaveChangesAsync(ct);
-    }
 
     public async Task<EmailVerificationCode?> GetActiveByEmailAsync(string email, CancellationToken ct)
     {
@@ -39,9 +34,5 @@ public sealed class EmailVerificationCodeRepository
         await _context.SaveChangesAsync(ct);
         return true;
     }
-    public async Task UpdateAsync(EmailVerificationCode entity, CancellationToken ct)
-    {
-        _context.EmailVerificationCodes.Update(entity);
-        await _context.SaveChangesAsync(ct);
-    }
+
 }

@@ -2,9 +2,8 @@
 
 namespace Domain.Entities;
 
-public class EmailVerificationCode
+public class EmailVerificationCode:BaseEntity<Guid>
 {
-    public Guid Id { get; set; }
     public string UserId { get; set; } = default!;
     public string Email { get; set; } = default!;
     public string CodeHash { get; set; } = default!;

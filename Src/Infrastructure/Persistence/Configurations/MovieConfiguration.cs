@@ -32,8 +32,10 @@ public class MovieConfiguration : IEntityTypeConfiguration<Movie>
         builder.Property(x => x.Director)
             .HasMaxLength(150);
 
-        builder.Property(x => x.DurationMinutes)
-            .IsRequired();
+        builder.ToTable("Movies", t =>
+        {
+            t.HasCheckConstraint("CK_Movies_DurationMinutes", "[DurationMinutes] > 0");
+        });
 
         builder.Property(x => x.Language)
             .HasMaxLength(50);
@@ -50,12 +52,25 @@ public class MovieConfiguration : IEntityTypeConfiguration<Movie>
             .HasConversion<string>()
             .HasMaxLength(30);
 
+        builder.Property(x => x.TmdbRating)
+       .HasPrecision(3, 1);
+
+        builder.Property(x => x.RatingCount)
+       .IsRequired()
+       .HasDefaultValue(0);
+
+        builder.Property(x => x.UserAverageRating)
+            .HasPrecision(3, 1);
+
         builder.Property(x => x.TmdbId);
 
         builder.HasIndex(x => x.Title);
 
         builder.HasIndex(x => x.Slug)
             .IsUnique();
+       
+        builder.Property(x => x.ReleaseDate)
+       .HasColumnType("date");
 
         builder.HasIndex(x => x.ReleaseDate);
 
@@ -64,6 +79,7 @@ public class MovieConfiguration : IEntityTypeConfiguration<Movie>
             .HasFilter("[TmdbId] IS NOT NULL");
 
         builder.HasIndex(x => x.Status);
+        builder.HasIndex(x=>x.Language);
 
     }
 }
