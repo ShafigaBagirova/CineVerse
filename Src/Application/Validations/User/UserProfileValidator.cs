@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Application.Validations;
+namespace Application.Validations.User;
 public sealed class UserProfileValidator : AbstractValidator<UserProfileDto>
 {
     public UserProfileValidator()

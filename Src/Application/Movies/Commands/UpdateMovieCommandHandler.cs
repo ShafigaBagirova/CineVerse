@@ -3,28 +3,38 @@ using Application.Common.Interfaces;
 using Application.Common.Responses;
 using AutoMapper;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Application.Movies.Commands;
 
-public sealed class UpdateMovieCommandHandler:IRequestHandler<UpdateMovieCommand,BaseResponse>
+public sealed class UpdateMovieCommandHandler : IRequestHandler<UpdateMovieCommand, BaseResponse>
 {
     private readonly IMovieRepository _movieRepository;
     private readonly IMapper _mapper;
+    private readonly ILogger<UpdateMovieCommandHandler> _logger;
 
-    public UpdateMovieCommandHandler(IMovieRepository movieRepository, IMapper mapper)
+    public UpdateMovieCommandHandler(
+        IMovieRepository movieRepository,
+        IMapper mapper,
+        ILogger<UpdateMovieCommandHandler> logger)
     {
         _movieRepository = movieRepository;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<BaseResponse> Handle(UpdateMovieCommand request, CancellationToken cancellationToken)
     {
+        _logger.LogInformation("UpdateMovieCommand started for MovieId {MovieId}", request.Id);
+
         var dto = request.UpdateMovieRequest;
 
         var movie = await _movieRepository.GetByIdAsync(request.Id, cancellationToken);
 
         if (movie is null)
         {
+            _logger.LogWarning("UpdateMovieCommand failed. Movie with Id {MovieId} not found.", request.Id);
+
             return new BaseResponse
             {
                 Success = false,
@@ -42,6 +52,11 @@ public sealed class UpdateMovieCommandHandler:IRequestHandler<UpdateMovieCommand
             if (duplicateExists &&
                 !(movie.Title == normalizedTitle && movie.ReleaseDate == (dto.ReleaseDate ?? movie.ReleaseDate)))
             {
+                _logger.LogWarning(
+                    "UpdateMovieCommand failed. Movie with Title {Title} and ReleaseDate {ReleaseDate} already exists.",
+                    normalizedTitle,
+                    dto.ReleaseDate ?? movie.ReleaseDate);
+
                 return new BaseResponse
                 {
                     Success = false,
@@ -82,6 +97,8 @@ public sealed class UpdateMovieCommandHandler:IRequestHandler<UpdateMovieCommand
 
         await _movieRepository.UpdateAsync(movie, cancellationToken);
         await _movieRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Movie with Id {MovieId} updated successfully.", request.Id);
 
         return new BaseResponse
         {

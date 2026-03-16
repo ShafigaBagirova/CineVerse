@@ -5,6 +5,7 @@ public static class Policies
     public const string Authenticated = "Authenticated";
 
     public const string AdminOnly = "AdminOnly";
+    public const string ManageMovies = "ManageMovies";
 
     public const string VipOnly = "VipOnly";
 

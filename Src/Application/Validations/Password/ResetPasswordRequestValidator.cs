@@ -1,7 +1,7 @@
 ﻿using Application.Auth.Password.Dtos;
 using FluentValidation;
 
-namespace Application.Validations;
+namespace Application.Validations.Password;
 
 public sealed class ResetPasswordRequestValidator : AbstractValidator<ResetPasswordRequest>
 {

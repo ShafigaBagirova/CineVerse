@@ -1,7 +1,7 @@
 ﻿using Application.Auth.Email.Dtos;
 using FluentValidation;
 
-namespace Application.Validations;
+namespace Application.Validations.Email;
 public sealed class ConfirmEmailChangeRequestValidator : AbstractValidator<ConfirmUpdateEmailRequest>
 {
     public ConfirmEmailChangeRequestValidator()

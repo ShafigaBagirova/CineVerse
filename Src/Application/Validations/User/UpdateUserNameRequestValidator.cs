@@ -1,7 +1,7 @@
 ﻿using Application.Auth.UserName.Dtos;
 using FluentValidation;
 
-namespace Application.Validations;
+namespace Application.Validations.User;
 
 public sealed class UpdateUserNameRequestValidator : AbstractValidator<UpdateUserNameRequest>
 {
