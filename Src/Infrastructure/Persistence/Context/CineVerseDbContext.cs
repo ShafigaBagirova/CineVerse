@@ -20,4 +20,5 @@ public class CineVerseDbContext : IdentityDbContext<CineVerseUser>
     public DbSet<EmailVerificationCode> EmailVerificationCodes { get; set; }
     public DbSet<Movie> Movies { get; set; }
     public DbSet<MoviePoster> MoviePosters { get; set; }
+    public DbSet<MovieVideo> MovieVideos { get; set; }
 }

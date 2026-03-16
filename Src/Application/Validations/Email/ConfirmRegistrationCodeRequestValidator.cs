@@ -1,7 +1,7 @@
 ﻿using Application.Auth.Register.Dtos;
 using FluentValidation;
 
-namespace Application.Validations;
+namespace Application.Validations.Email;
 
 public sealed class ConfirmRegistrationCodeRequestValidator : AbstractValidator<ConfirmRegistrationCodeRequest>
 {

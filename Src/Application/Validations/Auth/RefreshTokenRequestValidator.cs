@@ -1,7 +1,7 @@
 ﻿using Application.Auth.Refresh.Dtos;
 using FluentValidation;
 
-namespace Application.Validations;
+namespace Application.Validations.Auth;
 
 public sealed class RefreshTokenRequestValidator : AbstractValidator<RefreshTokenRequest>
 {

@@ -72,6 +72,7 @@ public static class ServiceCollectionExtensions
             options.AddPolicy(Policies.Authenticated, p => p.RequireAuthenticatedUser());
 
             options.AddPolicy(Policies.AdminOnly, p => p.RequireRole(RoleNames.Admin));
+            options.AddPolicy(Policies.ManageMovies, p => p.RequireRole(RoleNames.Admin));
             options.AddPolicy(Policies.VipOnly, p => p.RequireRole(RoleNames.Vip));
 
             options.AddPolicy(Policies.ManageCinemas, p => p.RequireRole(RoleNames.Admin));

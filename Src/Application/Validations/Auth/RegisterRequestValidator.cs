@@ -3,7 +3,7 @@ using Application.Common.Interfaces;
 using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 
-namespace Application.Validations;
+namespace Application.Validations.Auth;
 
 public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
 {

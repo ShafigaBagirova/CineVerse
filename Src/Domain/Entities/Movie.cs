@@ -21,4 +21,5 @@ public class Movie: BaseAuditableEntity
     public decimal? UserAverageRating { get; set; }
     public int RatingCount { get; set; }
     public ICollection<MoviePoster> MediaItems { get; set; } = new List<MoviePoster>();
+    public ICollection<MovieVideo> Videos { get; set; } = new List<MovieVideo>();
 }
