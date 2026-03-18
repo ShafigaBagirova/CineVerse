@@ -43,6 +43,21 @@ public class ExceptionHandlingMiddleware
 
             await WriteValidationResponseAsync(context, ex, traceId);
         }
+        catch (KeyNotFoundException ex)
+        {
+            var requestPath = context.Request.Path.Value ?? string.Empty;
+            var method = context.Request.Method;
+            var traceId = context.TraceIdentifier;
+
+            _logger.LogWarning(
+                ex,
+                "Resource not found. Method: {Method}, RequestPath: {RequestPath}, TraceId: {TraceId}",
+                method,
+                requestPath,
+                traceId);
+
+            await WriteNotFoundResponseAsync(context, ex.Message, traceId);
+        }
         catch (Exception ex)
         {
             var requestPath = context.Request.Path.Value ?? string.Empty;
@@ -83,7 +98,24 @@ public class ExceptionHandlingMiddleware
 
         await context.Response.WriteAsync(JsonSerializer.Serialize(body));
     }
+    private static async Task WriteNotFoundResponseAsync(
+    HttpContext context,
+    string message,
+    string traceId)
+    {
+        context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+        context.Response.ContentType = "application/json";
 
+        var body = new BaseResponse<object>
+        {
+            Success = false,
+            Message = message,
+            Errors = null,
+            TraceId = traceId
+        };
+
+        await context.Response.WriteAsync(JsonSerializer.Serialize(body));
+    }
     private static async Task WriteErrorResponseAsync(
         HttpContext context,
         string traceId)

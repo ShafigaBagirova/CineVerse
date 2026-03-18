@@ -11,7 +11,7 @@ public class Movie: BaseAuditableEntity
     public string? Tagline { get; set; }
     public DateOnly? ReleaseDate { get; set; }
     public string? Director { get; set; }
-    public int DurationMinutes { get; set; }
+    public int? DurationMinutes { get; set; }
     public string? Language { get; set; }
     public decimal? ImdbRating { get; set; }
     public string Slug { get; set; } = null!;
@@ -20,6 +20,8 @@ public class Movie: BaseAuditableEntity
     public decimal? TmdbRating { get; set; }
     public decimal? UserAverageRating { get; set; }
     public int RatingCount { get; set; }
-    public ICollection<MoviePoster> MediaItems { get; set; } = new List<MoviePoster>();
+    public string? PosterPath { get; set; }
+    public string? BackdropPath { get; set; }
     public ICollection<MovieVideo> Videos { get; set; } = new List<MovieVideo>();
+    public ICollection<MovieRating> MovieRatings { get; set; } = new List<MovieRating>();
 }

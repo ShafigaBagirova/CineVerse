@@ -7,17 +7,17 @@ using Microsoft.Extensions.Logging;
 
 namespace Application.Movies.Queries;
 
-public sealed class SearchMoviesQueryHandler
-    : IRequestHandler<SearchMoviesQuery, PaginatedResponse<GetAllMoviesResponse>>
+public sealed class GetMoviesByTmdbRatingRangeQueryHandler
+    : IRequestHandler<GetMoviesByTmdbRatingRangeQuery, PaginatedResponse<GetAllMoviesResponse>>
 {
     private readonly IMovieRepository _movieRepository;
     private readonly IMapper _mapper;
-    private readonly ILogger<SearchMoviesQueryHandler> _logger;
+    private readonly ILogger<GetMoviesByTmdbRatingRangeQueryHandler> _logger;
 
-    public SearchMoviesQueryHandler(
+    public GetMoviesByTmdbRatingRangeQueryHandler(
         IMovieRepository movieRepository,
         IMapper mapper,
-        ILogger<SearchMoviesQueryHandler> logger)
+        ILogger<GetMoviesByTmdbRatingRangeQueryHandler> logger)
     {
         _movieRepository = movieRepository;
         _mapper = mapper;
@@ -25,23 +25,27 @@ public sealed class SearchMoviesQueryHandler
     }
 
     public async Task<PaginatedResponse<GetAllMoviesResponse>> Handle(
-        SearchMoviesQuery request,
+        GetMoviesByTmdbRatingRangeQuery request,
         CancellationToken cancellationToken)
     {
-        var searchTerm = request.SearchTerm.Trim();
         var pageNumber = request.PageNumber <= 0 ? 1 : request.PageNumber;
         var pageSize = request.PageSize <= 0 ? 10 : request.PageSize > 50 ? 50 : request.PageSize;
 
         _logger.LogInformation(
-            "SearchMoviesQuery started. SearchTerm: {SearchTerm}, PageNumber: {PageNumber}, PageSize: {PageSize}",
-            searchTerm,
+            "GetMoviesByTmdbRatingRangeQuery started. MinRating: {MinRating}, MaxRating: {MaxRating}, PageNumber: {PageNumber}, PageSize: {PageSize}",
+            request.MinRating,
+            request.MaxRating,
             pageNumber,
             pageSize);
 
-        var totalCount = await _movieRepository.CountSearchAsync(searchTerm, cancellationToken);
+        var totalCount = await _movieRepository.CountByTmdbRatingRangeAsync(
+            request.MinRating,
+            request.MaxRating,
+            cancellationToken);
 
-        var movies = await _movieRepository.SearchPagedAsync(
-            searchTerm,
+        var movies = await _movieRepository.GetByTmdbRatingRangePagedAsync(
+            request.MinRating,
+            request.MaxRating,
             pageNumber,
             pageSize,
             cancellationToken);
@@ -49,8 +53,7 @@ public sealed class SearchMoviesQueryHandler
         var items = _mapper.Map<List<GetAllMoviesResponse>>(movies);
 
         _logger.LogInformation(
-            "SearchMoviesQuery completed. SearchTerm: {SearchTerm}, Returned: {Count}, TotalCount: {TotalCount}",
-            searchTerm,
+            "GetMoviesByTmdbRatingRangeQuery completed successfully. Returned {Count} items. TotalCount: {TotalCount}",
             items.Count,
             totalCount);
 
@@ -63,3 +66,4 @@ public sealed class SearchMoviesQueryHandler
         };
     }
 }
+    

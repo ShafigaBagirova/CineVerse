@@ -1,4 +1,6 @@
 ﻿using Application.Common.Responses;
+using Application.MovieRatings.Commands;
+using Application.MovieRatings.Dtos;
 using Application.Movies.Commands;
 using Application.Movies.Dtos;
 using Application.Movies.Queries;
@@ -177,5 +179,32 @@ public class MovieController : ControllerBase
         var response = await _mediator.Send(query, cancellationToken);
 
         return Ok(response);
+    }
+    [HttpGet("tmdb-rating-range")]
+    [AllowAnonymous]
+    public async Task<ActionResult<PaginatedResponse<GetAllMoviesResponse>>> GetMoviesByTmdbRatingRange(
+    [FromQuery] decimal minRating,
+    [FromQuery] decimal maxRating,
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10,
+    CancellationToken cancellationToken = default)
+    {
+        var query = new GetMoviesByTmdbRatingRangeQuery(minRating, maxRating, pageNumber, pageSize);
+
+        var response = await _mediator.Send(query, cancellationToken);
+
+        return Ok(response);
+    }
+    [Authorize]
+    [HttpPost("{movieId:int}/ratings")]
+    public async Task<ActionResult<BaseResponse>> CreateRating(
+    int movieId,
+    CreateMovieRatingRequest request)
+    {
+        var command = new CreateMovieRatingCommand(movieId, request);
+
+        var response = await _mediator.Send(command);
+
+        return response.Success ? Ok(response) : BadRequest(response);
     }
 }

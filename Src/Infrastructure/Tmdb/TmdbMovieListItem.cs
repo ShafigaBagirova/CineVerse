@@ -21,5 +21,10 @@ public sealed class TmdbMovieListItem
 
     [JsonPropertyName("vote_average")]
     public decimal? VoteAverage { get; set; }
+    [JsonPropertyName("poster_path")]
+    public string? PosterPath { get; set; }
+
+    [JsonPropertyName("backdrop_path")]
+    public string? BackdropPath { get; set; }
 }
 

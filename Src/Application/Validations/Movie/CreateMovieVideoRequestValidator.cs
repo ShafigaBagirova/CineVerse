@@ -1,4 +1,4 @@
-﻿using Application.MovieVideo.Dtos;
+﻿using Application.MovieVideos.Dtos;
 using FluentValidation;
 
 namespace Application.Validations.Movie;
