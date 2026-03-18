@@ -43,14 +43,13 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
         return await _context.Movies
             .FirstOrDefaultAsync(x => x.Slug == slug, cancellationToken);
     }
-    public async Task<List<Movie>> GetPagedWithMediaAsync(
+    public async Task<List<Movie>> GetPagedAsync(
         int pageNumber,
         int pageSize,
         MovieSortBy sortBy,
         CancellationToken cancellationToken = default)
     {
         var query = _context.Movies
-            .Include(x => x.MediaItems)
             .AsQueryable();
 
         switch (sortBy)
@@ -78,10 +77,9 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
     {
         return await _context.Movies.CountAsync(cancellationToken);
     }
-    public async Task<Movie?> GetByIdWithMediaAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<Movie?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         return await _context.Movies
-            .Include(x => x.MediaItems)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
     public async Task<int> CountByStatusAsync(MovieStatus status, CancellationToken cancellationToken = default)
@@ -101,24 +99,22 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
                 (x.Tagline != null && x.Tagline.ToLower().Contains(searchTerm)),
                 cancellationToken);
     }
-    public async Task<List<Movie>> GetByStatusPagedWithMediaAsync( MovieStatus status,int pageNumber, int pageSize,
+    public async Task<List<Movie>> GetByStatusPagedAsync( MovieStatus status,int pageNumber, int pageSize,
     CancellationToken cancellationToken = default)
     {
         return await _context.Movies
-            .Include(x => x.MediaItems)
             .Where(x => x.Status == status)
             .OrderByDescending(x => x.Id)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
     }
-    public async Task<List<Movie>> SearchPagedWithMediaAsync( string searchTerm,int pageNumber, int pageSize,
+    public async Task<List<Movie>> SearchPagedAsync( string searchTerm,int pageNumber, int pageSize,
     CancellationToken cancellationToken = default)
     {
         searchTerm = searchTerm.ToLower();
 
         return await _context.Movies
-            .Include(x => x.MediaItems)
             .Where(x =>
            x.Title.ToLower().Contains(searchTerm) ||
            x.Description.ToLower().Contains(searchTerm) ||
@@ -129,12 +125,7 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
             .Take(pageSize)
             .ToListAsync(cancellationToken);
     }
-    public async Task<Movie?> GetBySlugWithMediaAsync(string slug, CancellationToken cancellationToken = default)
-    {
-        return await _context.Movies
-            .Include(x => x.MediaItems)
-            .FirstOrDefaultAsync(x => x.Slug == slug, cancellationToken);
-    }
+
     public async Task<int> CountByLanguageAsync(string language, CancellationToken cancellationToken = default)
     {
         language = language.Trim().ToLower();
@@ -143,13 +134,12 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
             .CountAsync(x => x.Language != null && x.Language.ToLower() == language, cancellationToken);
     }
 
-    public async Task<List<Movie>> GetByLanguagePagedWithMediaAsync(string language, int pageNumber,int pageSize,
+    public async Task<List<Movie>> GetByLanguagePagedAsync(string language, int pageNumber,int pageSize,
         CancellationToken cancellationToken = default)
     {
         language = language.Trim().ToLower();
 
         return await _context.Movies
-            .Include(x => x.MediaItems)
             .Where(x => x.Language != null && x.Language.ToLower() == language)
             .OrderByDescending(x => x.Id)
             .Skip((pageNumber - 1) * pageSize)
@@ -162,14 +152,13 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
             .CountAsync(x => x.ReleaseDate.HasValue && x.ReleaseDate.Value.Year == year, cancellationToken);
     }
 
-    public async Task<List<Movie>> GetByYearPagedWithMediaAsync(
+    public async Task<List<Movie>> GetByYearPagedAsync(
         int year,
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken = default)
     {
         return await _context.Movies
-            .Include(x => x.MediaItems)
             .Where(x => x.ReleaseDate.HasValue && x.ReleaseDate.Value.Year == year)
             .OrderByDescending(x => x.ReleaseDate)
             .Skip((pageNumber - 1) * pageSize)
@@ -189,7 +178,7 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
                 cancellationToken);
     }
 
-    public async Task<List<Movie>> GetByUserRatingRangePagedWithMediaAsync(
+    public async Task<List<Movie>> GetByUserRatingRangePagedAsync(
         decimal minRating,
         decimal maxRating,
         int pageNumber,
@@ -197,12 +186,41 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
         CancellationToken cancellationToken = default)
     {
         return await _context.Movies
-            .Include(x => x.MediaItems)
             .Where(x =>
                 x.UserAverageRating.HasValue &&
                 x.UserAverageRating.Value >= minRating &&
                 x.UserAverageRating.Value <= maxRating)
             .OrderByDescending(x => x.UserAverageRating)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+    }
+    public async Task<int> CountByTmdbRatingRangeAsync(
+    decimal minRating,
+    decimal maxRating,
+    CancellationToken cancellationToken = default)
+    {
+        return await _context.Movies
+            .CountAsync(x =>
+                x.TmdbRating.HasValue &&
+                x.TmdbRating.Value >= minRating &&
+                x.TmdbRating.Value <= maxRating,
+                cancellationToken);
+    }
+
+    public async Task<List<Movie>> GetByTmdbRatingRangePagedAsync(
+        decimal minRating,
+        decimal maxRating,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Movies
+            .Where(x =>
+                x.TmdbRating.HasValue &&
+                x.TmdbRating.Value >= minRating &&
+                x.TmdbRating.Value <= maxRating)
+            .OrderByDescending(x => x.TmdbRating)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);

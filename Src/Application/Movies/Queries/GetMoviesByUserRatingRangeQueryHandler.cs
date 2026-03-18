@@ -43,7 +43,7 @@ public sealed class GetMoviesByUserRatingRangeQueryHandler
             request.MaxRating,
             cancellationToken);
 
-        var movies = await _movieRepository.GetByUserRatingRangePagedWithMediaAsync(
+        var movies = await _movieRepository.GetByUserRatingRangePagedAsync(
             request.MinRating,
             request.MaxRating,
             pageNumber,

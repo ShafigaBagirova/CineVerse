@@ -57,7 +57,6 @@ public sealed class SyncMoviesFromTmdbCommandHandler
                     cancellationToken);
 
                 movie.RatingCount = 0;
-                movie.MediaItems = new List<MoviePoster>();
 
                 await _movieRepository.AddAsync(movie, cancellationToken);
                 await _movieRepository.SaveChangesAsync(cancellationToken);

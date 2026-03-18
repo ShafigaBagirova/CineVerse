@@ -16,5 +16,7 @@ public sealed class ExternalMovieDto
     public string? Language { get; set; }
     public string Slug { get; set; } = null!;
     public MovieStatus Status { get; set; }
-    public decimal? TmdbRating { get; set; } 
+    public decimal? TmdbRating { get; set; }
+    public string? PosterPath { get; set; }
+    public string? BackdropPath { get; set; }
 }

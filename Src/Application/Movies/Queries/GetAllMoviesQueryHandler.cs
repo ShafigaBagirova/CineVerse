@@ -57,7 +57,7 @@ public sealed class GetAllMoviesQueryHandler
         _logger.LogInformation("GetAllMoviesQuery cache miss for key {CacheKey}", cacheKey);
 
         var totalCount = await _movieRepository.CountAsync(cancellationToken);
-        var movies = await _movieRepository.GetPagedWithMediaAsync(pageNumber, pageSize, request.SortBy, cancellationToken);
+        var movies = await _movieRepository.GetPagedAsync(pageNumber, pageSize, request.SortBy, cancellationToken);
 
         var items = _mapper.Map<List<GetAllMoviesResponse>>(movies);
 

@@ -44,7 +44,7 @@ public sealed class GetMovieByIdQueryHandler
 
         _logger.LogInformation("GetMovieByIdQuery cache miss for MovieId {MovieId}", request.Id);
 
-        var movie = await _movieRepository.GetByIdWithMediaAsync(request.Id, cancellationToken);
+        var movie = await _movieRepository.GetByIdAsync(request.Id, cancellationToken);
 
         if (movie is null)
         {

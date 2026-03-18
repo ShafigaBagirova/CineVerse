@@ -25,6 +25,12 @@ public sealed class TmdbMappingProfile : Profile
             .ForMember(dest => dest.TmdbRating,
                 opt => opt.MapFrom(src => src.VoteAverage))
 
+             .ForMember(dest => dest.PosterPath,
+             opt => opt.MapFrom(src => src.PosterPath))
+
+           .ForMember(dest => dest.BackdropPath,
+             opt => opt.MapFrom(src => src.BackdropPath))
+
             .ForMember(dest => dest.Slug,
                 opt => opt.MapFrom(src => SlugHelper.Generate(src.Title)))
 

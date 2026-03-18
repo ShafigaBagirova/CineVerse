@@ -55,7 +55,7 @@ public sealed class GetMoviesByYearQueryHandler
 
         var totalCount = await _movieRepository.CountByYearAsync(request.Year, cancellationToken);
 
-        var movies = await _movieRepository.GetByYearPagedWithMediaAsync(
+        var movies = await _movieRepository.GetByYearPagedAsync(
             request.Year,
             pageNumber,
             pageSize,

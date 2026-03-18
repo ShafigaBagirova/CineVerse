@@ -55,7 +55,7 @@ public sealed class GetMoviesByStatusQueryHandler
 
         var totalCount = await _movieRepository.CountByStatusAsync(request.Status, cancellationToken);
 
-        var movies = await _movieRepository.GetByStatusPagedWithMediaAsync(
+        var movies = await _movieRepository.GetByStatusPagedAsync(
             request.Status,
             pageNumber,
             pageSize,

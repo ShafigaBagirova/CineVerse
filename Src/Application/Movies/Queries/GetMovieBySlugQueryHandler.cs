@@ -46,7 +46,7 @@ public sealed class GetMovieBySlugQueryHandler
 
         _logger.LogInformation("GetMovieBySlugQuery cache miss for Slug {Slug}", slug);
 
-        var movie = await _movieRepository.GetBySlugWithMediaAsync(slug, cancellationToken);
+        var movie = await _movieRepository.GetBySlugAsync(slug, cancellationToken);
 
         if (movie is null)
         {

@@ -54,7 +54,7 @@ public sealed class GetMoviesByLanguageQueryHandler
 
         var totalCount = await _movieRepository.CountByLanguageAsync(language, cancellationToken);
 
-        var movies = await _movieRepository.GetByLanguagePagedWithMediaAsync(
+        var movies = await _movieRepository.GetByLanguagePagedAsync(
             language,
             pageNumber,
             pageSize,

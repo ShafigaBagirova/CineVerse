@@ -83,8 +83,8 @@ public static class DependencyInjection
 
         services.AddScoped<IFileStorageService, MinioFileStorageService>();
         services.AddScoped<IFileStorageService, S3MinioFileStorageService>();
-        services.AddScoped<IMoviePosterRepository, MoviePosterRepository>();
         services.AddScoped<IMovieRepository, MovieRepository>();
+        services.AddScoped<IMovieVideoRepository, MovieVideoRepository>();
         services.Configure<RedisOptions>(config.GetSection("Redis"));
 
         var redisOptions = config.GetSection("Redis").Get<RedisOptions>();
@@ -107,6 +107,8 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
         });
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IMovieRatingRepository, MovieRatingRepository>();
 
         return services;
     }

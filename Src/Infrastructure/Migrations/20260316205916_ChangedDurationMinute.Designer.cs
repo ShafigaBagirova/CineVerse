@@ -4,6 +4,7 @@ using Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(CineVerseDbContext))]
-    partial class CineVerseDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260316205916_ChangedDurationMinute")]
+    partial class ChangedDurationMinute
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -168,37 +171,6 @@ namespace Infrastructure.Migrations
                     b.ToTable("Movies", null, t =>
                         {
                             t.HasCheckConstraint("CK_Movies_DurationMinutes", "[DurationMinutes] > 0");
-                        });
-                });
-
-            modelBuilder.Entity("Domain.Entities.MovieRating", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("MovieId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Rating")
-                        .HasPrecision(3, 1)
-                        .HasColumnType("decimal(3,1)");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MovieId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("MovieRatings", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_MovieRatings_Rating", "[Rating] >= 1 AND [Rating] <= 10");
                         });
                 });
 
@@ -506,17 +478,6 @@ namespace Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("Domain.Entities.MovieRating", b =>
-                {
-                    b.HasOne("Domain.Entities.Movie", "Movie")
-                        .WithMany("MovieRatings")
-                        .HasForeignKey("MovieId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Movie");
-                });
-
             modelBuilder.Entity("Domain.Entities.MovieVideo", b =>
                 {
                     b.HasOne("Domain.Entities.Movie", "Movie")
@@ -590,8 +551,6 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Domain.Entities.Movie", b =>
                 {
-                    b.Navigation("MovieRatings");
-
                     b.Navigation("Videos");
                 });
 

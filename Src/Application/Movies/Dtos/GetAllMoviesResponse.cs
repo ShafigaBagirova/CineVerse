@@ -4,5 +4,7 @@ public class GetAllMoviesResponse
 {
     public int Id { get; set; }
     public string Title { get; set; } = null!;
-    public string? FirstMediaKey { get; set; }
+    public string? PosterUrl { get; set; }
+    public string? BackdropUrl { get; set; }
+
 }
