@@ -113,4 +113,21 @@ public sealed class TmdbMovieProvider : IMovieProvider
             IsOfficial = trailer.Official
         };
     }
+    public async Task<List<ExternalGenreDto>> GetGenresAsync(CancellationToken cancellationToken)
+    {
+        var response = await _httpClient.GetFromJsonAsync<TmdbGenreListResponse>(
+            "genre/movie/list",
+            cancellationToken);
+
+        if (response?.Genres is null || response.Genres.Count == 0)
+            return new List<ExternalGenreDto>();
+
+        return response.Genres
+            .Select(x => new ExternalGenreDto
+            {
+                Id = x.Id,
+                Name = x.Name
+            })
+            .ToList();
+    }
 }

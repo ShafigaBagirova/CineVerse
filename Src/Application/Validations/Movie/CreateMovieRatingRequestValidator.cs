@@ -1,4 +1,4 @@
-﻿using Application.MovieRatings.Dtos;
+﻿using Application.Movies.Dtos;
 using FluentValidation;
 
 namespace Application.Validations.Movie;

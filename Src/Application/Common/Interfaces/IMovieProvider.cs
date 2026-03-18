@@ -9,4 +9,5 @@ public interface IMovieProvider
     Task<IReadOnlyList<ExternalMovieDto>> GetUpcomingAsync(CancellationToken cancellationToken = default);
     Task<List<ExternalMovieDto>> GetMoviesAsync(int page, CancellationToken cancellationToken = default);
     Task<ExternalTrailerDto?> GetTrailerAsync(long tmdbId, CancellationToken cancellationToken = default);
+    Task<List<ExternalGenreDto>> GetGenresAsync(CancellationToken cancellationToken);
 }

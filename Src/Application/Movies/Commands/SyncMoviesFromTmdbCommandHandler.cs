@@ -1,6 +1,7 @@
 ﻿using Application.Common.Helpers;
 using Application.Common.Interfaces;
 using Application.Common.Responses;
+using Application.Movies.Dtos;
 using AutoMapper;
 using Domain.Entities;
 using MediatR;
@@ -16,19 +17,24 @@ public sealed class SyncMoviesFromTmdbCommandHandler
     private readonly IMovieVideoRepository _movieVideoRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<SyncMoviesFromTmdbCommandHandler> _logger;
+    private readonly IGenreRepository _genreRepository;
+    private readonly IMovieGenreRepository _movieGenreRepository;
 
     public SyncMoviesFromTmdbCommandHandler(
         IMovieProvider movieProvider,
         IMovieRepository movieRepository,
         IMovieVideoRepository movieVideoRepository,
         IMapper mapper,
-        ILogger<SyncMoviesFromTmdbCommandHandler> logger)
+        ILogger<SyncMoviesFromTmdbCommandHandler> logger,IGenreRepository genreRepository,
+        IMovieGenreRepository movieGenreRepository)
     {
         _movieProvider = movieProvider;
         _movieRepository = movieRepository;
         _movieVideoRepository = movieVideoRepository;
         _mapper = mapper;
         _logger = logger;
+        _genreRepository = genreRepository;
+        _movieGenreRepository = movieGenreRepository;
     }
 
     public async Task<BaseResponse> Handle(
@@ -60,6 +66,7 @@ public sealed class SyncMoviesFromTmdbCommandHandler
 
                 await _movieRepository.AddAsync(movie, cancellationToken);
                 await _movieRepository.SaveChangesAsync(cancellationToken);
+                await SyncGenresAsync(movie.Id, externalMovie, cancellationToken);
 
                 await SyncTrailerAsync(movie.Id, externalMovie.ExternalId, cancellationToken);
             }
@@ -78,7 +85,7 @@ public sealed class SyncMoviesFromTmdbCommandHandler
 
                 await _movieRepository.UpdateAsync(existingMovie, cancellationToken);
                 await _movieRepository.SaveChangesAsync(cancellationToken);
-
+                await SyncGenresAsync(existingMovie.Id, externalMovie, cancellationToken);
                 await SyncTrailerAsync(existingMovie.Id, externalMovie.ExternalId, cancellationToken);
             }
         }
@@ -91,7 +98,70 @@ public sealed class SyncMoviesFromTmdbCommandHandler
             Message = "Movies synced succesfully from TMDB."
         };
     }
+    private async Task SyncGenresAsync(
+    int movieId,
+    ExternalMovieDto externalMovie,
+    CancellationToken cancellationToken)
+    {
+        if (externalMovie.GenreIds is null || !externalMovie.GenreIds.Any())
+            return;
 
+        var existingMovieGenres = await _movieGenreRepository
+            .GetByMovieIdAsync(movieId, cancellationToken);
+
+        var existingGenreIds = existingMovieGenres
+            .Select(x => x.GenreId)
+            .ToHashSet();
+
+        var newGenreIds = new HashSet<int>();
+
+        foreach (var tmdbGenreId in externalMovie.GenreIds)
+        {
+            var genre = await _genreRepository
+                .GetByTmdbGenreIdAsync(tmdbGenreId, cancellationToken);
+
+            if (genre is null)
+            {
+                _logger.LogWarning(
+                    "Genre with TMDB GenreId {TmdbGenreId} not found while syncing movie {MovieId}",
+                    tmdbGenreId,
+                    movieId);
+
+                continue;
+            }
+
+            newGenreIds.Add(genre.Id);
+
+            if (!existingGenreIds.Contains(genre.Id))
+            {
+                var movieGenre = new MovieGenre
+                {
+                    MovieId = movieId,
+                    GenreId = genre.Id,
+                    IsPrimary = false,
+                    Order = 0
+                };
+
+                await _movieGenreRepository.AddAsync(movieGenre, cancellationToken);
+            }
+        }
+
+        var movieGenresToRemove = existingMovieGenres
+            .Where(x => !newGenreIds.Contains(x.GenreId))
+            .ToList();
+
+        if (movieGenresToRemove.Any())
+        {
+            await _movieGenreRepository.RemoveRangeAsync(movieGenresToRemove, cancellationToken);
+        }
+
+        await _movieGenreRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Genres synced for MovieId {MovieId}. GenreCount: {GenreCount}",
+            movieId,
+            newGenreIds.Count);
+    }
     private async Task SyncTrailerAsync(
         int movieId,
         long tmdbId,

@@ -19,4 +19,5 @@ public sealed class ExternalMovieDto
     public decimal? TmdbRating { get; set; }
     public string? PosterPath { get; set; }
     public string? BackdropPath { get; set; }
+    public List<int> GenreIds { get; set; } = new();
 }

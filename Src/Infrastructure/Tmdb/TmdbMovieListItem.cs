@@ -26,5 +26,7 @@ public sealed class TmdbMovieListItem
 
     [JsonPropertyName("backdrop_path")]
     public string? BackdropPath { get; set; }
+    [JsonPropertyName("genre_ids")]
+    public List<int> GenreIds { get; set; } = new();
 }
 
