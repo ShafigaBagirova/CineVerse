@@ -1,6 +1,4 @@
-﻿
-
-namespace Application.Movies.Dtos;
+﻿namespace Application.Movies.Dtos;
 
 public class GetMovieByIdResponse
 {
@@ -10,4 +8,5 @@ public class GetMovieByIdResponse
     public string? PosterUrl { get; set; }
     public string? BackdropUrl { get; set; }
     public decimal? UserAverageRating { get; set; }
+    public List<MovieGenreDto> Genres { get; set; } = new();
 }

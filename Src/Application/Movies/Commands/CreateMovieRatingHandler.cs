@@ -4,7 +4,7 @@ using Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
-namespace Application.MovieRatings.Commands;
+namespace Application.Movies.Commands;
 
 public class CreateMovieRatingCommandHandler
     : IRequestHandler<CreateMovieRatingCommand, BaseResponse>

@@ -109,6 +109,8 @@ public static class DependencyInjection
         });
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IMovieRatingRepository, MovieRatingRepository>();
+        services.AddScoped<IGenreRepository,GenreRepository>();
+        services.AddScoped<IMovieGenreRepository,MovieGenreRepository>();
 
         return services;
     }

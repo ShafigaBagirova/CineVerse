@@ -1,6 +1,4 @@
 ﻿using Application.Common.Responses;
-using Application.MovieRatings.Commands;
-using Application.MovieRatings.Dtos;
 using Application.Movies.Commands;
 using Application.Movies.Dtos;
 using Application.Movies.Queries;
@@ -9,7 +7,6 @@ using Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Diagnostics.Metrics;
 
 namespace API.Controllers;
 

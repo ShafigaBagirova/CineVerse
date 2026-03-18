@@ -1,4 +1,4 @@
-﻿namespace Application.MovieRatings.Dtos;
+﻿namespace Application.Movies.Dtos;
 
 public class CreateMovieRatingRequest
 {
