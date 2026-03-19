@@ -1,17 +1,10 @@
-﻿using Application.Auth.Email.Commands;
-using Application.Auth.Email.Dtos;
-using Application.Auth.Login.Commands;
+﻿using Application.Auth.Login.Commands;
 using Application.Auth.Login.Dtos;
-using Application.Auth.Password.Commands;
-using Application.Auth.Password.Dtos;
 using Application.Auth.Refresh.Commands;
 using Application.Auth.Refresh.Dtos;
 using Application.Auth.Register.Commands;
 using Application.Auth.Register.Dtos;
-using Application.Auth.User.Dtos;
 using Application.Auth.User.Queries;
-using Application.Auth.UserName.Commands;
-using Application.Auth.UserName.Dtos;
 using Application.Common.Responses;
 using Domain.Constants;
 using MediatR;
@@ -100,130 +93,6 @@ public sealed class AuthController : ControllerBase
         return Ok(BaseResponse.Ok("Email confirmed successfully."));
     }
 
-    [HttpPost("forgot-password")]
-    [AllowAnonymous]
-    public async Task<ActionResult<BaseResponse>> ForgotPassword(
-        [FromBody] ForgotPasswordRequest request,
-        CancellationToken ct)
-    {
-        if (request is null || string.IsNullOrWhiteSpace(request.Email))
-            return BadRequest(BaseResponse.Fail("Email is required."));
-
-        var result = await _mediator.Send(new ForgotPasswordCommand(request), ct);
-
-        if (!result.Success)
-            return BadRequest(result);
-
-        return Ok(result);
-    }
-
-    [HttpPost("reset-password")]
-    [AllowAnonymous]
-    public async Task<ActionResult<BaseResponse>> ResetPassword(
-        [FromBody] ResetPasswordRequest request,
-        CancellationToken ct)
-    {
-        if (request is null)
-            return BadRequest(BaseResponse.Fail("Request is required."));
-
-        if (string.IsNullOrWhiteSpace(request.Email) ||
-            string.IsNullOrWhiteSpace(request.Token) ||
-            string.IsNullOrWhiteSpace(request.NewPassword))
-        {
-            return BadRequest(BaseResponse.Fail("Email, token and new password are required."));
-        }
-
-        var result = await _mediator.Send(new ResetPasswordCommand(request), ct);
-
-        if (!result.Success)
-            return BadRequest(result);
-
-        return Ok(result);
-    }
-
-    [HttpPut("username")]
-    [Authorize(Policy = Policies.Authenticated)]
-    public async Task<ActionResult<BaseResponse>> UpdateUserName(
-        [FromBody] UpdateUserNameRequest request,
-        CancellationToken ct)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrWhiteSpace(userId))
-            return Unauthorized(BaseResponse.Fail("User is not authorized."));
-
-        var result = await _mediator.Send(
-            new UpdateUserNameCommand(userId, request.NewUserName), ct);
-
-        if (!result.Success)
-            return BadRequest(result);
-
-        return Ok(result);
-    }
-
-    [HttpPut("password")]
-    [Authorize(Policy = Policies.Authenticated)]
-    public async Task<ActionResult<BaseResponse>> ChangePassword(
-        [FromBody] ChangePasswordRequest request,
-        CancellationToken ct)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrWhiteSpace(userId))
-            return Unauthorized(BaseResponse.Fail("User is not authorized."));
-
-        var result = await _mediator.Send(
-            new ChangePasswordCommand(userId, request.CurrentPassword, request.NewPassword),
-            ct);
-
-        if (!result.Success)
-            return BadRequest(result);
-
-        return Ok(result);
-    }
-
-    [HttpPut("email")]
-    [Authorize(Policy = Policies.Authenticated)]
-    public async Task<ActionResult<BaseResponse>> UpdateEmail(
-        [FromBody] UpdateEmailRequest request,
-        CancellationToken ct)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrWhiteSpace(userId))
-            return Unauthorized(BaseResponse.Fail("User is not authorized."));
-
-        var result = await _mediator.Send(
-            new UpdateEmailCommand(userId, request.NewEmail),
-            ct);
-
-        if (!result.Success)
-            return BadRequest(result);
-
-        return Ok(result);
-    }
-
-    [HttpPost("confirm-email-update")]
-    [Authorize(Policy = Policies.Authenticated)]
-    public async Task<ActionResult<BaseResponse>> ConfirmUpdateEmail(
-        [FromBody] ConfirmUpdateEmailRequest request,
-        CancellationToken ct)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrWhiteSpace(userId))
-            return Unauthorized(BaseResponse.Fail("User is not authorized."));
-
-        var result = await _mediator.Send(
-            new ConfirmUpdateEmailCommand(userId, request.NewEmail, request.Code),
-            ct);
-
-        if (!result.Success)
-            return BadRequest(result);
-
-        return Ok(result);
-    }
-
     [HttpGet("me")]
     [Authorize(Policy = Policies.Authenticated)]
     public async Task<ActionResult<BaseResponse<JwtUserInfoDto>>> GetCurrentUser(CancellationToken ct)
@@ -239,27 +108,5 @@ public sealed class AuthController : ControllerBase
             return NotFound(BaseResponse<JwtUserInfoDto>.Fail("User could not be found."));
 
         return Ok(BaseResponse<JwtUserInfoDto>.Ok(result));
-    }
-
-    [HttpGet("{id}")]
-    [Authorize(Policy = Policies.Authenticated)]
-    public async Task<ActionResult<BaseResponse<UserProfileDto>>> GetUserById(
-        [FromRoute] string id,
-        CancellationToken ct)
-    {
-        var result = await _mediator.Send(new GetUserByIdQuery(id), ct);
-
-        if (result is null)
-            return NotFound(BaseResponse<UserProfileDto>.Fail("User could not be found."));
-
-        return Ok(BaseResponse<UserProfileDto>.Ok(result));
-    }
-
-    [HttpGet]
-    [Authorize(Policy = Policies.AdminOnly)]
-    public async Task<ActionResult<BaseResponse<List<UserProfileDto>>>> GetAllUsers(CancellationToken ct)
-    {
-        var result = await _mediator.Send(new GetAllUsersQuery(), ct);
-        return Ok(BaseResponse<List<UserProfileDto>>.Ok(result));
     }
 }

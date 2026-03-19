@@ -56,4 +56,26 @@ public class ReviewRepository:GenericRepository<Review,int>,IReviewRepository
             .Take(pageSize)
             .ToListAsync(cancellationToken);
     }
+    public async Task<int> GetCountByUserIdAsync(
+       string userId,
+       CancellationToken cancellationToken)
+    {
+        return await _context.Reviews
+            .Where(x => x.UserId == userId && !x.IsDeleted)
+            .CountAsync(cancellationToken);
+    }
+
+    public async Task<List<Review>> GetPagedByUserIdAsync(
+        string userId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        return await _context.Reviews
+            .Where(x => x.UserId == userId && !x.IsDeleted)
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+    }
 }

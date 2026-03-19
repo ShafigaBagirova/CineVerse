@@ -113,7 +113,7 @@ public static class DependencyInjection
         services.AddScoped<IGenreRepository,GenreRepository>();
         services.AddScoped<IMovieGenreRepository,MovieGenreRepository>();
         services.AddScoped<IReviewRepository,ReviewRepository>();
-        
+        services.AddScoped<IWatchListItemRepository, WatchListItemRepository>();
         return services;
     }
 }
