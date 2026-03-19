@@ -1,13 +1,14 @@
-﻿using Application.Movies.Dtos;
+﻿using Application.Movies.Commands;
+using Application.Movies.Dtos;
 using FluentValidation;
 
 namespace Application.Validations.Movie;
 
-public class CreateGenreRequestValidator : AbstractValidator<CreateGenreRequest>
+public class CreateGenreCommandValidator : AbstractValidator<CreateGenreCommand>
 {
-    public CreateGenreRequestValidator()
+    public CreateGenreCommandValidator()
     {
-        RuleFor(x => x.Name)
+        RuleFor(x => x.Request.Name)
             .NotEmpty().WithMessage("Genre name is required.")
             .MaximumLength(100).WithMessage("Genre name must not exceed 100 characters.");
     }

@@ -10,13 +10,16 @@ public sealed class DeleteMovieCommandHandler
 {
     private readonly IMovieRepository _movieRepository;
     private readonly ILogger<DeleteMovieCommandHandler> _logger;
+    private readonly ICacheService _cacheService;
 
     public DeleteMovieCommandHandler(
         IMovieRepository movieRepository,
-        ILogger<DeleteMovieCommandHandler> logger)
+        ILogger<DeleteMovieCommandHandler> logger,
+        ICacheService cacheService)
     {
         _movieRepository = movieRepository;
         _logger = logger;
+        _cacheService = cacheService;
     }
 
     public async Task<BaseResponse> Handle(DeleteMovieCommand request, CancellationToken cancellationToken)
@@ -39,7 +42,12 @@ public sealed class DeleteMovieCommandHandler
         await _movieRepository.DeleteAsync(movie, cancellationToken);
         await _movieRepository.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Movie with Id {MovieId} deleted successfully.", request.Id);
+        await _cacheService.RemoveAsync($"movies:id:{request.Id}", cancellationToken);
+        await _cacheService.RemoveAsync("movies:all", cancellationToken);
+
+        _logger.LogInformation(
+            "Movie with Id {MovieId} deleted successfully. Movie detail and movies list caches invalidated.",
+            request.Id);
 
         return new BaseResponse
         {

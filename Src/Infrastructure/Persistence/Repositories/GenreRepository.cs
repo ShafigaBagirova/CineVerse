@@ -19,6 +19,15 @@ public class GenreRepository : GenericRepository<Genre,int>,IGenreRepository
         return await _context.Genres
             .FirstOrDefaultAsync(x => x.TmdbGenreId == tmdbGenreId, cancellationToken);
     }
-
+    public async Task<bool> ExistsAsync(int id, CancellationToken cancellationToken)
+    {
+        return await _context.Genres
+            .AnyAsync(x => x.Id == id, cancellationToken);
+    }
+    public async Task<Genre?> GetByNameAsync(string name, CancellationToken cancellationToken)
+    {
+        return await _context.Genres
+            .FirstOrDefaultAsync(x => x.Name == name, cancellationToken);
+    }
 
 }

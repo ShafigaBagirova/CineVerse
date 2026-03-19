@@ -78,7 +78,9 @@ public class CreateMovieRatingCommandHandler
         var average = await _ratingRepository
             .GetAverageRatingAsync(request.MovieId, cancellationToken);
 
-        movie.UserAverageRating = Math.Round(average, 1);
+        movie.UserAverageRating = average.HasValue
+    ? Math.Round(average.Value, 1)
+    : null;
 
         await _movieRepository.UpdateAsync(movie, cancellationToken);
         await _ratingRepository.SaveChangesAsync(cancellationToken);

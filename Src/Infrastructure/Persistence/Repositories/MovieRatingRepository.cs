@@ -14,16 +14,15 @@ public class MovieRatingRepository :  GenericRepository<MovieRating, int>, IMovi
     {
         _context = context; 
     }
-    public async Task<decimal> GetAverageRatingAsync(int movieId, CancellationToken cancellationToken)
+    public async Task<decimal?> GetAverageRatingAsync(int movieId, CancellationToken cancellationToken)
     {
-        var average = await _context.MovieRatings
-      .Where(x => x.MovieId == movieId)
-      .Select(x => (decimal?)x.Rating)
-      .AverageAsync(cancellationToken);
+        var ratings = _context.MovieRatings.Where(x => x.MovieId == movieId);
 
-        return average ?? 0;
+        if (!await ratings.AnyAsync(cancellationToken))
+            return null;
+
+        return await ratings.AverageAsync(x => (decimal)x.Rating, cancellationToken);
     }
-
     public async Task<MovieRating?> GetByMovieAndUserAsync(
         int movieId,
         string userId,
@@ -31,5 +30,10 @@ public class MovieRatingRepository :  GenericRepository<MovieRating, int>, IMovi
     {
         return await _context.MovieRatings
             .FirstOrDefaultAsync(x => x.MovieId == movieId && x.UserId == userId, cancellationToken);
+    }
+    public async Task<int> GetRatingsCountAsync(int movieId, CancellationToken cancellationToken)
+    {
+        return await _context.MovieRatings
+            .CountAsync(x => x.MovieId == movieId, cancellationToken);
     }
 }

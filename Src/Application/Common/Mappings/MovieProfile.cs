@@ -32,7 +32,8 @@ public class MovieProfile : Profile
                   src.PosterPath == null
                       ? null
                       : $"https://image.tmdb.org/t/p/w500{src.PosterPath}"))
-
+            .ForMember(dest => dest.Genres,
+        opt => opt.MapFrom(src => src.MovieGenres))
           .ForMember(d => d.BackdropUrl,
               opt => opt.MapFrom(src =>
                   src.BackdropPath == null

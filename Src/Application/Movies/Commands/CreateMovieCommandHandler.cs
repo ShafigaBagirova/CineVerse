@@ -15,15 +15,18 @@ public sealed class CreateMovieCommandHandler
     private readonly IMovieRepository _movieRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<CreateMovieCommandHandler> _logger;
+    private readonly ICacheService _cacheService;
 
     public CreateMovieCommandHandler(
         IMovieRepository movieRepository,
         IMapper mapper,
-        ILogger<CreateMovieCommandHandler> logger)
+        ILogger<CreateMovieCommandHandler> logger,
+        ICacheService cacheService)
     {
         _movieRepository = movieRepository;
         _mapper = mapper;
         _logger = logger;
+        _cacheService = cacheService;
     }
 
     public async Task<BaseResponse> Handle(CreateMovieCommand request, CancellationToken cancellationToken)
@@ -80,7 +83,6 @@ public sealed class CreateMovieCommandHandler
         movie.Tagline = tagline;
         movie.Director = director;
         movie.Language = language;
-
         movie.Slug = slug;
         movie.Status = MovieStatus.Upcoming;
         movie.RatingCount = 0;
@@ -88,7 +90,12 @@ public sealed class CreateMovieCommandHandler
         await _movieRepository.AddAsync(movie, cancellationToken);
         await _movieRepository.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Movie {Title} created successfully with slug {Slug}", title, slug);
+        await _cacheService.RemoveAsync("movies:all", cancellationToken);
+
+        _logger.LogInformation(
+            "Movie {Title} created successfully with slug {Slug}. Movies list cache invalidated.",
+            title,
+            slug);
 
         return new BaseResponse
         {
@@ -96,14 +103,23 @@ public sealed class CreateMovieCommandHandler
             Message = "Movie created successfully."
         };
     }
-    private async Task<string> GenerateUniqueSlugAsync(string title, CancellationToken cancellationToken) 
-    { 
-        var baseSlug = SlugHelper.Generate(title); 
-        if (string.IsNullOrWhiteSpace(baseSlug)) baseSlug = "movie";
-        var slug = baseSlug; 
+
+    private async Task<string> GenerateUniqueSlugAsync(string title, CancellationToken cancellationToken)
+    {
+        var baseSlug = SlugHelper.Generate(title);
+
+        if (string.IsNullOrWhiteSpace(baseSlug))
+            baseSlug = "movie";
+
+        var slug = baseSlug;
         var counter = 1;
-        while (await _movieRepository.ExistsBySlugAsync(slug, cancellationToken)) 
-        { slug = $"{baseSlug}-{counter}"; counter++; }
+
+        while (await _movieRepository.ExistsBySlugAsync(slug, cancellationToken))
+        {
+            slug = $"{baseSlug}-{counter}";
+            counter++;
+        }
+
         return slug;
     }
 }

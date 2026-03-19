@@ -1,13 +1,14 @@
 ﻿using Application.Common.Responses;
+using Application.Movies.Commands;
 using Application.Movies.Dtos;
 using FluentValidation;
 using MediatR;
 
 namespace Application.Validations.Movie;
 
-public class UpdateMovieGenreRequestValidator : AbstractValidator<UpdateMovieGenreCommand>
+public class UpdateMovieGenreCommandValidator : AbstractValidator<UpdateMovieGenreCommand>
 {
-    public UpdateMovieGenreRequestValidator()
+    public UpdateMovieGenreCommandValidator()
     {
         RuleFor(x => x.MovieId)
                  .GreaterThan(0).WithMessage("MovieId must be greater than 0.");
