@@ -25,23 +25,14 @@ public interface IMovieRepository:IRepository<Movie,int>
     Task<List<Movie>> GetByYearPagedAsync( int year, int pageNumber,int pageSize,
         CancellationToken cancellationToken = default);
     Task<int> CountByUserRatingRangeAsync(decimal minRating, decimal maxRating, CancellationToken cancellationToken = default);
-    Task<List<Movie>> GetByUserRatingRangePagedAsync(
-        decimal minRating,
-        decimal maxRating,
-        int pageNumber,
+    Task<List<Movie>> GetByUserRatingRangePagedAsync(decimal minRating,decimal maxRating,int pageNumber,
         int pageSize,
         CancellationToken cancellationToken = default);
     Task<int> CountByTmdbRatingRangeAsync(decimal minRating,decimal maxRating,CancellationToken cancellationToken = default);
     Task<List<Movie>> GetByTmdbRatingRangePagedAsync(decimal minRating, decimal maxRating,int pageNumber,int pageSize,
         CancellationToken cancellationToken = default);
-    Task<List<Movie>> GetMoviesByGenreAsync(
-    int genreId,
-    int page,
-    int pageSize,
+    Task<List<Movie>> GetMoviesByGenreAsync(int genreId, int page,int pageSize,
     CancellationToken cancellationToken);
 
-    Task<int> GetMoviesCountByGenreAsync(
-        int genreId,
-        CancellationToken cancellationToken);
-    Task<Movie?> GetByIdWithGenresAsync(int id, CancellationToken cancellationToken);
+    Task<int> GetMoviesCountByGenreAsync(int genreId,CancellationToken cancellationToken);
 }

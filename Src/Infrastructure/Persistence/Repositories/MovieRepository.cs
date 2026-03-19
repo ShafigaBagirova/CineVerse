@@ -80,7 +80,10 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
     public async Task<Movie?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         return await _context.Movies
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    .Include(m => m.MovieGenres)
+        .ThenInclude(mg => mg.Genre)
+    .Include(m => m.Reviews.Where(r => !r.IsDeleted))
+    .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
     public async Task<int> CountByStatusAsync(MovieStatus status, CancellationToken cancellationToken = default)
     {
@@ -248,11 +251,5 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
             .AsNoTracking()
             .CountAsync(m => m.MovieGenres.Any(mg => mg.GenreId == genreId), cancellationToken);
     }
-    public async Task<Movie?> GetByIdWithGenresAsync(int id, CancellationToken cancellationToken)
-    {
-        return await _context.Movies
-            .Include(m => m.MovieGenres)
-                .ThenInclude(mg => mg.Genre)
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-    }
+    
 }

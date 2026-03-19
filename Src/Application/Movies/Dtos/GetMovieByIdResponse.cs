@@ -10,5 +10,6 @@ public class GetMovieByIdResponse
     public decimal? UserAverageRating { get; set; }
     public decimal? MyRating { get; set; }
     public int RatingCount { get; set; }
+    public List<ReviewDto> Reviews { get; set; } = new();
     public List<MovieGenreDto> Genres { get; set; } = new();
 }

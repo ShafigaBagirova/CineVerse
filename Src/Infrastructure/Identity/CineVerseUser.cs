@@ -15,5 +15,7 @@ public class CineVerseUser: IdentityUser
     public UserStatus Status { get; set; }= UserStatus.Active;
     public DateTime? LastLoginAt { get; set; }
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    public ICollection<MovieRating> MovieRatings { get; set; } = new List<MovieRating>();
+    public ICollection<Review> Reviews { get; set; } = new List<Review>();
 
 }
