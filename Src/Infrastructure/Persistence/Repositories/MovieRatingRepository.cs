@@ -36,4 +36,26 @@ public class MovieRatingRepository :  GenericRepository<MovieRating, int>, IMovi
         return await _context.MovieRatings
             .CountAsync(x => x.MovieId == movieId, cancellationToken);
     }
+    public async Task<int> GetCountByUserIdAsync(
+    string userId,
+    CancellationToken cancellationToken)
+    {
+        return await _context.MovieRatings
+            .Where(x => x.UserId == userId)
+            .CountAsync(cancellationToken);
+    }
+
+    public async Task<List<MovieRating>> GetPagedByUserIdAsync(
+        string userId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        return await _context.MovieRatings
+            .Include(x => x.Movie)
+            .Where(x => x.UserId == userId)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+    }
 }
