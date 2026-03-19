@@ -2,12 +2,11 @@
 using Application.Auth.Password.Dtos;
 using Application.Auth.Register.Dtos;
 using Application.Auth.User.Dtos;
-using Application.Auth.UserName.Dtos;
 using Application.Common.Interfaces;
 using Application.Common.Responses;
 using Domain.Constants;
-using Domain.Enums;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using System.Net;
 
 namespace Infrastructure.Identity;
@@ -328,5 +327,26 @@ public sealed class IdentityService : IIdentityService
             .ToList();
 
         return await Task.FromResult(users);
+    }
+    public async Task<Dictionary<string, string>> GetUserNamesByIdsAsync(
+    IEnumerable<string> userIds)
+    {
+        var ids = userIds
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .ToList();
+
+        if (!ids.Any())
+            return new Dictionary<string, string>();
+
+        var users = await _userManager.Users
+            .Where(u => ids.Contains(u.Id))
+            .Select(u => new { u.Id, u.UserName })
+            .ToListAsync();
+
+        return users.ToDictionary(
+            x => x.Id,
+            x => x.UserName ?? string.Empty
+        );
     }
 }

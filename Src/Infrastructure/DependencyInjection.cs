@@ -7,6 +7,7 @@ using Infrastructure.Persistence.Context;
 using Infrastructure.Persistence.Repositories;
 using Infrastructure.Redis;
 using Infrastructure.Tmdb;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -111,7 +112,8 @@ public static class DependencyInjection
         services.AddScoped<IMovieRatingRepository, MovieRatingRepository>();
         services.AddScoped<IGenreRepository,GenreRepository>();
         services.AddScoped<IMovieGenreRepository,MovieGenreRepository>();
-
+        services.AddScoped<IReviewRepository,ReviewRepository>();
+        
         return services;
     }
 }

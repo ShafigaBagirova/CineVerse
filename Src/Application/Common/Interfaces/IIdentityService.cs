@@ -26,4 +26,5 @@ public interface IIdentityService
     Task<BaseResponse> ConfirmEmailChangeAsync(string userId,string newEmail,string token);
     Task<UserProfileDto?> GetUserByIdAsync(string userId);
     Task<List<UserProfileDto>> GetAllUsersAsync();
+    Task<Dictionary<string, string>> GetUserNamesByIdsAsync(IEnumerable<string> userIds);
 }
