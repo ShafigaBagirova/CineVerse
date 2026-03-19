@@ -3,9 +3,9 @@ using FluentValidation;
 
 namespace Application.Validations.Movie;
 
-public class CreateMovieGenreRequestValidator : AbstractValidator<CreateMovieGenreCommand>
+public class CreateMovieGenreCommandValidator : AbstractValidator<CreateMovieGenreCommand>
 {
-    public CreateMovieGenreRequestValidator()
+    public CreateMovieGenreCommandValidator()
     {
 
         RuleFor(x => x.MovieId)

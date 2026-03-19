@@ -53,7 +53,7 @@ public sealed class AuthController : ControllerBase
          [FromBody] LoginRequest request,
          CancellationToken ct)
     {
-        var result = await _mediator.Send(new LoginCommand(request.Login, request.Password), ct);
+        var result = await _mediator.Send(new LoginCommand(request), ct);
 
         if (result is null)
             return Unauthorized(BaseResponse<TokenResponse>.Fail("Invalid login or password."));

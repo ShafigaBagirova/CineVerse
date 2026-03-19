@@ -12,15 +12,18 @@ public sealed class UpdateMovieCommandHandler : IRequestHandler<UpdateMovieComma
     private readonly IMovieRepository _movieRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<UpdateMovieCommandHandler> _logger;
+    private readonly ICacheService _cacheService;
 
     public UpdateMovieCommandHandler(
         IMovieRepository movieRepository,
         IMapper mapper,
-        ILogger<UpdateMovieCommandHandler> logger)
+        ILogger<UpdateMovieCommandHandler> logger,
+        ICacheService cacheService)
     {
         _movieRepository = movieRepository;
         _mapper = mapper;
         _logger = logger;
+        _cacheService = cacheService;
     }
 
     public async Task<BaseResponse> Handle(UpdateMovieCommand request, CancellationToken cancellationToken)
@@ -98,12 +101,17 @@ public sealed class UpdateMovieCommandHandler : IRequestHandler<UpdateMovieComma
         await _movieRepository.UpdateAsync(movie, cancellationToken);
         await _movieRepository.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Movie with Id {MovieId} updated successfully.", request.Id);
+        await _cacheService.RemoveAsync($"movies:id:{movie.Id}", cancellationToken);
+        await _cacheService.RemoveAsync("movies:all", cancellationToken);
+
+        _logger.LogInformation(
+            "Movie with Id {MovieId} updated successfully. Movie detail and movies list caches invalidated.",
+            request.Id);
 
         return new BaseResponse
         {
             Success = true,
-            Message = "Movie craeted successfully."
+            Message = "Movie updated successfully."
         };
     }
 

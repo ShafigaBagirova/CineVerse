@@ -6,5 +6,5 @@ public class GetAllMoviesResponse
     public string Title { get; set; } = null!;
     public string? PosterUrl { get; set; }
     public string? BackdropUrl { get; set; }
-
+    public decimal? UserAverageRating { get; set; }
 }

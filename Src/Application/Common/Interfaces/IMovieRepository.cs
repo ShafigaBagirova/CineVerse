@@ -34,4 +34,14 @@ public interface IMovieRepository:IRepository<Movie,int>
     Task<int> CountByTmdbRatingRangeAsync(decimal minRating,decimal maxRating,CancellationToken cancellationToken = default);
     Task<List<Movie>> GetByTmdbRatingRangePagedAsync(decimal minRating, decimal maxRating,int pageNumber,int pageSize,
         CancellationToken cancellationToken = default);
+    Task<List<Movie>> GetMoviesByGenreAsync(
+    int genreId,
+    int page,
+    int pageSize,
+    CancellationToken cancellationToken);
+
+    Task<int> GetMoviesCountByGenreAsync(
+        int genreId,
+        CancellationToken cancellationToken);
+    Task<Movie?> GetByIdWithGenresAsync(int id, CancellationToken cancellationToken);
 }

@@ -2,6 +2,7 @@
 using Application.Movies.Commands;
 using Application.Movies.Dtos;
 using Application.Movies.Queries;
+using Application.Validations.Movie;
 using Domain.Constants;
 using Domain.Enums;
 using MediatR;
@@ -203,5 +204,19 @@ public class MovieController : ControllerBase
         var response = await _mediator.Send(command);
 
         return response.Success ? Ok(response) : BadRequest(response);
+    }
+  
+    [HttpGet("{genreId:int}/movies")]
+    public async Task<ActionResult<PaginatedResponse<GetAllMoviesResponse>>> GetMoviesByGenre(
+    [FromRoute] int genreId,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10,
+    CancellationToken cancellationToken = default)
+    {
+        var query = new GetMoviesByGenreQuery(genreId, page, pageSize);
+
+        var response = await _mediator.Send(query, cancellationToken);
+
+        return Ok(response);
     }
 }

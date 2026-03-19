@@ -28,20 +28,20 @@ public sealed class LoginHandler
     {
         _logger.LogInformation(
             "Login attempt for Login: {Login}",
-            command.Login);
+            command.LoginRequest.Login);
 
         var (success, userId) = await _identityService.ValidateUserAsync(
             new LoginRequest
             {
-                Login = command.Login,
-                Password = command.Password
+                Login = command.LoginRequest.Login,
+                Password = command.LoginRequest.Password
             });
 
         if (!success || string.IsNullOrWhiteSpace(userId))
         {
             _logger.LogWarning(
                 "Login failed. Invalid credentials for Login: {Login}",
-                command.Login);
+                command.LoginRequest.Login);
 
             return null;
         }

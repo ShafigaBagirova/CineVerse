@@ -225,4 +225,34 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
             .Take(pageSize)
             .ToListAsync(cancellationToken);
     }
+    public async Task<List<Movie>> GetMoviesByGenreAsync(
+    int genreId,
+    int page,
+    int pageSize,
+    CancellationToken cancellationToken)
+    {
+        return await _context.Movies
+            .AsNoTracking()
+            .Where(m => m.MovieGenres.Any(mg => mg.GenreId == genreId))
+            .OrderByDescending(m => m.UserAverageRating)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> GetMoviesCountByGenreAsync(
+        int genreId,
+        CancellationToken cancellationToken)
+    {
+        return await _context.Movies
+            .AsNoTracking()
+            .CountAsync(m => m.MovieGenres.Any(mg => mg.GenreId == genreId), cancellationToken);
+    }
+    public async Task<Movie?> GetByIdWithGenresAsync(int id, CancellationToken cancellationToken)
+    {
+        return await _context.Movies
+            .Include(m => m.MovieGenres)
+                .ThenInclude(mg => mg.Genre)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
 }

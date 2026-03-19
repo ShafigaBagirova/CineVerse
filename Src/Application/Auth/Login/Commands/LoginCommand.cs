@@ -4,4 +4,4 @@ using MediatR;
 
 namespace Application.Auth.Login.Commands;
 
-public sealed record LoginCommand(string Login, string Password) : IRequest<TokenResponse?>;
+public sealed record LoginCommand(LoginRequest LoginRequest) : IRequest<TokenResponse?>;

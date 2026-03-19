@@ -42,4 +42,28 @@ public class MovieGenreRepository : IMovieGenreRepository
     {
         await _context.SaveChangesAsync(cancellationToken);
     }
+    public async Task<MovieGenre?> GetPrimaryByMovieIdAsync(int movieId, CancellationToken cancellationToken)
+    {
+        return await _context.MovieGenres
+            .FirstOrDefaultAsync(
+                x => x.MovieId == movieId && x.IsPrimary,
+                cancellationToken);
+    }
+    public async Task<MovieGenre?> GetByIdsAsync(int movieId, int genreId, CancellationToken cancellationToken)
+    {
+        return await _context.MovieGenres
+            .FirstOrDefaultAsync(
+                x => x.MovieId == movieId && x.GenreId == genreId,
+                cancellationToken);
+    }
+    public Task UpdateAsync(MovieGenre movieGenre, CancellationToken cancellationToken)
+    {
+        _context.MovieGenres.Update(movieGenre);
+        return Task.CompletedTask;
+    }
+    public Task DeleteAsync(MovieGenre movieGenre, CancellationToken cancellationToken)
+    {
+        _context.MovieGenres.Remove(movieGenre);
+        return Task.CompletedTask;
+    }
 }
