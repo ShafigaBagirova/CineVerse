@@ -1,6 +1,6 @@
 ﻿namespace Domain.Entities;
 
-public class WatchListItem:BaseAuditableEntity
+public class WatchLog:BaseAuditableEntity
 {
     public string UserId { get; set; } = default!;
     public int MovieId { get; set; }

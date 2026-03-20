@@ -25,4 +25,5 @@ public class CineVerseDbContext : IdentityDbContext<CineVerseUser>
     public DbSet<MovieGenre> MovieGenres {  get; set; }
     public DbSet<Review> Reviews { get; set; }
     public DbSet<WatchListItem> WatchlistItems {  get; set; }
+    public DbSet<WatchLog> WatchLogs { get; set; }
 }
