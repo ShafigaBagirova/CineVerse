@@ -4,6 +4,7 @@ using Application.Auth.Register.Dtos;
 using Application.Auth.User.Dtos;
 using Application.Common.Interfaces;
 using Application.Common.Responses;
+using Application.Follows.Dtos;
 using Domain.Constants;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -348,5 +349,23 @@ public sealed class IdentityService : IIdentityService
             x => x.Id,
             x => x.UserName ?? string.Empty
         );
+    }
+    public async Task<bool> UserExistsAsync(string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        return user is not null;
+    }
+    public async Task<List<FollowUserItemDto>> GetUsersByIdsAsync(List<string> userIds, CancellationToken cancellationToken)
+    {
+        return await _userManager.Users
+            .Where(x => userIds.Contains(x.Id))
+            .Select(x => new FollowUserItemDto
+            {
+                UserId = x.Id,
+                UserName = x.UserName!,
+                FullName = x.FullName,
+                AvatarUrl = x.AvatarUrl
+            })
+            .ToListAsync(cancellationToken);
     }
 }

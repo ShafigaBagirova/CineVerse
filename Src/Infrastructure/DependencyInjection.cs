@@ -115,6 +115,8 @@ public static class DependencyInjection
         services.AddScoped<IReviewRepository,ReviewRepository>();
         services.AddScoped<IWatchListItemRepository, WatchListItemRepository>();
         services.AddScoped<IWatchLogRepository, WatchLogRepository>();
+        services.AddScoped<IFollowRepository,FollowRepository>();
+        services.AddScoped<IUserSuggestionRepository, UserSuggestionRepository>();
         return services;
     }
 }

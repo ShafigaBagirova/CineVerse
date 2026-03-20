@@ -4,6 +4,7 @@ using Application.Auth.Register.Dtos;
 using Application.Auth.User.Dtos;
 using Application.Auth.UserName.Dtos;
 using Application.Common.Responses;
+using Application.Follows.Dtos;
 using Domain.Enums;
 
 namespace Application.Common.Interfaces;
@@ -27,4 +28,7 @@ public interface IIdentityService
     Task<UserProfileDto?> GetUserByIdAsync(string userId);
     Task<List<UserProfileDto>> GetAllUsersAsync();
     Task<Dictionary<string, string>> GetUserNamesByIdsAsync(IEnumerable<string> userIds);
+    Task<bool> UserExistsAsync(string userId);
+    Task<List<FollowUserItemDto>> GetUsersByIdsAsync(List<string> userIds, CancellationToken cancellationToken);
+
 }

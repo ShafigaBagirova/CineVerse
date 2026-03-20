@@ -26,4 +26,5 @@ public class CineVerseDbContext : IdentityDbContext<CineVerseUser>
     public DbSet<Review> Reviews { get; set; }
     public DbSet<WatchListItem> WatchlistItems {  get; set; }
     public DbSet<WatchLog> WatchLogs { get; set; }
+    public DbSet<Follow> Follows { get; set; }
 }
