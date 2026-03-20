@@ -17,5 +17,7 @@ public class CineVerseUser: IdentityUser
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<MovieRating> MovieRatings { get; set; } = new List<MovieRating>();
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
+    public ICollection<WatchListItem> WatchlistItems { get; set; } = new List<WatchListItem>();
+    public ICollection<WatchLog> WatchLogs { get; set; } = new List<WatchLog>();
 
 }
