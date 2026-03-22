@@ -1,6 +1,6 @@
 ﻿namespace Application.Common.Helpers;
 
-public static class FollowCacheKeys
+public static class FollowCacheKey
 {
     public static string Followers(string userId, int page, int pageSize)
         => $"follows:followers:{userId}:page:{page}:size:{pageSize}";
