@@ -1,4 +1,4 @@
-﻿using Application.Movies.Dtos;
+﻿using Application.Reviews.Dtos;
 using AutoMapper;
 using Domain.Entities;
 

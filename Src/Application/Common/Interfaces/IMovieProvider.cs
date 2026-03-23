@@ -1,4 +1,5 @@
-﻿using Application.Movies.Dtos;
+﻿using Application.Genres.Dtos;
+using Application.Movies.Dtos;
 using Application.MovieVideos.Dtos;
 
 namespace Application.Common.Interfaces;

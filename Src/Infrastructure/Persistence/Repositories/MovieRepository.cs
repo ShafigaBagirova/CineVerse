@@ -43,41 +43,116 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
         return await _context.Movies
             .FirstOrDefaultAsync(x => x.Slug == slug, cancellationToken);
     }
-    public async Task<List<Movie>> GetPagedAsync(
-        int pageNumber,
-        int pageSize,
-        MovieSortBy sortBy,
-        CancellationToken cancellationToken = default)
+    public async Task<(List<Movie> Items, int TotalCount)> GetPagedAsync(
+       int pageNumber,
+       int pageSize,
+       string? search,
+       int? genreId,
+       string? language,
+       MovieStatus? Status,
+       int? year,
+       decimal? minTmdbRating,
+       decimal? maxTmdbRating,
+       decimal? minUserRating,
+       decimal? maxUserRating,
+       string? sortBy,
+       bool desc,
+       CancellationToken cancellationToken)
     {
-        var query = _context.Movies
-            .AsQueryable();
+        IQueryable<Movie> query = _context.Movies
+            .AsNoTracking()
+            .Include(x => x.MovieGenres);
 
-        switch (sortBy)
+        if (!string.IsNullOrWhiteSpace(search))
         {
-            case MovieSortBy.UserRating:
-                query = query.OrderByDescending(x => x.UserAverageRating);
-                break;
+            var normalizedSearch = search.Trim().ToLower();
 
-            case MovieSortBy.Title:
-                query = query.OrderBy(x => x.Title);
-                break;
-
-            default:
-                query = query.OrderByDescending(x => x.ReleaseDate);
-                break;
+            query = query.Where(x =>
+                x.Title.ToLower().Contains(normalizedSearch) ||
+                (x.Description != null && x.Description.ToLower().Contains(normalizedSearch)));
         }
 
-        return await query
+        if (genreId.HasValue)
+        {
+            query = query.Where(x => x.MovieGenres.Any(mg => mg.GenreId == genreId.Value));
+        }
+
+        if (!string.IsNullOrWhiteSpace(language))
+        {
+            var normalizedLanguage = language.Trim().ToLower();
+            query = query.Where(x => x.Language != null && x.Language.ToLower() == normalizedLanguage);
+        }
+
+        if (Status.HasValue)
+        {
+            query = query.Where(x => x.Status == Status.Value);
+        }
+        if (year.HasValue)
+        {
+            query = query.Where(x =>
+                x.ReleaseDate.HasValue && x.ReleaseDate.Value.Year == year.Value);
+        }
+
+        if (minTmdbRating.HasValue)
+        {
+            query = query.Where(x => x.TmdbRating.HasValue && x.TmdbRating.Value >= minTmdbRating.Value);
+        }
+
+        if (maxTmdbRating.HasValue)
+        {
+            query = query.Where(x => x.TmdbRating.HasValue && x.TmdbRating.Value <= maxTmdbRating.Value);
+        }
+
+        if (minUserRating.HasValue)
+        {
+            query = query.Where(x => x.UserAverageRating.HasValue && x.UserAverageRating.Value >= minUserRating.Value);
+        }
+
+        if (maxUserRating.HasValue)
+        {
+            query = query.Where(x => x.UserAverageRating.HasValue && x.UserAverageRating.Value <= maxUserRating.Value);
+        }
+
+        query = sortBy?.Trim().ToLower() switch
+        {
+            "title" => desc
+                ? query.OrderByDescending(x => x.Title)
+                : query.OrderBy(x => x.Title),
+
+            "year" => desc
+                ? query.OrderByDescending(x => x.ReleaseDate)
+                : query.OrderBy(x => x.ReleaseDate),
+
+            "tmdb_rating" => desc
+                ? query.OrderByDescending(x => x.TmdbRating)
+                : query.OrderBy(x => x.TmdbRating),
+
+            "user_rating" => desc
+                ? query.OrderByDescending(x => x.UserAverageRating)
+                : query.OrderBy(x => x.UserAverageRating),
+
+            "createdat" => desc
+                ? query.OrderByDescending(x => x.CreatedAt)
+                : query.OrderBy(x => x.CreatedAt),
+
+            _ => query.OrderByDescending(x => x.CreatedAt)
+        };
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
     }
 
     public async Task<int> CountAsync(CancellationToken cancellationToken = default)
     {
         return await _context.Movies.CountAsync(cancellationToken);
     }
-    public async Task<Movie?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<Movie?> GetMovieWithDetailsByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         return await _context.Movies
     .Include(m => m.MovieGenres)
@@ -85,171 +160,6 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
     .Include(m => m.Reviews.Where(r => !r.IsDeleted))
     .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
-    public async Task<int> CountByStatusAsync(MovieStatus status, CancellationToken cancellationToken = default)
-    {
-        return await _context.Movies
-            .CountAsync(x => x.Status == status, cancellationToken);
-    }
 
-    public async Task<int> CountSearchAsync(string searchTerm, CancellationToken cancellationToken = default)
-    {
-        searchTerm = searchTerm.ToLower();
-
-        return await _context.Movies
-            .CountAsync(x =>
-                x.Title.ToLower().Contains(searchTerm) ||
-                x.Description.ToLower().Contains(searchTerm) ||
-                (x.Tagline != null && x.Tagline.ToLower().Contains(searchTerm)),
-                cancellationToken);
-    }
-    public async Task<List<Movie>> GetByStatusPagedAsync( MovieStatus status,int pageNumber, int pageSize,
-    CancellationToken cancellationToken = default)
-    {
-        return await _context.Movies
-            .Where(x => x.Status == status)
-            .OrderByDescending(x => x.Id)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-    }
-    public async Task<List<Movie>> SearchPagedAsync( string searchTerm,int pageNumber, int pageSize,
-    CancellationToken cancellationToken = default)
-    {
-        searchTerm = searchTerm.ToLower();
-
-        return await _context.Movies
-            .Where(x =>
-           x.Title.ToLower().Contains(searchTerm) ||
-           x.Description.ToLower().Contains(searchTerm) ||
-           (x.Tagline != null && x.Tagline.ToLower().Contains(searchTerm)) ||
-          (x.Director != null && x.Director.ToLower().Contains(searchTerm)))
-            .OrderByDescending(x => x.Id)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-    }
-
-    public async Task<int> CountByLanguageAsync(string language, CancellationToken cancellationToken = default)
-    {
-        language = language.Trim().ToLower();
-
-        return await _context.Movies
-            .CountAsync(x => x.Language != null && x.Language.ToLower() == language, cancellationToken);
-    }
-
-    public async Task<List<Movie>> GetByLanguagePagedAsync(string language, int pageNumber,int pageSize,
-        CancellationToken cancellationToken = default)
-    {
-        language = language.Trim().ToLower();
-
-        return await _context.Movies
-            .Where(x => x.Language != null && x.Language.ToLower() == language)
-            .OrderByDescending(x => x.Id)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-    }
-    public async Task<int> CountByYearAsync(int year, CancellationToken cancellationToken = default)
-    {
-        return await _context.Movies
-            .CountAsync(x => x.ReleaseDate.HasValue && x.ReleaseDate.Value.Year == year, cancellationToken);
-    }
-
-    public async Task<List<Movie>> GetByYearPagedAsync(
-        int year,
-        int pageNumber,
-        int pageSize,
-        CancellationToken cancellationToken = default)
-    {
-        return await _context.Movies
-            .Where(x => x.ReleaseDate.HasValue && x.ReleaseDate.Value.Year == year)
-            .OrderByDescending(x => x.ReleaseDate)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-    }
-    public async Task<int> CountByUserRatingRangeAsync(
-    decimal minRating,
-    decimal maxRating,
-    CancellationToken cancellationToken = default)
-    {
-        return await _context.Movies
-            .CountAsync(x =>
-                x.UserAverageRating.HasValue &&
-                x.UserAverageRating.Value >= minRating &&
-                x.UserAverageRating.Value <= maxRating,
-                cancellationToken);
-    }
-
-    public async Task<List<Movie>> GetByUserRatingRangePagedAsync(
-        decimal minRating,
-        decimal maxRating,
-        int pageNumber,
-        int pageSize,
-        CancellationToken cancellationToken = default)
-    {
-        return await _context.Movies
-            .Where(x =>
-                x.UserAverageRating.HasValue &&
-                x.UserAverageRating.Value >= minRating &&
-                x.UserAverageRating.Value <= maxRating)
-            .OrderByDescending(x => x.UserAverageRating)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-    }
-    public async Task<int> CountByTmdbRatingRangeAsync(
-    decimal minRating,
-    decimal maxRating,
-    CancellationToken cancellationToken = default)
-    {
-        return await _context.Movies
-            .CountAsync(x =>
-                x.TmdbRating.HasValue &&
-                x.TmdbRating.Value >= minRating &&
-                x.TmdbRating.Value <= maxRating,
-                cancellationToken);
-    }
-
-    public async Task<List<Movie>> GetByTmdbRatingRangePagedAsync(
-        decimal minRating,
-        decimal maxRating,
-        int pageNumber,
-        int pageSize,
-        CancellationToken cancellationToken = default)
-    {
-        return await _context.Movies
-            .Where(x =>
-                x.TmdbRating.HasValue &&
-                x.TmdbRating.Value >= minRating &&
-                x.TmdbRating.Value <= maxRating)
-            .OrderByDescending(x => x.TmdbRating)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-    }
-    public async Task<List<Movie>> GetMoviesByGenreAsync(
-    int genreId,
-    int page,
-    int pageSize,
-    CancellationToken cancellationToken)
-    {
-        return await _context.Movies
-            .AsNoTracking()
-            .Where(m => m.MovieGenres.Any(mg => mg.GenreId == genreId))
-            .OrderByDescending(m => m.UserAverageRating)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-    }
-
-    public async Task<int> GetMoviesCountByGenreAsync(
-        int genreId,
-        CancellationToken cancellationToken)
-    {
-        return await _context.Movies
-            .AsNoTracking()
-            .CountAsync(m => m.MovieGenres.Any(mg => mg.GenreId == genreId), cancellationToken);
-    }
     
 }

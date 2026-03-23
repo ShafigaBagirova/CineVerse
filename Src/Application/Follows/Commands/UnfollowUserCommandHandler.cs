@@ -76,10 +76,12 @@ public sealed class UnfollowUserCommandHandler
         }
 
         await _followRepository.DeleteAsync(follow, cancellationToken);
-        await _cacheService.RemoveAsync(FollowCacheKeys.FollowersPattern(request.FollowingId),
+        await _followRepository.SaveChangesAsync(cancellationToken);
+
+        await _cacheService.RemoveAsync(FollowCacheKey.FollowersPattern(request.FollowingId),
          cancellationToken);
 
-        await _cacheService.RemoveAsync( FollowCacheKeys.FollowingsPattern(followerId),
+        await _cacheService.RemoveAsync( FollowCacheKey.FollowingsPattern(followerId),
         cancellationToken);
 
         _logger.LogInformation(

@@ -1,4 +1,6 @@
-﻿namespace Application.Movies.Dtos;
+﻿using Application.Reviews.Dtos;
+
+namespace Application.Movies.Dtos;
 
 public class GetMovieByIdResponse
 {

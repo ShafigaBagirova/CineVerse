@@ -117,4 +117,16 @@ public sealed class FollowController : ControllerBase
 
         return result;
     }
+    [Authorize(Policy = Policies.VipOnly)]
+    [HttpGet("{userId}/insights")]
+    public async Task<ActionResult<BaseResponse<FollowInsightsDto>>> GetFollowInsights(
+    [FromRoute] string userId,
+    CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new GetFollowInsightsQuery(userId),
+            cancellationToken);
+
+        return result;
+    }
 }

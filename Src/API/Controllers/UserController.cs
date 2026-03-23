@@ -7,7 +7,7 @@ using Application.Auth.User.Queries;
 using Application.Auth.UserName.Commands;
 using Application.Auth.UserName.Dtos;
 using Application.Common.Responses;
-using Application.Movies.Dtos;
+using Application.Reviews.Dtos;
 using Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

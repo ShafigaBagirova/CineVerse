@@ -1,4 +1,4 @@
-﻿using Application.Movies.Queries;
+﻿using Application.Reviews.Queries;
 using FluentValidation;
 
 namespace Application.Validations.Movie;

@@ -47,7 +47,7 @@ public sealed class GetFollowersQueryHandler
             return BaseResponse<PaginatedResponse<FollowUserItemDto>>.Fail(FollowMessages.UserNotFound);
         }
 
-        var cacheKey = FollowCacheKeys.Followers(request.UserId, request.Page, request.PageSize);
+        var cacheKey = FollowCacheKey.Followers(request.UserId, request.Page, request.PageSize);
 
         var cached = await _cacheService.GetAsync<PaginatedResponse<FollowUserItemDto>>(cacheKey, cancellationToken);
         if (cached is not null)

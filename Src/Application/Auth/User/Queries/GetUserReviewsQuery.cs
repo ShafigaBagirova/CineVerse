@@ -1,5 +1,5 @@
 ﻿using Application.Common.Responses;
-using Application.Movies.Dtos;
+using Application.Reviews.Dtos;
 using MediatR;
 
 namespace Application.Auth.User.Queries;

@@ -21,5 +21,6 @@ public static class FollowMessages
     public const string FollowingsRetrieved = "Followings retrieved successfully.";
     public const string MutualFollowingsRetrieved = "Mutual followings retrieved successfully.";
     public const string FollowRelationshipRetrieved = "Follow relationship retrieved successfully.";
+    public const string FollowInsightsRetrieved = "Follow insights retrieved successfully.";
 
 }
