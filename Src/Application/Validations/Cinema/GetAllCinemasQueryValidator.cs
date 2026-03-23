@@ -3,32 +3,46 @@ using FluentValidation;
 
 namespace Application.Validations.Cinema;
 
-public class GetAllCinemasQueryValidator : AbstractValidator<GetAllCinemasQuery>
+public sealed class GetAllCinemasQueryValidator : AbstractValidator<GetAllCinemasQuery>
 {
     public GetAllCinemasQueryValidator()
     {
-        RuleFor(x => x.PageNumber)
-            .GreaterThan(0).WithMessage("PageNumber must be greater than 0.");
+        RuleFor(x => x.Request.PageNumber)
+            .GreaterThan(0)
+            .WithMessage("Page number must be greater than 0.");
 
-        RuleFor(x => x.PageSize)
-            .GreaterThan(0).WithMessage("PageSize must be greater than 0.")
-            .LessThanOrEqualTo(50).WithMessage("PageSize must be maximum 50.");
+        RuleFor(x => x.Request.PageSize)
+            .GreaterThan(0)
+            .LessThanOrEqualTo(100)
+            .WithMessage("Page size must be between 1 and 100.");
 
-        RuleFor(x => x.Country)
-            .MaximumLength(100)
-            .When(x => !string.IsNullOrWhiteSpace(x.Country));
+        When(x => !string.IsNullOrWhiteSpace(x.Request.Country), () =>
+        {
+            RuleFor(x => x.Request.Country!)
+                .MaximumLength(50)
+                .WithMessage("Country must not exceed 50 characters.");
+        });
 
-        RuleFor(x => x.City)
-            .MaximumLength(100)
-            .When(x => !string.IsNullOrWhiteSpace(x.City));
+        When(x => !string.IsNullOrWhiteSpace(x.Request.City), () =>
+        {
+            RuleFor(x => x.Request.City!)
+                .MaximumLength(50)
+                .WithMessage("City must not exceed 50 characters.");
+        });
 
-        RuleFor(x => x.Search)
-            .MaximumLength(100)
-            .When(x => !string.IsNullOrWhiteSpace(x.Search));
+        When(x => !string.IsNullOrWhiteSpace(x.Request.Search), () =>
+        {
+            RuleFor(x => x.Request.Search!)
+                .MaximumLength(100)
+                .WithMessage("Search must not exceed 100 characters.");
+        });
 
-        RuleFor(x => x.SortBy)
-            .Must(x => string.IsNullOrWhiteSpace(x) ||
-                       x.ToLower() is "name" or "city" or "country")
-            .WithMessage("SortBy can be only city or country.");
+        When(x => !string.IsNullOrWhiteSpace(x.Request.SortBy), () =>
+        {
+            RuleFor(x => x.Request.SortBy!)
+                .Must(x => new[] { "name", "city", "country", "createdat" }
+                    .Contains(x.ToLower()))
+                .WithMessage("SortBy must be one of: name, city, country, createdAt.");
+        });
     }
 }

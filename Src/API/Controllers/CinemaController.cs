@@ -47,24 +47,10 @@ public class CinemaController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<BaseResponse<PaginatedResponse<GetAllCinemasResponse>>>> GetAll(
-        [FromQuery] int pageNumber = 1,
-        [FromQuery] int pageSize = 10,
-        [FromQuery] string? country = null,
-        [FromQuery] string? city = null,
-        [FromQuery] string? search = null,
-        [FromQuery] string? sortBy = null,
-        [FromQuery] bool desc = false)
+    public async Task<ActionResult<BaseResponse<PaginatedResponse<GetAllCinemasResponse>>>> GetAll([FromQuery] GetAllCinemasRequest request)
     {
         var result = await _mediator.Send(
-            new GetAllCinemasQuery(
-                pageNumber,
-                pageSize,
-                country,
-                city,
-                search,
-                sortBy,
-                desc));
+            new GetAllCinemasQuery(request));
 
         if (!result.Success)
             return BadRequest(result);

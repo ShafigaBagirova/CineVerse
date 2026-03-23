@@ -32,24 +32,26 @@ public class GetAllCinemasQueryHandler
         GetAllCinemasQuery request,
         CancellationToken cancellationToken)
     {
+        var dto = request.Request;
+
         _logger.LogInformation(
             "GetAllCinemasQuery started. PageNumber: {PageNumber}, PageSize: {PageSize}, Country: {Country}, City: {City}, Search: {Search}, SortBy: {SortBy}, Desc: {Desc}",
-            request.PageNumber,
-            request.PageSize,
-            request.Country,
-            request.City,
-            request.Search,
-            request.SortBy,
-            request.Desc);
+            dto.PageNumber,
+            dto.PageSize,
+            dto.Country,
+            dto.City,
+            dto.Search,
+            dto.SortBy,
+            dto.Desc);
 
         var cacheKey = CinemaCacheKey.CinemasPaged(
-            request.PageNumber,
-            request.PageSize,
-            request.Country,
-            request.City,
-            request.Search,
-            request.SortBy,
-            request.Desc);
+            dto.PageNumber,
+            dto.PageSize,
+            dto.Country,
+            dto.City,
+            dto.Search,
+            dto.SortBy,
+            dto.Desc);
 
         var cachedResponse =
             await _cacheService.GetAsync<PaginatedResponse<GetAllCinemasResponse>>(cacheKey);
@@ -57,31 +59,34 @@ public class GetAllCinemasQueryHandler
         if (cachedResponse is not null)
         {
             _logger.LogInformation("GetAllCinemasQuery response fetched from cache.");
+
             return BaseResponse<PaginatedResponse<GetAllCinemasResponse>>
                 .Ok(cachedResponse, "Cinemas fetched from cache");
         }
 
         var result = await _repository.GetPagedActiveAsync(
-            request.PageNumber,
-            request.PageSize,
-            request.Country,
-            request.City,
-            request.Search,
-            request.SortBy,
-            request.Desc,
+            dto.PageNumber,
+            dto.PageSize,
+            dto.Country,
+            dto.City,
+            dto.Search,
+            dto.SortBy,
+            dto.Desc,
             cancellationToken);
 
         var mappedItems = _mapper.Map<List<GetAllCinemasResponse>>(result.Items);
+
+        var totalPages = (int)Math.Ceiling((double)result.TotalCount / dto.PageSize);
 
         var paginatedResponse = new PaginatedResponse<GetAllCinemasResponse>
         {
             Items = mappedItems,
             TotalCount = result.TotalCount,
-            PageNumber = request.PageNumber,
-            PageSize = request.PageSize,
-            TotalPages = (int)Math.Ceiling((double)result.TotalCount / request.PageSize),
-            HasPreviousPage = request.PageNumber > 1,
-            HasNextPage = request.PageNumber < (int)Math.Ceiling((double)result.TotalCount / request.PageSize)
+            PageNumber = dto.PageNumber,
+            PageSize = dto.PageSize,
+            TotalPages = totalPages,
+            HasPreviousPage = dto.PageNumber > 1,
+            HasNextPage = dto.PageNumber < totalPages
         };
 
         await _cacheService.SetAsync(cacheKey, paginatedResponse, TimeSpan.FromMinutes(10));

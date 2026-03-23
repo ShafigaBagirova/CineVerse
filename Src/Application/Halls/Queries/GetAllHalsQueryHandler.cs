@@ -34,20 +34,20 @@ public class GetAllHallsQueryHandler
     {
         _logger.LogInformation(
             "GetAllHallsQuery started. PageNumber: {PageNumber}, PageSize: {PageSize}, CinemaId: {CinemaId}, Search: {Search}, SortBy: {SortBy}, Desc: {Desc}",
-            request.PageNumber,
-            request.PageSize,
-            request.CinemaId,
-            request.Search,
-            request.SortBy,
-            request.Desc);
+            request.Request.PageNumber,
+            request.Request.PageSize,
+            request.Request.CinemaId,
+            request.Request.Search,
+            request.Request.SortBy,
+            request.Request.Desc);
 
         var cacheKey = HallCacheKey.HallsPaged(
-            request.PageNumber,
-            request.PageSize,
-            request.CinemaId,
-            request.Search,
-            request.SortBy,
-            request.Desc);
+            request.Request.PageNumber,
+            request.Request.PageSize,
+            request.Request.CinemaId,
+            request.Request.Search,
+            request.Request.SortBy,
+            request.Request.Desc);
 
         var cachedResponse =
             await _cacheService.GetAsync<PaginatedResponse<GetAllHallsResponse>>(cacheKey);
@@ -61,27 +61,27 @@ public class GetAllHallsQueryHandler
         }
 
         var result = await _hallRepository.GetPagedAsync(
-            request.PageNumber,
-            request.PageSize,
-            request.CinemaId,
-            request.Search,
-            request.SortBy,
-            request.Desc,
+            request.Request.PageNumber,
+            request.Request.PageSize,
+            request.Request.CinemaId,
+            request.Request.Search,
+            request.Request.SortBy,
+            request.Request.Desc,
             cancellationToken);
 
         var mappedItems = _mapper.Map<List<GetAllHallsResponse>>(result.Items);
 
-        var totalPages = (int)Math.Ceiling((double)result.TotalCount / request.PageSize);
+        var totalPages = (int)Math.Ceiling((double)result.TotalCount / request.Request.PageSize);
 
         var paginatedResponse = new PaginatedResponse<GetAllHallsResponse>
         {
             Items = mappedItems,
             TotalCount = result.TotalCount,
-            PageNumber = request.PageNumber,
-            PageSize = request.PageSize,
+            PageNumber = request.Request.PageNumber,
+            PageSize = request.Request.PageSize,
             TotalPages = totalPages,
-            HasPreviousPage = request.PageNumber > 1,
-            HasNextPage = request.PageNumber < totalPages
+            HasPreviousPage = request.Request.PageNumber > 1,
+            HasNextPage = request.Request.PageNumber < totalPages
         };
 
         await _cacheService.SetAsync(cacheKey, paginatedResponse, TimeSpan.FromMinutes(10));

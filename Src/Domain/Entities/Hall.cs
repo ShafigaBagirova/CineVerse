@@ -7,4 +7,5 @@ public class Hall:BaseEntity<int>
     public Cinema Cinema { get; set; } = default!;
     public int Capacity { get; set; }
     public bool IsActive { get; set; } = true;
+    public ICollection<Seat> Seats { get; set; } = new List<Seat>();
 }

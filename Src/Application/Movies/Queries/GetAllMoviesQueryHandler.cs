@@ -37,34 +37,34 @@ public class GetAllMoviesQueryHandler
     {
         _logger.LogInformation(
             "GetAllMoviesQuery started. PageNumber: {PageNumber}, PageSize: {PageSize}, Search: {Search}, GenreId: {GenreId}, Language: {Language}, Status: {Status}, Year: {Year}, MinTmdbRating: {MinTmdbRating}, MaxTmdbRating: {MaxTmdbRating}, MinUserRating: {MinUserRating}, MaxUserRating: {MaxUserRating}, SortBy: {SortBy}, Desc: {Desc}",
-            request.PageNumber,
-            request.PageSize,
-            request.Search,
-            request.GenreId,
-            request.Language,
-            request.Status,
-            request.Year,
-            request.MinTmdbRating,
-            request.MaxTmdbRating,
-            request.MinUserRating,
-            request.MaxUserRating,
-            request.SortBy,
-            request.Desc);
+            request.Request.PageNumber,
+            request.Request.PageSize,
+            request.Request.Search,
+            request.Request.GenreId,
+            request.Request.Language,
+            request.Request.Status,
+            request.Request.Year,
+            request.Request.MinTmdbRating,
+            request.Request.MaxTmdbRating,
+            request.Request.MinUserRating,
+            request.Request.MaxUserRating,
+            request.Request.SortBy,
+            request.Request.Desc);
 
         var cacheKey = CacheKeys.MoviesPaged(
-            request.PageNumber,
-            request.PageSize,
-            request.Search,
-            request.GenreId,
-            request.Language,
-            request.Status,
-            request.Year,
-            request.MinTmdbRating,
-            request.MaxTmdbRating,
-            request.MinUserRating,
-            request.MaxUserRating,
-            request.SortBy,
-            request.Desc);
+            request.Request.PageNumber,
+            request.Request.PageSize,
+            request.Request.Search,
+            request.Request.GenreId,
+            request.Request.Language,
+            request.Request.Status,
+            request.Request.Year,
+            request.Request.MinTmdbRating,
+            request.Request.MaxTmdbRating,
+            request.Request.MinUserRating,
+            request.Request.MaxUserRating,
+            request.Request.SortBy,
+            request.Request.Desc);
 
         var cachedResponse =
             await _cacheService.GetAsync<PaginatedResponse<GetAllMoviesResponse>>(cacheKey);
@@ -78,34 +78,34 @@ public class GetAllMoviesQueryHandler
         }
 
         var result = await _repository.GetPagedAsync(
-            request.PageNumber,
-            request.PageSize,
-            request.Search,
-            request.GenreId,
-            request.Language,
-            request.Status,
-            request.Year,
-            request.MinTmdbRating,
-            request.MaxTmdbRating,
-            request.MinUserRating,
-            request.MaxUserRating,
-            request.SortBy,
-            request.Desc,
+            request.Request.PageNumber,
+            request.Request.PageSize,
+            request.Request.Search,
+            request.Request.GenreId,
+            request.Request.Language,
+            request.Request.Status,
+            request.Request.Year,
+            request.Request.MinTmdbRating,
+            request.Request.MaxTmdbRating,
+            request.Request.MinUserRating,
+            request.Request.MaxUserRating,
+            request.Request.SortBy,
+            request.Request.Desc,
             cancellationToken);
 
         var mappedItems = _mapper.Map<List<GetAllMoviesResponse>>(result.Items);
 
-        var totalPages = (int)Math.Ceiling((double)result.TotalCount / request.PageSize);
+        var totalPages = (int)Math.Ceiling((double)result.TotalCount / request.Request.PageSize);
 
         var paginatedResponse = new PaginatedResponse<GetAllMoviesResponse>
         {
             Items = mappedItems,
             TotalCount = result.TotalCount,
-            PageNumber = request.PageNumber,
-            PageSize = request.PageSize,
+            PageNumber = request.Request.PageNumber,
+            PageSize = request.Request.PageSize,
             TotalPages = totalPages,
-            HasPreviousPage = request.PageNumber > 1,
-            HasNextPage = request.PageNumber < totalPages
+            HasPreviousPage = request.Request.PageNumber > 1,
+            HasNextPage = request.Request.PageNumber < totalPages
         };
 
         await _cacheService.SetAsync(cacheKey, paginatedResponse, TimeSpan.FromMinutes(10));

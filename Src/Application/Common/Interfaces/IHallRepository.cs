@@ -16,4 +16,6 @@ public interface IHallRepository:IRepository<Hall,int>
     string? sortBy,
     bool desc,
     CancellationToken cancellationToken);
+
+    Task<bool> ExistsAsync(int id, CancellationToken cancellationToken);
 }

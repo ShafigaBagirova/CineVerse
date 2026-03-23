@@ -3,63 +3,100 @@ using FluentValidation;
 
 namespace Application.Validations.Movie;
 
-public class GetAllMoviesQueryValidator : AbstractValidator<GetAllMoviesQuery>
+public sealed class GetAllMoviesQueryValidator : AbstractValidator<GetAllMoviesQuery>
 {
     public GetAllMoviesQueryValidator()
     {
-        RuleFor(x => x.PageNumber)
-            .GreaterThan(0).WithMessage("PageNumber must be greater than 0.");
-
-        RuleFor(x => x.PageSize)
-            .GreaterThan(0).WithMessage("PageSize must be greater than 0.")
-            .LessThanOrEqualTo(50).WithMessage("PageSize can be maximum 50.");
-
-        RuleFor(x => x.GenreId)
+        RuleFor(x => x.Request.PageNumber)
             .GreaterThan(0)
-            .When(x => x.GenreId.HasValue)
-            .WithMessage("GenreId must be greater than 0.");
+            .WithMessage("Page number must be greater than 0.");
 
-        RuleFor(x => x.Language)
-            .MaximumLength(50)
-            .When(x => !string.IsNullOrWhiteSpace(x.Language));
+        RuleFor(x => x.Request.PageSize)
+            .GreaterThan(0)
+            .LessThanOrEqualTo(100)
+            .WithMessage("Page size must be between 1 and 100.");
 
+        When(x => !string.IsNullOrWhiteSpace(x.Request.Search), () =>
+        {
+            RuleFor(x => x.Request.Search!)
+                .MaximumLength(200)
+                .WithMessage("Search must not exceed 200 characters.");
+        });
 
-        RuleFor(x => x.Search)
-            .MaximumLength(200)
-            .When(x => !string.IsNullOrWhiteSpace(x.Search));
+        When(x => x.Request.GenreId.HasValue, () =>
+        {
+            RuleFor(x => x.Request.GenreId!.Value)
+                .GreaterThan(0)
+                .WithMessage("Genre id must be greater than 0.");
+        });
 
-        RuleFor(x => x.Year)
-            .InclusiveBetween(1888, 2100)
-            .When(x => x.Year.HasValue)
-            .WithMessage("Year must be in the correct interval.");
+        When(x => !string.IsNullOrWhiteSpace(x.Request.Language), () =>
+        {
+            RuleFor(x => x.Request.Language!)
+                .MaximumLength(10)
+                .WithMessage("Language must not exceed 10 characters.");
+        });
 
-        RuleFor(x => x.MinTmdbRating)
-            .InclusiveBetween(0, 10)
-            .When(x => x.MinTmdbRating.HasValue);
+        When(x => x.Request.Year.HasValue, () =>
+        {
+            RuleFor(x => x.Request.Year!.Value)
+                .InclusiveBetween(1888, DateTime.UtcNow.Year)
+                .WithMessage("Year must be valid.");
+        });
 
-        RuleFor(x => x.MaxTmdbRating)
-            .InclusiveBetween(0, 10)
-            .When(x => x.MaxTmdbRating.HasValue);
+        When(x => x.Request.MinTmdbRating.HasValue && x.Request.MaxTmdbRating.HasValue, () =>
+        {
+            RuleFor(x => x.Request)
+                .Must(r => r.MinTmdbRating <= r.MaxTmdbRating)
+                .WithMessage("MinTmdbRating must be less than or equal to MaxTmdbRating.");
+        });
 
-        RuleFor(x => x.MinUserRating)
-            .InclusiveBetween(0, 10)
-            .When(x => x.MinUserRating.HasValue);
+        When(x => x.Request.MinTmdbRating.HasValue, () =>
+        {
+            RuleFor(x => x.Request.MinTmdbRating!.Value)
+                .InclusiveBetween(0, 10)
+                .WithMessage("MinTmdbRating must be between 0 and 10.");
+        });
 
-        RuleFor(x => x.MaxUserRating)
-            .InclusiveBetween(0, 10)
-            .When(x => x.MaxUserRating.HasValue);
+        When(x => x.Request.MaxTmdbRating.HasValue, () =>
+        {
+            RuleFor(x => x.Request.MaxTmdbRating!.Value)
+                .InclusiveBetween(0, 10)
+                .WithMessage("MaxTmdbRating must be between 0 and 10.");
+        });
+        When(x => x.Request.MinUserRating.HasValue && x.Request.MaxUserRating.HasValue, () =>
+        {
+            RuleFor(x => x.Request)
+                .Must(r => r.MinUserRating <= r.MaxUserRating)
+                .WithMessage("MinUserRating must be less than or equal to MaxUserRating.");
+        });
 
-        RuleFor(x => x)
-            .Must(x => !x.MinTmdbRating.HasValue || !x.MaxTmdbRating.HasValue || x.MinTmdbRating <= x.MaxTmdbRating)
-            .WithMessage("MinTmdbRating cannot be greater than MaxTmdbRating.");
+        When(x => x.Request.MinUserRating.HasValue, () =>
+        {
+            RuleFor(x => x.Request.MinUserRating!.Value)
+                .InclusiveBetween(0, 10)
+                .WithMessage("MinUserRating must be between 0 and 10.");
+        });
 
-        RuleFor(x => x)
-            .Must(x => !x.MinUserRating.HasValue || !x.MaxUserRating.HasValue || x.MinUserRating <= x.MaxUserRating)
-            .WithMessage("MinUserRating cannot be greater than MaxUserRating.");
+        When(x => x.Request.MaxUserRating.HasValue, () =>
+        {
+            RuleFor(x => x.Request.MaxUserRating!.Value)
+                .InclusiveBetween(0, 10)
+                .WithMessage("MaxUserRating must be between 0 and 10.");
+        });
 
-        RuleFor(x => x.SortBy)
-            .Must(x => string.IsNullOrWhiteSpace(x) ||
-                       x.Trim().ToLower() is "title" or "year" or "tmdb_rating" or "user_rating" or "createdat")
-            .WithMessage("SortBy can be only title,year,tmdb_rating,user_rating or createdat.");
+        When(x => !string.IsNullOrWhiteSpace(x.Request.SortBy), () =>
+        {
+            RuleFor(x => x.Request.SortBy!)
+                .Must(x => new[]
+                {
+                    "title",
+                    "year",
+                    "tmdbRating",
+                    "userRating",
+                    "createdAt"
+                }.Contains(x.ToLower()))
+                .WithMessage("SortBy must be one of: title, year, tmdbRating, userRating, createdAt.");
+        });
     }
 }

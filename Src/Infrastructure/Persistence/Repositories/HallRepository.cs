@@ -105,4 +105,9 @@ public class HallRepository:GenericRepository<Hall,int>, IHallRepository
 
         return (items, totalCount);
     }
+    public async Task<bool> ExistsAsync(int id, CancellationToken cancellationToken)
+    {
+        return await _context.Halls
+            .AnyAsync(h => h.Id == id, cancellationToken);
+    }
 }

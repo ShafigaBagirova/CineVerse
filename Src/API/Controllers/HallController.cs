@@ -70,15 +70,9 @@ public class HallController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<BaseResponse<PaginatedResponse<GetAllHallsResponse>>>> GetAll(
-    [FromQuery] int pageNumber = 1,
-    [FromQuery] int pageSize = 10,
-    [FromQuery] int? cinemaId = null,
-    [FromQuery] string? search = null,
-    [FromQuery] string? sortBy = null,
-    [FromQuery] bool desc = false)
+        [FromQuery] GetAllHallsRequest request)
     {
-        var result = await _mediator.Send(
-            new GetAllHallsQuery(pageNumber, pageSize, cinemaId, search, sortBy, desc));
+        var result = await _mediator.Send(new GetAllHallsQuery(request));
 
         if (!result.Success)
             return BadRequest(result);
