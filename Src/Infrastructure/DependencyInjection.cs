@@ -120,6 +120,7 @@ public static class DependencyInjection
         services.AddScoped<ICinemaRepository, CinemaRepository>();
         services.AddScoped<IHallRepository, HallRepository>();
         services.AddScoped<ISeatRepository, SeatRepository>();
+        services.AddScoped<IScreeningRepository, ScreeningRepository>();
         return services;
     }
 }

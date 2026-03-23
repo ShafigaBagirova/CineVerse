@@ -7,6 +7,7 @@ namespace Application.Common.Interfaces;
 public interface IMovieRepository:IRepository<Movie,int>
 {
     Task<Movie?> GetByTmdbIdAsync(long tmdbId, CancellationToken cancellationToken = default);
+    Task<bool> ExistsAsync(int id, CancellationToken cancellationToken);
     Task<bool> ExistsBySlugAsync(string slug, CancellationToken cancellationToken);
     Task<bool> ExistsByTmdbIdAsync(long tmdbId, CancellationToken cancellationToken);
     Task<bool> ExistsByTitleAndReleaseDateAsync(string title, DateOnly? releaseDate, CancellationToken cancellationToken);
