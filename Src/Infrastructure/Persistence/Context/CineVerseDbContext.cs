@@ -28,4 +28,5 @@ public class CineVerseDbContext : IdentityDbContext<CineVerseUser>
     public DbSet<WatchLog> WatchLogs { get; set; }
     public DbSet<Follow> Follows { get; set; }
     public DbSet<Cinema> Cinemas { get; set; }
+    public DbSet<Hall> Halls { get; set; }
 }

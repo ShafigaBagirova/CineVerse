@@ -8,17 +8,15 @@ public class UpdateCinemaCommandValidator : AbstractValidator<UpdateCinemaComman
     public UpdateCinemaCommandValidator()
     {
         RuleFor(x => x.Id)
-            .GreaterThan(0).WithMessage("Cinema Id 0-dan böyük olmalıdır.");
+            .GreaterThan(0).WithMessage("Cinema Id must be greater than 0.");
 
         RuleFor(x => x.Request.Name)
-            .NotEmpty().WithMessage("Name boş ola bilməz.")
             .MaximumLength(200);
 
         RuleFor(x => x.Request.Description)
             .MaximumLength(1000);
 
         RuleFor(x => x.Request.Address)
-            .NotEmpty().WithMessage("Address boş ola bilməz.")
             .MaximumLength(300);
 
         RuleFor(x => x.Request.Phone)
@@ -27,6 +25,6 @@ public class UpdateCinemaCommandValidator : AbstractValidator<UpdateCinemaComman
         RuleFor(x => x.Request.Email)
             .EmailAddress()
             .When(x => !string.IsNullOrWhiteSpace(x.Request.Email))
-            .WithMessage("Email düzgün formatda deyil.");
+            .WithMessage("Email is not in the correct form.");
     }
 }

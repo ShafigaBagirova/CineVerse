@@ -2,7 +2,9 @@
 using Application.Cinemas.Dtos;
 using Application.Cinemas.Queries;
 using Application.Common.Responses;
+using Domain.Constants;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers;
@@ -17,6 +19,7 @@ public class CinemaController : ControllerBase
     {
         _mediator = mediator;
     }
+    [Authorize(Policy = Policies.AdminOnly)]
     [HttpPost]
     public async Task<ActionResult<BaseResponse>> Create([FromBody] CreateCinemaRequest request)
     {
@@ -24,6 +27,7 @@ public class CinemaController : ControllerBase
 
         return result.Success ? Ok(result) : BadRequest(result);
     }
+    [Authorize(Policy = Policies.AdminOnly)]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult<BaseResponse>> Delete([FromRoute] int id)
     {
@@ -31,6 +35,7 @@ public class CinemaController : ControllerBase
 
         return result.Success ? Ok(result) : NotFound(result);
     }
+    [Authorize(Policy = Policies.AdminOnly)]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<BaseResponse>> Update(
     [FromRoute] int id,
