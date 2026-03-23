@@ -1,7 +1,9 @@
 ﻿using Application.Common.Responses;
+using Application.Genres.Commands;
+using Application.Genres.Dtos;
+using Application.Genres.Queries;
 using Application.Movies.Commands;
 using Application.Movies.Dtos;
-using Application.Validations.Movie;
 using Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

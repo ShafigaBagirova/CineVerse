@@ -1,7 +1,9 @@
 ﻿using Application.Common.Responses;
 using Application.Movies.Commands;
-using Application.Movies.Dtos;
 using Application.Movies.Queries;
+using Application.Reviews.Commands;
+using Application.Reviews.Dtos;
+using Application.Reviews.Queries;
 using Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

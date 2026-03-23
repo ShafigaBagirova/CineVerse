@@ -14,48 +14,61 @@ public class CinemaRepository:GenericRepository<Cinema,int>, ICinemaRepository
         _context = context;
     }
     public async Task<(List<Cinema> Items, int TotalCount)> GetPagedActiveAsync(
-       int pageNumber,
-       int pageSize,
-       CancellationToken cancellationToken)
+          int pageNumber,
+          int pageSize,
+          string? country,
+          string? city,
+          string? search,
+          string? sortBy,
+          bool desc,
+          CancellationToken cancellationToken)
     {
-        var query = _context.Cinemas
-            .AsNoTracking()
-            .Where(x => x.IsActive);
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        var items = await query
-            .OrderBy(x => x.Name)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-
-        return (items, totalCount);
-    }
-
-    public async Task<List<Cinema>> GetByLocationAsync(
-        string? country,
-        string? city,
-        CancellationToken cancellationToken)
-    {
-        var query = _context.Cinemas
+        IQueryable<Cinema> query = _context.Cinemas
             .AsNoTracking()
             .Where(x => x.IsActive);
 
         if (!string.IsNullOrWhiteSpace(country))
         {
-            var trimmedCountry = country.Trim();
-            query = query.Where(x => x.Country == trimmedCountry);
+            var normalizedCountry = country.Trim().ToLower();
+            query = query.Where(x => x.Country.ToLower() == normalizedCountry);
         }
 
         if (!string.IsNullOrWhiteSpace(city))
         {
-            var trimmedCity = city.Trim();
-            query = query.Where(x => x.City == trimmedCity);
+            var normalizedCity = city.Trim().ToLower();
+            query = query.Where(x => x.City.ToLower() == normalizedCity);
         }
 
-        return await query
-            .OrderBy(x => x.Name)
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalizedSearch = search.Trim().ToLower();
+            query = query.Where(x => x.Name.ToLower().Contains(normalizedSearch));
+        }
+
+        query = sortBy?.Trim().ToLower() switch
+        {
+            "name" => desc
+                ? query.OrderByDescending(x => x.Name)
+                : query.OrderBy(x => x.Name),
+
+            "city" => desc
+                ? query.OrderByDescending(x => x.City)
+                : query.OrderBy(x => x.City),
+
+            "country" => desc
+                ? query.OrderByDescending(x => x.Country)
+                : query.OrderBy(x => x.Country),
+
+            _ => query.OrderBy(x => x.Name)
+        };
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
     }
 }

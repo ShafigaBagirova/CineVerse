@@ -1,6 +1,6 @@
 ﻿using Application.Common.Interfaces;
 using Application.Common.Responses;
-using Application.Movies.Dtos;
+using Application.Reviews.Dtos;
 using AutoMapper;
 using MediatR;
 using Microsoft.Extensions.Logging;

@@ -83,12 +83,29 @@ public class MovieController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<PaginatedResponse<GetAllMoviesResponse>>> GetAllMovies(
-    [FromQuery] GetAllMoviesQuery query,
-    CancellationToken cancellationToken)
+    public async Task<ActionResult<BaseResponse<PaginatedResponse<GetAllMoviesResponse>>>> GetAllMMovies(
+          [FromQuery] int pageNumber = 1,
+          [FromQuery] int pageSize = 10,
+          [FromQuery] string? search = null,
+          [FromQuery] int? genreId = null,
+          [FromQuery] string? language = null,
+          [FromQuery] MovieStatus? status = null,
+          [FromQuery] int? year = null,
+          [FromQuery] decimal? minTmdbRating = null,
+          [FromQuery] decimal? maxTmdbRating = null,
+          [FromQuery] decimal? minUserRating = null,
+          [FromQuery] decimal? maxUserRating = null,
+          [FromQuery] string? sortBy = null,
+          [FromQuery] bool desc = false)
     {
-        var response = await _mediator.Send(query, cancellationToken);
-        return Ok(response);
+        var result = await _mediator.Send(
+         new GetAllMoviesQuery(pageNumber, pageSize,search, genreId,language, status,year,minTmdbRating, maxTmdbRating, minUserRating, maxUserRating,
+         sortBy,desc));
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
     }
     [HttpGet("{id:int}")]
     public async Task<ActionResult<GetMovieByIdResponse>> GetMovieById(
@@ -112,111 +129,5 @@ public class MovieController : ControllerBase
 
         return Ok(response);
     }
-    [HttpGet("language/{language}")]
-    public async Task<ActionResult<PaginatedResponse<GetAllMoviesResponse>>> GetMoviesByLanguage(
-    [FromRoute] string language,
-    [FromQuery] int pageNumber = 1,
-    [FromQuery] int pageSize = 10,
-    CancellationToken cancellationToken = default)
-    {
-        var query = new GetMoviesByLanguageQuery(language, pageNumber, pageSize);
 
-        var response = await _mediator.Send(query, cancellationToken);
-
-        return Ok(response);
-    }
-    [HttpGet("status/{status}")]
-    public async Task<ActionResult<PaginatedResponse<GetAllMoviesResponse>>> GetMoviesByStatus(
-    [FromRoute] MovieStatus status,
-    [FromQuery] int pageNumber = 1,
-    [FromQuery] int pageSize = 10,
-    CancellationToken cancellationToken = default)
-    {
-        var query = new GetMoviesByStatusQuery(status, pageNumber, pageSize);
-
-        var response = await _mediator.Send(query, cancellationToken);
-
-        return Ok(response);
-    }
-    [HttpGet("rating-range")]
-    public async Task<ActionResult<PaginatedResponse<GetAllMoviesResponse>>> GetMoviesByUserRatingRange(
-    [FromQuery] decimal minRating,
-    [FromQuery] decimal maxRating,
-    [FromQuery] int pageNumber = 1,
-    [FromQuery] int pageSize = 10,
-    CancellationToken cancellationToken = default)
-    {
-        var query = new GetMoviesByUserRatingRangeQuery(minRating, maxRating, pageNumber, pageSize);
-
-        var response = await _mediator.Send(query, cancellationToken);
-
-        return Ok(response);
-    }
-    [HttpGet("year/{year:int}")]
-    public async Task<ActionResult<PaginatedResponse<GetAllMoviesResponse>>> GetMoviesByYear(
-    [FromRoute] int year,
-    [FromQuery] int pageNumber = 1,
-    [FromQuery] int pageSize = 10,
-    CancellationToken cancellationToken = default)
-    {
-        var query = new GetMoviesByYearQuery(year, pageNumber, pageSize);
-
-        var response = await _mediator.Send(query, cancellationToken);
-
-        return Ok(response);
-    }
-    [HttpGet("search")]
-    public async Task<ActionResult<PaginatedResponse<GetAllMoviesResponse>>> SearchMovies(
-    [FromQuery] string searchTerm,
-    [FromQuery] int pageNumber = 1,
-    [FromQuery] int pageSize = 10,
-    CancellationToken cancellationToken = default)
-    {
-        var query = new SearchMoviesQuery(searchTerm, pageNumber, pageSize);
-
-        var response = await _mediator.Send(query, cancellationToken);
-
-        return Ok(response);
-    }
-    [HttpGet("tmdb-rating-range")]
-    [AllowAnonymous]
-    public async Task<ActionResult<PaginatedResponse<GetAllMoviesResponse>>> GetMoviesByTmdbRatingRange(
-    [FromQuery] decimal minRating,
-    [FromQuery] decimal maxRating,
-    [FromQuery] int pageNumber = 1,
-    [FromQuery] int pageSize = 10,
-    CancellationToken cancellationToken = default)
-    {
-        var query = new GetMoviesByTmdbRatingRangeQuery(minRating, maxRating, pageNumber, pageSize);
-
-        var response = await _mediator.Send(query, cancellationToken);
-
-        return Ok(response);
-    }
-    [Authorize]
-    [HttpPost("{movieId:int}/ratings")]
-    public async Task<ActionResult<BaseResponse>> CreateRating(
-    int movieId,
-    CreateMovieRatingRequest request)
-    {
-        var command = new CreateMovieRatingCommand(movieId, request);
-
-        var response = await _mediator.Send(command);
-
-        return response.Success ? Ok(response) : BadRequest(response);
-    }
-  
-    [HttpGet("{genreId:int}/movies")]
-    public async Task<ActionResult<PaginatedResponse<GetAllMoviesResponse>>> GetMoviesByGenre(
-    [FromRoute] int genreId,
-    [FromQuery] int page = 1,
-    [FromQuery] int pageSize = 10,
-    CancellationToken cancellationToken = default)
-    {
-        var query = new GetMoviesByGenreQuery(genreId, page, pageSize);
-
-        var response = await _mediator.Send(query, cancellationToken);
-
-        return Ok(response);
-    }
 }

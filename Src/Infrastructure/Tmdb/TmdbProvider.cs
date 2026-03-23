@@ -1,5 +1,6 @@
 ﻿using Application.Common.Interfaces;
 using Application.Common.Options;
+using Application.Genres.Dtos;
 using Application.Movies.Dtos;
 using Application.MovieVideos.Dtos;
 using AutoMapper;

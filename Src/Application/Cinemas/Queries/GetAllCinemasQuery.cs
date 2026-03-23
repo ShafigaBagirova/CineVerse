@@ -4,5 +4,12 @@ using MediatR;
 
 namespace Application.Cinemas.Queries;
 
-public record GetAllCinemasQuery(int PageNumber = 1, int PageSize = 10)
+public record GetAllCinemasQuery(
+    int PageNumber = 1,
+    int PageSize = 10,
+    string? Country = null,
+    string? City = null,
+    string? Search = null,
+    string? SortBy = null,
+    bool Desc = false)
     : IRequest<BaseResponse<PaginatedResponse<GetAllCinemasResponse>>>;

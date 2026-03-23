@@ -40,12 +40,26 @@ public class CinemaController : ControllerBase
 
         return result.Success ? Ok(result) : NotFound(result);
     }
+
     [HttpGet]
     public async Task<ActionResult<BaseResponse<PaginatedResponse<GetAllCinemasResponse>>>> GetAll(
-    [FromQuery] int pageNumber = 1,
-    [FromQuery] int pageSize = 10)
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? country = null,
+        [FromQuery] string? city = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool desc = false)
     {
-        var result = await _mediator.Send(new GetAllCinemasQuery(pageNumber, pageSize));
+        var result = await _mediator.Send(
+            new GetAllCinemasQuery(
+                pageNumber,
+                pageSize,
+                country,
+                city,
+                search,
+                sortBy,
+                desc));
 
         if (!result.Success)
             return BadRequest(result);
@@ -62,16 +76,5 @@ public class CinemaController : ControllerBase
 
         return Ok(result);
     }
-    [HttpGet("by-location")]
-    public async Task<ActionResult<BaseResponse<List<GetAllCinemasResponse>>>> GetByLocation(
-    [FromQuery] string? country,
-    [FromQuery] string? city)
-    {
-        var result = await _mediator.Send(new GetCinemasByLocationQuery(country, city));
 
-        if (!result.Success)
-            return BadRequest(result);
-
-        return Ok(result);
-    }
 }
