@@ -118,6 +118,8 @@ public static class DependencyInjection
         services.AddScoped<IFollowRepository,FollowRepository>();
         services.AddScoped<IUserSuggestionRepository, UserSuggestionRepository>();
         services.AddScoped<ICinemaRepository, CinemaRepository>();
+        services.AddScoped<IHallRepository, HallRepository>();
+        services.AddScoped<ISeatRepository, SeatRepository>();
         return services;
     }
 }

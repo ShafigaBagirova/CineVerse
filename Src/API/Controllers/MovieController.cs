@@ -83,24 +83,10 @@ public class MovieController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<BaseResponse<PaginatedResponse<GetAllMoviesResponse>>>> GetAllMMovies(
-          [FromQuery] int pageNumber = 1,
-          [FromQuery] int pageSize = 10,
-          [FromQuery] string? search = null,
-          [FromQuery] int? genreId = null,
-          [FromQuery] string? language = null,
-          [FromQuery] MovieStatus? status = null,
-          [FromQuery] int? year = null,
-          [FromQuery] decimal? minTmdbRating = null,
-          [FromQuery] decimal? maxTmdbRating = null,
-          [FromQuery] decimal? minUserRating = null,
-          [FromQuery] decimal? maxUserRating = null,
-          [FromQuery] string? sortBy = null,
-          [FromQuery] bool desc = false)
+    public async Task<ActionResult<BaseResponse<PaginatedResponse<GetAllMoviesResponse>>>> GetAllMMovies([FromQuery] GetAllMoviesRequest request)
     {
         var result = await _mediator.Send(
-         new GetAllMoviesQuery(pageNumber, pageSize,search, genreId,language, status,year,minTmdbRating, maxTmdbRating, minUserRating, maxUserRating,
-         sortBy,desc));
+         new GetAllMoviesQuery(request));
 
         if (!result.Success)
             return BadRequest(result);

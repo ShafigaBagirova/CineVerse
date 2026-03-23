@@ -8,19 +8,20 @@ public class CreateCinemaCommandValidator : AbstractValidator<CreateCinemaComman
     public CreateCinemaCommandValidator()
     {
         RuleFor(x => x.Request.Name)
-            .NotEmpty().WithMessage("Name boş ola bilməz")
+            .NotEmpty().WithMessage("Name cannot be empty.")
             .MaximumLength(200);
 
         RuleFor(x => x.Request.Address)
-            .NotEmpty().WithMessage("Address boş ola bilməz");
+            .NotEmpty().WithMessage("Address cannot be empty.");
 
         RuleFor(x => x.Request.City)
-            .NotEmpty();
+            .NotEmpty().WithMessage("City cannot be empty.");
 
         RuleFor(x => x.Request.Country)
-            .NotEmpty();
+            .NotEmpty().WithMessage("Country cannot be empty.");
 
         RuleFor(x => x.Request.Email)
+            .NotEmpty().WithMessage("Email cannot be empty.")
             .EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Request.Email));
     }
 }

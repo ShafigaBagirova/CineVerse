@@ -180,6 +180,37 @@ namespace Infrastructure.Migrations
                     b.ToTable("Genres", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.Hall", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CinemaId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CinemaId");
+
+                    b.ToTable("Halls", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Entities.Movie", b =>
                 {
                     b.Property<int>("Id")
@@ -480,6 +511,41 @@ namespace Infrastructure.Migrations
                     b.ToTable("Reviews", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.Seat", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("HallId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<int>("Number")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Row")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HallId", "Row", "Number")
+                        .IsUnique();
+
+                    b.ToTable("Seats", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Entities.WatchListItem", b =>
                 {
                     b.Property<int>("Id")
@@ -775,6 +841,17 @@ namespace Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.Hall", b =>
+                {
+                    b.HasOne("Domain.Entities.Cinema", "Cinema")
+                        .WithMany("Halls")
+                        .HasForeignKey("CinemaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Cinema");
+                });
+
             modelBuilder.Entity("Domain.Entities.MovieGenre", b =>
                 {
                     b.HasOne("Domain.Entities.Genre", "Genre")
@@ -842,6 +919,17 @@ namespace Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Movie");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Seat", b =>
+                {
+                    b.HasOne("Domain.Entities.Hall", "Hall")
+                        .WithMany("Seats")
+                        .HasForeignKey("HallId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Hall");
                 });
 
             modelBuilder.Entity("Domain.Entities.WatchListItem", b =>
@@ -925,9 +1013,19 @@ namespace Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Domain.Entities.Cinema", b =>
+                {
+                    b.Navigation("Halls");
+                });
+
             modelBuilder.Entity("Domain.Entities.Genre", b =>
                 {
                     b.Navigation("MovieGenres");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Hall", b =>
+                {
+                    b.Navigation("Seats");
                 });
 
             modelBuilder.Entity("Domain.Entities.Movie", b =>
