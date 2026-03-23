@@ -160,6 +160,10 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
     .Include(m => m.Reviews.Where(r => !r.IsDeleted))
     .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
+    public async Task<bool> ExistsAsync(int id, CancellationToken cancellationToken)
+    {
+        return await _context.Movies
+            .AnyAsync(x => x.Id == id, cancellationToken);
+    }
 
-    
 }

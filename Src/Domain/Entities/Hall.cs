@@ -8,4 +8,5 @@ public class Hall:BaseEntity<int>
     public int Capacity { get; set; }
     public bool IsActive { get; set; } = true;
     public ICollection<Seat> Seats { get; set; } = new List<Seat>();
+    public ICollection<Screening> Screenings { get; set; } = new List<Screening>();
 }

@@ -30,4 +30,13 @@ public class SeatRepository:GenericRepository<Seat,int>,ISeatRepository
     {
         return _context.Seats.AsNoTracking();
     }
+    public async Task<List<Seat>> GetActiveByHallIdAsync(int hallId, CancellationToken cancellationToken)
+    {
+        return await _context.Seats
+            .AsNoTracking()
+            .Where(x => x.HallId == hallId && x.IsActive)
+            .OrderBy(x => x.Row)
+            .ThenBy(x => x.Number)
+            .ToListAsync(cancellationToken);
+    }
 }

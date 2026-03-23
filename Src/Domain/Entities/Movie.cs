@@ -28,4 +28,5 @@ public class Movie: BaseAuditableEntity
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
     public ICollection<WatchListItem> WatchlistItems { get; set; } = new List<WatchListItem>();
     public ICollection<WatchLog> WatchLogs { get; set; } = new List<WatchLog>();
+    public ICollection<Screening> Screenings { get; set; } = new List<Screening>();
 }

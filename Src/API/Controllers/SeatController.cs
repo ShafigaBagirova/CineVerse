@@ -73,4 +73,14 @@ public class SeatController : ControllerBase
 
         return Ok(result);
     }
+    [HttpGet("{screeningId:int}/seats")]
+    public async Task<ActionResult<BaseResponse<List<GetSeatsByScreeningResponse>>>> GetSeatsByScreening(int screeningId)
+    {
+        var result = await _mediator.Send(new GetSeatsByScreeningQuery(screeningId));
+
+        if (!result.Success)
+            return NotFound(result);
+
+        return Ok(result);
+    }
 }
