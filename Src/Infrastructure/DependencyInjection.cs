@@ -3,6 +3,7 @@ using Application.Common.Options;
 using Infrastructure.Email;
 using Infrastructure.FileStorage;
 using Infrastructure.Identity;
+using Infrastructure.Payments;
 using Infrastructure.Persistence.Context;
 using Infrastructure.Persistence.Repositories;
 using Infrastructure.Redis;
@@ -122,6 +123,10 @@ public static class DependencyInjection
         services.AddScoped<ISeatRepository, SeatRepository>();
         services.AddScoped<IScreeningRepository, ScreeningRepository>();
         services.AddScoped<ISeatHoldRepository, SeatHoldRepository>();
+        services.Configure<StripeSettings>(config.GetSection("Stripe"));
+
+        services.AddScoped<IStripeService, StripeService>();
+        services.AddScoped<IPaymentRepository, PaymentRepository>();
         return services;
     }
 }

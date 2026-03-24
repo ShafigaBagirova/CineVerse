@@ -4,6 +4,7 @@ using Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(CineVerseDbContext))]
-    partial class CineVerseDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260324114425_ChangedSeatHoldEntity")]
+    partial class ChangedSeatHoldEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -422,57 +425,6 @@ namespace Infrastructure.Migrations
                     b.HasIndex("MovieId");
 
                     b.ToTable("MovieVideos", (string)null);
-                });
-
-            modelBuilder.Entity("Domain.Entities.Payment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("CineVerseUserId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("ClientSecret")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime?>("PaidAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Provider")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ProviderPaymentIntentId")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int>("SeatHoldId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CineVerseUserId");
-
-                    b.HasIndex("ProviderPaymentIntentId")
-                        .IsUnique();
-
-                    b.HasIndex("SeatHoldId");
-
-                    b.ToTable("Payments", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Entities.RefreshToken", b =>
@@ -1039,21 +991,6 @@ namespace Infrastructure.Migrations
                     b.Navigation("Movie");
                 });
 
-            modelBuilder.Entity("Domain.Entities.Payment", b =>
-                {
-                    b.HasOne("Infrastructure.Identity.CineVerseUser", null)
-                        .WithMany("Payments")
-                        .HasForeignKey("CineVerseUserId");
-
-                    b.HasOne("Domain.Entities.SeatHold", "SeatHold")
-                        .WithMany("Payments")
-                        .HasForeignKey("SeatHoldId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("SeatHold");
-                });
-
             modelBuilder.Entity("Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("Infrastructure.Identity.CineVerseUser", null)
@@ -1256,16 +1193,9 @@ namespace Infrastructure.Migrations
                     b.Navigation("SeatHolds");
                 });
 
-            modelBuilder.Entity("Domain.Entities.SeatHold", b =>
-                {
-                    b.Navigation("Payments");
-                });
-
             modelBuilder.Entity("Infrastructure.Identity.CineVerseUser", b =>
                 {
                     b.Navigation("MovieRatings");
-
-                    b.Navigation("Payments");
 
                     b.Navigation("RefreshTokens");
 

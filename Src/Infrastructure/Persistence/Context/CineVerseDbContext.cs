@@ -32,4 +32,5 @@ public class CineVerseDbContext : IdentityDbContext<CineVerseUser>
     public DbSet<Seat> Seats { get; set; }
     public DbSet<Screening> Screenings { get; set; }
     public DbSet<SeatHold> SeatHolds { get; set; }
+    public DbSet<Payment> Payments { get; set; }
 }

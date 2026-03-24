@@ -4,7 +4,7 @@ namespace Application.SeatHolds.Dtos;
 
 public sealed class GetAllSeatHoldsRequest
 {
-    public int? UserId { get; set; }
+    public string? UserId { get; set; }
     public SeatHoldStatus? Status { get; set; }
     public DateTime? ExpiresBeforeUtc { get; set; }
     public DateTime? ExpiresAfterUtc { get; set; }

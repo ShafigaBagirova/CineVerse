@@ -20,6 +20,6 @@ public class CineVerseUser: IdentityUser
     public ICollection<WatchListItem> WatchlistItems { get; set; } = new List<WatchListItem>();
     public ICollection<WatchLog> WatchLogs { get; set; } = new List<WatchLog>();
     public ICollection<SeatHold> SeatHolds { get; set; } = new List<SeatHold>();
-    public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+    public ICollection<Payment> Payments { get; set; }= new List<Payment>();
 
 }

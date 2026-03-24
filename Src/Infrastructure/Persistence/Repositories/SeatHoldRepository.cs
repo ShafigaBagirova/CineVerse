@@ -24,14 +24,14 @@ public class SeatHoldRepository:GenericRepository<SeatHold,int>, ISeatHoldReposi
             .OrderByDescending(x => x.Id)
             .FirstOrDefaultAsync(cancellationToken);
     }
-    public async Task<(IReadOnlyList<SeatHold> Items, int TotalCount)> GetPagedAsync(int? userId,SeatHoldStatus? status,
+    public async Task<(IReadOnlyList<SeatHold> Items, int TotalCount)> GetPagedAsync(string? userId,SeatHoldStatus? status,
     DateTime? expiresBeforeUtc,DateTime? expiresAfterUtc,int pageNumber,int pageSize,
     CancellationToken cancellationToken)
     {
         var query = _context.SeatHolds.AsNoTracking().AsQueryable();
 
-        if (userId.HasValue)
-            query = query.Where(x => x.UserId == userId.Value);
+        if (!string.IsNullOrWhiteSpace(userId))
+            query = query.Where(x => x.UserId == userId);
 
         if (status.HasValue)
             query = query.Where(x => x.Status == status.Value);

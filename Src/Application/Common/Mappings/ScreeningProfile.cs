@@ -19,6 +19,8 @@ public class ScreeningMappingProfile : Profile
         CreateMap<UpdateScreeningRequest, Screening>()
              .ForMember(dest => dest.Language, opt => opt.MapFrom(src => src.Language != null ? src.Language.Trim() : null))
            .ForMember(dest => dest.SubtitleLanguage,opt => opt.MapFrom(src => src.SubtitleLanguage != null ? src.SubtitleLanguage.Trim() : null))
+           .ForMember(dest => dest.MovieId, opt => opt.Ignore())
+           .ForMember(dest => dest.HallId, opt => opt.Ignore())
          .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
 
         CreateMap<Screening, GetScreeningByIdResponse>()
