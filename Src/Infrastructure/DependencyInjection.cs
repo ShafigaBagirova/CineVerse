@@ -121,6 +121,7 @@ public static class DependencyInjection
         services.AddScoped<IHallRepository, HallRepository>();
         services.AddScoped<ISeatRepository, SeatRepository>();
         services.AddScoped<IScreeningRepository, ScreeningRepository>();
+        services.AddScoped<ISeatHoldRepository, SeatHoldRepository>();
         return services;
     }
 }

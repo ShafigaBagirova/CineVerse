@@ -73,7 +73,7 @@ public sealed class GetSeatsByScreeningQueryHandler
                 Number = seat.Number,
                 Type = seat.Type,
                 IsActive = seat.IsActive,
-                Status = SeatAvailabilityStatus.Available
+                Status = SeatHoldStatus.Active
             })
             .OrderBy(x => x.Row)
             .ThenBy(x => x.Number)
