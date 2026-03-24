@@ -101,4 +101,8 @@ public class ScreeningRepository:GenericRepository<Screening,int>, IScreeningRep
 
         return (items, totalCount);
     }
+    public async Task<bool> ExistsAsync(int id, CancellationToken cancellationToken)
+    {
+        return await _context.Screenings.AnyAsync(x => x.Id == id, cancellationToken);
+    }
 }

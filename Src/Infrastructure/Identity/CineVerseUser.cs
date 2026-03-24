@@ -19,5 +19,7 @@ public class CineVerseUser: IdentityUser
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
     public ICollection<WatchListItem> WatchlistItems { get; set; } = new List<WatchListItem>();
     public ICollection<WatchLog> WatchLogs { get; set; } = new List<WatchLog>();
+    public ICollection<SeatHold> SeatHolds { get; set; } = new List<SeatHold>();
+    public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
 
 }

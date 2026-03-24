@@ -13,4 +13,5 @@ public interface IScreeningRepository:IRepository<Screening,int>
     Task<(List<Screening> Items, int TotalCount)> GetPagedAsync(int pageNumber,int pageSize,int? movieId,int? hallId,
     ScreeningStatus? status,ScreeningFormat? format,bool? isActive,DateTime? dateFrom,DateTime? dateTo,
     CancellationToken cancellationToken);
+    Task<bool> ExistsAsync(int id, CancellationToken cancellationToken);
 }

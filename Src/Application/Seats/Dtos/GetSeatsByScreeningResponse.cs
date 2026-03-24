@@ -13,5 +13,5 @@ public class GetSeatsByScreeningResponse
     public SeatType Type { get; set; }
     public bool IsActive { get; set; }
 
-    public SeatAvailabilityStatus Status { get; set; }
+    public SeatHoldStatus Status { get; set; }
 }
