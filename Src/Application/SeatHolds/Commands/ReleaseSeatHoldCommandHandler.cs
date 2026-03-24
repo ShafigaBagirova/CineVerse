@@ -28,10 +28,14 @@ public sealed class ReleaseSeatHoldCommandHandler : IRequestHandler<ReleaseSeatH
 
     public async Task<BaseResponse> Handle(ReleaseSeatHoldCommand request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_currentUserService.UserId) ||
-            !int.TryParse(_currentUserService.UserId, out var userId))
+
+        var userId = _currentUserService.UserId;
+
+        if (string.IsNullOrWhiteSpace(userId))
         {
-            _logger.LogWarning("ReleaseSeatHoldCommand failed. Authenticated user not found.");
+            _logger.LogWarning(
+               "ReleaseSeatHoldCommand failed. Authenticated user not found.");
+
             return BaseResponse.Fail("Authenticated user not found.");
         }
 

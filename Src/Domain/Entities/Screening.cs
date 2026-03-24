@@ -17,5 +17,4 @@ public class Screening: BaseEntity<int>
     public Movie Movie { get; set; } = default!;
     public Hall Hall { get; set; } = default!;
     public ICollection<SeatHold> SeatHolds { get; set; } = new List<SeatHold>();
-    public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
 }

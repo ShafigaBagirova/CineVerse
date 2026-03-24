@@ -42,13 +42,16 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
     {
         var dto = request.Request;
 
-        if (string.IsNullOrWhiteSpace(_currentUserService.UserId) ||
-            !int.TryParse(_currentUserService.UserId, out var userId))
+
+        var userId = _currentUserService.UserId;
+
+        if (string.IsNullOrWhiteSpace(userId))
         {
-            _logger.LogWarning("CreateSeatHoldCommand failed. Authenticated user not found.");
+            _logger.LogWarning(
+                "CreateSeatHoldCommand failed. Authenticated user not found.");
+
             return BaseResponse.Fail("Authenticated user not found.");
         }
-
         _logger.LogInformation(
             "CreateSeatHoldCommand started. ScreeningId: {ScreeningId}, SeatId: {SeatId}, UserId: {UserId}",
             dto.ScreeningId,
