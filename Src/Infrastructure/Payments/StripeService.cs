@@ -17,18 +17,15 @@ public sealed class StripeService : IStripeService
     }
 
     public async Task<StripePaymentIntentResult> CreatePaymentIntentAsync(
-        decimal amount,
-        string currency,
-        CancellationToken cancellationToken)
+     decimal amount,
+     string currency,
+     CancellationToken cancellationToken)
     {
         var options = new PaymentIntentCreateOptions
         {
             Amount = (long)(amount * 100),
             Currency = currency,
-            AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions
-            {
-                Enabled = true
-            }
+            PaymentMethodTypes = new List<string> { "card" }
         };
 
         var service = new PaymentIntentService();

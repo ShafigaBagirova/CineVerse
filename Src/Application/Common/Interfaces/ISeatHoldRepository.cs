@@ -10,4 +10,7 @@ public interface ISeatHoldRepository:IRepository<SeatHold,int>
     DateTime? expiresAfterUtc,int pageNumber,int pageSize, CancellationToken cancellationToken);
     Task<(IReadOnlyList<SeatHold> Items, int TotalCount)> GetByScreeningAsync(int screeningId,SeatHoldStatus? status,
     DateTime? expiresBeforeUtc,DateTime? expiresAfterUtc,int pageNumber,int pageSize,CancellationToken cancellationToken);
+    Task<List<SeatHold>> GetExpiredActiveSeatHoldsAsync(CancellationToken cancellationToken);
+    Task UpdateRangeAsync(IEnumerable<SeatHold> seatHolds, CancellationToken cancellationToken);
+    Task<List<int>> GetActiveHeldSeatIdsByScreeningAsync(int screeningId, CancellationToken cancellationToken);
 }

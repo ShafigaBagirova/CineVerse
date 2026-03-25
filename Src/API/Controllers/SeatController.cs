@@ -2,6 +2,8 @@
 using Application.Seats.Commands;
 using Application.Seats.Dtos;
 using Application.Seats.Queries;
+using Application.Tickets.Dtos;
+using Application.Tickets.Queries;
 using Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -77,6 +79,31 @@ public class SeatController : ControllerBase
     public async Task<ActionResult<BaseResponse<List<GetSeatsByScreeningResponse>>>> GetSeatsByScreening(int screeningId)
     {
         var result = await _mediator.Send(new GetSeatsByScreeningQuery(screeningId));
+
+        if (!result.Success)
+            return NotFound(result);
+
+        return Ok(result);
+    }
+    [AllowAnonymous]
+    [HttpGet("{screeningId:int}/occupied-seats")]
+    public async Task<ActionResult<BaseResponse<List<GetOccupiedSeatsByScreeningResponse>>>> GetOccupiedSeats(
+       [FromRoute] int screeningId)
+    {
+        var result = await _mediator.Send(new GetOccupiedSeatsByScreeningQuery(screeningId));
+
+        if (!result.Success)
+            return NotFound(result);
+
+        return Ok(result);
+    }
+
+    [AllowAnonymous]
+    [HttpGet("{screeningId:int}/available-seats")]
+    public async Task<ActionResult<BaseResponse<List<GetAvailableSeatsByScreeningResponse>>>> GetAvailableSeats(
+        [FromRoute] int screeningId)
+    {
+        var result = await _mediator.Send(new GetAvailableSeatsByScreeningQuery(screeningId));
 
         if (!result.Success)
             return NotFound(result);

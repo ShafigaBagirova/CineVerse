@@ -1,9 +1,11 @@
 ﻿using Application.Common.Responses;
 using Application.Payments.Commands;
 using Application.Payments.Dtos;
+using Infrastructure.Payments;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text;
 
 namespace API.Controllers;
 
@@ -28,5 +30,23 @@ public class PaymentController : ControllerBase
             return BadRequest(result);
 
         return Ok(result);
+    }
+    [AllowAnonymous]
+    [HttpPost("webhook")]
+    public async Task<IActionResult> Webhook()
+    {
+        Console.WriteLine("WEBHOOK ACTION HIT");
+        using var reader = new StreamReader(HttpContext.Request.Body, Encoding.UTF8);
+        var json = await reader.ReadToEndAsync();
+
+        var signature = Request.Headers["Stripe-Signature"].ToString();
+
+        var result = await _mediator.Send(
+            new ProcessStripeWebhookCommand(json, signature));
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok();
     }
 }

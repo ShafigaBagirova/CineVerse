@@ -39,4 +39,13 @@ public class SeatRepository:GenericRepository<Seat,int>,ISeatRepository
             .ThenBy(x => x.Number)
             .ToListAsync(cancellationToken);
     }
+    public async Task<List<Seat>> GetByHallIdAsync(int hallId, CancellationToken cancellationToken)
+    {
+        return await _context.Seats
+            .AsNoTracking()
+            .Where(x => x.HallId == hallId)
+            .OrderBy(x => x.Row)
+            .ThenBy(x => x.Number)
+            .ToListAsync(cancellationToken);
+    }
 }

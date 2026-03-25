@@ -127,6 +127,10 @@ public static class DependencyInjection
 
         services.AddScoped<IStripeService, StripeService>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
+        services.AddScoped<ITicketRepository, TicketRepository>();
+        services.AddHostedService<SeatHoldExpirationBackgroundService>();
+        services.AddHostedService<MovieSyncBackgroundService>();
+        services.AddScoped<IMovieSyncService, MovieSyncService>();
         return services;
     }
 }
