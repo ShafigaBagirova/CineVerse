@@ -85,5 +85,30 @@ public class SeatHoldRepository:GenericRepository<SeatHold,int>, ISeatHoldReposi
 
         return (items, totalCount);
     }
+    public async Task<List<SeatHold>> GetExpiredActiveSeatHoldsAsync(CancellationToken cancellationToken)
+    {
+        return await _context.SeatHolds
+            .Where(x =>
+                x.Status == SeatHoldStatus.Active &&
+                x.ExpiresAtUtc <= DateTime.UtcNow)
+            .ToListAsync(cancellationToken);
+    }
+    public Task UpdateRangeAsync(IEnumerable<SeatHold> seatHolds, CancellationToken cancellationToken)
+    {
+        _context.SeatHolds.UpdateRange(seatHolds);
+        return Task.CompletedTask;
+    }
+    public async Task<List<int>> GetActiveHeldSeatIdsByScreeningAsync(int screeningId, CancellationToken cancellationToken)
+    {
+        return await _context.SeatHolds
+            .AsNoTracking()
+            .Where(x =>
+                x.ScreeningId == screeningId &&
+                x.Status == SeatHoldStatus.Active &&
+                x.ExpiresAtUtc > DateTime.UtcNow)
+            .Select(x => x.SeatId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+    }
 
 }

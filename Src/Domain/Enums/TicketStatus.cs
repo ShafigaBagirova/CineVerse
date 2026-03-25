@@ -1,9 +1,8 @@
 ﻿namespace Domain.Enums;
 
 public enum TicketStatus
-{
-    Pending = 1,   
-    Paid = 2,     
-    Cancelled = 3,  
-    Refunded = 4     
+{   
+    Paid = 1,     
+    Cancelled = 2,  
+    Refunded = 3    
 }

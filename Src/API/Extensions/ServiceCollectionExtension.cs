@@ -1,5 +1,6 @@
 ﻿using Application.Common.Options;
 using Domain.Constants;
+using Infrastructure.Payments;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -85,7 +86,11 @@ public static class ServiceCollectionExtensions
         });
         services.AddAutoMapper(cfg => { }, AppDomain.CurrentDomain.GetAssemblies());
 
-
+        services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(typeof(Application.DependencyInjection).Assembly);
+            cfg.RegisterServicesFromAssembly(typeof(ProcessStripeWebhookCommandHandler).Assembly);
+        });
         return services;
     }
 }

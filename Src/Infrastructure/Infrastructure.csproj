@@ -36,7 +36,7 @@
 
 		<PackageReference Include="StackExchange.Redis" Version="2.12.1" />
 
-		<PackageReference Include="Stripe.net" Version="50.5.0-beta.1" />
+		<PackageReference Include="Stripe.net" Version="50.4.1" />
 		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.16.0" />
 
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />

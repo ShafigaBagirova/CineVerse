@@ -114,7 +114,7 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
         var seatHold = _mapper.Map<SeatHold>(dto);
         seatHold.UserId = userId;
         seatHold.Status = SeatHoldStatus.Active;
-        seatHold.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(5);
+        seatHold.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(1);
 
         await _seatHoldRepository.AddAsync(seatHold, cancellationToken);
         await _seatHoldRepository.SaveChangesAsync(cancellationToken);
