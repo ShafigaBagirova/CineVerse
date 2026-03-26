@@ -5,4 +5,6 @@ namespace Application.Common.Interfaces;
 public interface IStripeService
 {
     Task<StripePaymentIntentResult> CreatePaymentIntentAsync(decimal amount,string currency,string idempotencyKey,CancellationToken cancellationToken);
+
+    Task CreateRefundAsync(string providerPaymentIntentId,string idempotencyKey,CancellationToken cancellationToken);
 }

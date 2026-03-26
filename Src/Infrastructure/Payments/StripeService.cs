@@ -59,4 +59,26 @@ public sealed class StripeService : IStripeService
             throw new Exception($"Stripe error: {ex.Message}", ex);
         }
     }
+    public async Task CreateRefundAsync(
+        string providerPaymentIntentId,
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        var refundService = new RefundService();
+
+        var options = new RefundCreateOptions
+        {
+            PaymentIntent = providerPaymentIntentId
+        };
+
+        var requestOptions = new RequestOptions
+        {
+            IdempotencyKey = idempotencyKey
+        };
+
+        await refundService.CreateAsync(
+            options,
+            requestOptions,
+            cancellationToken);
+    }
 }

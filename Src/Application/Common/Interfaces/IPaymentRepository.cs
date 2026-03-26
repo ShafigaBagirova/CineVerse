@@ -17,4 +17,8 @@ public interface IPaymentRepository:IRepository<Payment,int>
         int pageSize,
         CancellationToken cancellationToken);
     Task<Payment?> GetPendingBySeatHoldIdAsync(int seatHoldId, CancellationToken cancellationToken);
+    Task<Payment?> GetSucceededByScreeningAndSeatAsync(
+    int screeningId,
+    int seatId,
+    CancellationToken cancellationToken);
 }

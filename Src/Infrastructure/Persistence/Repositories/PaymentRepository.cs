@@ -90,4 +90,17 @@ public class PaymentRepository:GenericRepository<Payment,int>,IPaymentRepository
                 x.Status == PaymentStatus.Pending,
                 cancellationToken);
     }
+    public async Task<Payment?> GetSucceededByScreeningAndSeatAsync(
+    int screeningId,
+    int seatId,
+    CancellationToken cancellationToken)
+    {
+        return await _context.Payments
+            .Include(x => x.SeatHold)
+            .FirstOrDefaultAsync(
+                x => x.Status == PaymentStatus.Succeeded &&
+                     x.SeatHold.ScreeningId == screeningId &&
+                     x.SeatHold.SeatId == seatId,
+                cancellationToken);
+    }
 }
