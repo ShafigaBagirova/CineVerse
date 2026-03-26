@@ -11,5 +11,15 @@ public sealed class PaymentMappingProfile : Profile
         CreateMap<Payment, CreatePaymentIntentResponse>()
             .ForMember(dest => dest.PaymentId, opt => opt.MapFrom(src => src.Id))
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+        CreateMap<Payment, GetPaymentStatusBySeatHoldIdResponse>()
+            .ForMember(dest => dest.HasPayment, opt => opt.MapFrom(src => true))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+
+        CreateMap<Payment, GetPaymentByIdResponse>()
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+        CreateMap<Payment, GetMyPaymentsResponse>()
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+            .ForMember(dest => dest.ScreeningId, opt => opt.MapFrom(src => src.SeatHold.ScreeningId))
+            .ForMember(dest => dest.SeatId, opt => opt.MapFrom(src => src.SeatHold.SeatId));
     }
 }

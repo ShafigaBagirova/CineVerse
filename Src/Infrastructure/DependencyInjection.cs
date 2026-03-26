@@ -131,6 +131,7 @@ public static class DependencyInjection
         services.AddHostedService<SeatHoldExpirationBackgroundService>();
         services.AddHostedService<MovieSyncBackgroundService>();
         services.AddScoped<IMovieSyncService, MovieSyncService>();
+        services.AddScoped<IProcessedWebhookEventRepository,ProcessedWebhookEventRepository>();
         return services;
     }
 }

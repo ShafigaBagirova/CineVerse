@@ -47,7 +47,13 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .HasForeignKey(x => x.SeatHoldId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(x => x.SeatHoldId);
         builder.HasIndex(x => x.ProviderPaymentIntentId).IsUnique();
+        builder.HasIndex(x => x.SeatHoldId)
+       .HasDatabaseName("UX_Payments_SeatHoldId_Pending")
+       .IsUnique()
+       .HasFilter($"[{nameof(Payment.Status)}] = {(int)PaymentStatus.Pending}");
+        builder.Property(x => x.Currency)
+            .HasConversion<int>()
+            .IsRequired();
     }
 }

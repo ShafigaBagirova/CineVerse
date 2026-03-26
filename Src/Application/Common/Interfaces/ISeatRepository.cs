@@ -9,5 +9,6 @@ public interface ISeatRepository:IRepository<Seat,int>
     Task<bool> ExistsAsync(int hallId, string row, int number, CancellationToken cancellationToken);
     IQueryable<Seat> GetAll();
     Task<List<Seat>> GetByHallIdAsync(int hallId, CancellationToken cancellationToken);
+    Task<List<Seat>> GetActiveByHallIdAsync(int hallId, CancellationToken cancellationToken);
 
-}
+    }

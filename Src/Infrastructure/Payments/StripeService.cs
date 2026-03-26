@@ -17,24 +17,46 @@ public sealed class StripeService : IStripeService
     }
 
     public async Task<StripePaymentIntentResult> CreatePaymentIntentAsync(
-     decimal amount,
-     string currency,
-     CancellationToken cancellationToken)
+        decimal amount,
+        string currency,
+        string idempotencyKey, 
+        CancellationToken cancellationToken)
     {
-        var options = new PaymentIntentCreateOptions
+        try
         {
-            Amount = (long)(amount * 100),
-            Currency = currency,
-            PaymentMethodTypes = new List<string> { "card" }
-        };
+            var service = new PaymentIntentService();
 
-        var service = new PaymentIntentService();
-        var intent = await service.CreateAsync(options, cancellationToken: cancellationToken);
+            var options = new PaymentIntentCreateOptions
+            {
+                Amount = (long)Math.Round(amount * 100, MidpointRounding.AwayFromZero),
 
-        return new StripePaymentIntentResult
+                Currency = currency.ToLower(),
+
+                AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions
+                {
+                    Enabled = true
+                }
+            };
+
+            var requestOptions = new RequestOptions
+            {
+                IdempotencyKey = idempotencyKey
+            };
+
+            var intent = await service.CreateAsync(
+                options,
+                requestOptions,
+                cancellationToken);
+
+            return new StripePaymentIntentResult
+            {
+                PaymentIntentId = intent.Id,
+                ClientSecret = intent.ClientSecret
+            };
+        }
+        catch (StripeException ex)
         {
-            PaymentIntentId = intent.Id,
-            ClientSecret = intent.ClientSecret
-        };
+            throw new Exception($"Stripe error: {ex.Message}", ex);
+        }
     }
 }

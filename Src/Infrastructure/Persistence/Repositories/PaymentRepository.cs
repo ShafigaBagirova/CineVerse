@@ -46,5 +46,48 @@ public class PaymentRepository:GenericRepository<Payment,int>,IPaymentRepository
                 x.Status == PaymentStatus.Pending,
                 cancellationToken);
     }
+    public async Task<Payment?> GetBySeatHoldIdAsync(int seatHoldId, CancellationToken cancellationToken)
+    {
+        return await _context.Payments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.SeatHoldId == seatHoldId, cancellationToken);
+    }
+    public async Task<(List<Payment> Payments, int TotalCount)> GetByUserIdAsync(
+     string userId,
+     PaymentStatus? status,
+     int pageNumber,
+     int pageSize,
+     CancellationToken cancellationToken)
+    {
+        var query = _context.Payments
+            .AsNoTracking()
+            .Include(x => x.SeatHold)
+            .Where(x => x.SeatHold.UserId == userId);
 
+        if (status.HasValue)
+        {
+            query = query.Where(x => x.Status == status.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var payments = await query
+            .OrderByDescending(x => x.PaidAtUtc ?? x.PaidAtUtc)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (payments, totalCount);
+    }
+    public async Task<Payment?> GetPendingBySeatHoldIdAsync(
+    int seatHoldId,
+    CancellationToken cancellationToken)
+    {
+        return await _context.Payments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x =>
+                x.SeatHoldId == seatHoldId &&
+                x.Status == PaymentStatus.Pending,
+                cancellationToken);
+    }
 }
