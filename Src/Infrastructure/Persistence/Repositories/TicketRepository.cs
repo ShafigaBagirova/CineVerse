@@ -116,4 +116,15 @@ public class TicketRepository:GenericRepository<Ticket,int>, ITicketRepository
             .Distinct()
             .ToListAsync(cancellationToken);
     }
+    public async Task<List<Ticket>> GetPaidTicketsByScreeningIdAsync(
+      int screeningId,
+      CancellationToken cancellationToken)
+    {
+        return await _context.Tickets
+            .AsNoTracking()
+            .Where(x =>
+                x.ScreeningId == screeningId &&
+                x.Status == TicketStatus.Paid)
+            .ToListAsync(cancellationToken);
+    }
 }

@@ -13,4 +13,5 @@ public interface ISeatHoldRepository:IRepository<SeatHold,int>
     Task<List<SeatHold>> GetExpiredActiveSeatHoldsAsync(CancellationToken cancellationToken);
     Task UpdateRangeAsync(IEnumerable<SeatHold> seatHolds, CancellationToken cancellationToken);
     Task<List<int>> GetActiveHeldSeatIdsByScreeningAsync(int screeningId, CancellationToken cancellationToken);
+    Task<bool> ExistsAsync(int id, CancellationToken cancellationToken);
 }

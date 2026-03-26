@@ -4,6 +4,7 @@ using Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(CineVerseDbContext))]
-    partial class CineVerseDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260326174830_AddedCurrencyToPayment")]
+    partial class AddedCurrencyToPayment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -456,9 +459,6 @@ namespace Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<DateTime>("RefundedAtUtc")
-                        .HasColumnType("datetime2");
-
                     b.Property<int>("SeatHoldId")
                         .HasColumnType("int");
 
@@ -476,36 +476,9 @@ namespace Infrastructure.Migrations
                     b.HasIndex("ProviderPaymentIntentId")
                         .IsUnique();
 
-                    b.HasIndex("SeatHoldId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_Payments_SeatHoldId_Pending")
-                        .HasFilter("[Status] = 1");
+                    b.HasIndex("SeatHoldId");
 
                     b.ToTable("Payments", (string)null);
-                });
-
-            modelBuilder.Entity("Domain.Entities.ProcessedWebhookEvent", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("EventId")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<DateTime>("ProcessedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventId")
-                        .IsUnique();
-
-                    b.ToTable("ProcessedWebhookEvent", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Entities.RefreshToken", b =>
@@ -765,8 +738,7 @@ namespace Infrastructure.Migrations
                     b.HasIndex("SeatId");
 
                     b.HasIndex("ScreeningId", "SeatId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_Tickets_ScreeningId_SeatId");
+                        .IsUnique();
 
                     b.ToTable("Tickets", (string)null);
                 });

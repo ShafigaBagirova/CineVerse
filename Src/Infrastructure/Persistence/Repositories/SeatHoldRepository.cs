@@ -110,5 +110,11 @@ public class SeatHoldRepository:GenericRepository<SeatHold,int>, ISeatHoldReposi
             .Distinct()
             .ToListAsync(cancellationToken);
     }
+    public async Task<bool> ExistsAsync(int id, CancellationToken cancellationToken)
+    {
+        return await _context.SeatHolds
+            .AsNoTracking()
+            .AnyAsync(x => x.Id == id, cancellationToken);
+    }
 
 }

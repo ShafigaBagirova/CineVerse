@@ -44,5 +44,8 @@ public sealed class TicketConfiguration : IEntityTypeConfiguration<Ticket>
 
         builder.HasIndex(x => new { x.ScreeningId, x.SeatId })
             .IsUnique();
+        builder.HasIndex(x => new { x.ScreeningId, x.SeatId })
+    .HasDatabaseName("UX_Tickets_ScreeningId_SeatId")
+    .IsUnique();
     }
 }

@@ -6,6 +6,7 @@ using AutoMapper;
 using Domain.Entities;
 using Domain.Enums;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Application.Payments.Commands;
@@ -95,6 +96,7 @@ public sealed class CreatePaymentIntentCommandHandler
         if (seatHold.ExpiresAtUtc <= DateTime.UtcNow)
         {
             seatHold.Status = SeatHoldStatus.Expired;
+
             await _seatHoldRepository.UpdateAsync(seatHold, cancellationToken);
             await _seatHoldRepository.SaveChangesAsync(cancellationToken);
 
@@ -115,7 +117,8 @@ public sealed class CreatePaymentIntentCommandHandler
                 "CreatePaymentIntentCommand failed. Successful payment already exists. SeatHoldId: {SeatHoldId}",
                 seatHold.Id);
 
-            return BaseResponse<CreatePaymentIntentResponse>.Fail("Payment has already been completed for this seat hold.");
+            return BaseResponse<CreatePaymentIntentResponse>.Fail(
+                "Payment has already been completed for this seat hold.");
         }
 
         var pendingPaymentExists = await _paymentRepository.ExistsPendingPaymentBySeatHoldIdAsync(
@@ -128,7 +131,8 @@ public sealed class CreatePaymentIntentCommandHandler
                 "CreatePaymentIntentCommand failed. Pending payment already exists. SeatHoldId: {SeatHoldId}",
                 seatHold.Id);
 
-            return BaseResponse<CreatePaymentIntentResponse>.Fail("A pending payment already exists for this seat hold.");
+            return BaseResponse<CreatePaymentIntentResponse>.Fail(
+                "A pending payment already exists for this seat hold.");
         }
 
         var screening = await _screeningRepository.GetByIdAsync(seatHold.ScreeningId, cancellationToken);
@@ -154,16 +158,16 @@ public sealed class CreatePaymentIntentCommandHandler
             return BaseResponse<CreatePaymentIntentResponse>.Fail("Invalid payment amount.");
         }
 
-        var stripeResult = await _stripeService.CreatePaymentIntentAsync(
-            amount,
-            "usd",
-            cancellationToken);
+        var idempotencyKey = $"create-payment-{seatHold.Id}-{Guid.NewGuid()}";
+
+        var stripeResult = await _stripeService.CreatePaymentIntentAsync(amount,"azn", idempotencyKey, cancellationToken);
 
         var payment = new Payment
         {
             SeatHoldId = seatHold.Id,
             UserId = userId,
             Amount = amount,
+            Currency = PaymentCurrency.Azn,
             Status = PaymentStatus.Pending,
             Provider = PaymentProvider.Stripe,
             ProviderPaymentIntentId = stripeResult.PaymentIntentId,
@@ -171,23 +175,39 @@ public sealed class CreatePaymentIntentCommandHandler
             PaidAtUtc = null
         };
 
-        await _paymentRepository.AddAsync(payment, cancellationToken);
-        await _paymentRepository.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _paymentRepository.AddAsync(payment, cancellationToken);
+            await _paymentRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "CreatePaymentIntentCommand failed. Duplicate pending payment prevented by database. SeatHoldId: {SeatHoldId}",
+                seatHold.Id);
+
+            return BaseResponse<CreatePaymentIntentResponse>.Fail(
+                "A payment is already being processed for this seat hold.");
+        }
 
         await _cacheService.RemoveAsync(
             $"{PaymentCacheKeys.GetPaymentsBySeatHoldPrefix}{seatHold.Id}",
             cancellationToken);
 
         _logger.LogInformation(
-            "Payment intent created successfully. PaymentId: {PaymentId}, SeatHoldId: {SeatHoldId}, UserId: {UserId}, ProviderPaymentIntentId: {ProviderPaymentIntentId}, Amount: {Amount}",
+            "Payment intent created successfully. PaymentId: {PaymentId}, SeatHoldId: {SeatHoldId}, UserId: {UserId}, ProviderPaymentIntentId: {ProviderPaymentIntentId}, Amount: {Amount}, Currency: {Currency}",
             payment.Id,
             payment.SeatHoldId,
             payment.UserId,
             payment.ProviderPaymentIntentId,
-            payment.Amount);
+            payment.Amount,
+            payment.Currency);
 
         var response = _mapper.Map<CreatePaymentIntentResponse>(payment);
 
-        return BaseResponse<CreatePaymentIntentResponse>.Ok(response, "Payment intent created successfully.");
+        return BaseResponse<CreatePaymentIntentResponse>.Ok(
+            response,
+            "Payment intent created successfully.");
     }
 }

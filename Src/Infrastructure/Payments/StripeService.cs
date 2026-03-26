@@ -17,24 +17,68 @@ public sealed class StripeService : IStripeService
     }
 
     public async Task<StripePaymentIntentResult> CreatePaymentIntentAsync(
-     decimal amount,
-     string currency,
-     CancellationToken cancellationToken)
+        decimal amount,
+        string currency,
+        string idempotencyKey, 
+        CancellationToken cancellationToken)
     {
-        var options = new PaymentIntentCreateOptions
+        try
         {
-            Amount = (long)(amount * 100),
-            Currency = currency,
-            PaymentMethodTypes = new List<string> { "card" }
+            var service = new PaymentIntentService();
+
+            var options = new PaymentIntentCreateOptions
+            {
+                Amount = (long)Math.Round(amount * 100, MidpointRounding.AwayFromZero),
+
+                Currency = currency.ToLower(),
+
+                AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions
+                {
+                    Enabled = true
+                }
+            };
+
+            var requestOptions = new RequestOptions
+            {
+                IdempotencyKey = idempotencyKey
+            };
+
+            var intent = await service.CreateAsync(
+                options,
+                requestOptions,
+                cancellationToken);
+
+            return new StripePaymentIntentResult
+            {
+                PaymentIntentId = intent.Id,
+                ClientSecret = intent.ClientSecret
+            };
+        }
+        catch (StripeException ex)
+        {
+            throw new Exception($"Stripe error: {ex.Message}", ex);
+        }
+    }
+    public async Task CreateRefundAsync(
+        string providerPaymentIntentId,
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        var refundService = new RefundService();
+
+        var options = new RefundCreateOptions
+        {
+            PaymentIntent = providerPaymentIntentId
         };
 
-        var service = new PaymentIntentService();
-        var intent = await service.CreateAsync(options, cancellationToken: cancellationToken);
-
-        return new StripePaymentIntentResult
+        var requestOptions = new RequestOptions
         {
-            PaymentIntentId = intent.Id,
-            ClientSecret = intent.ClientSecret
+            IdempotencyKey = idempotencyKey
         };
+
+        await refundService.CreateAsync(
+            options,
+            requestOptions,
+            cancellationToken);
     }
 }

@@ -13,4 +13,6 @@ public class Payment : BaseEntity<int>
     public string? ClientSecret { get; set; }
     public DateTime? PaidAtUtc { get; set; }
     public SeatHold SeatHold { get; set; } = default!;
+    public PaymentCurrency Currency { get; set; }
+    public DateTime RefundedAtUtc { get; set; }
 }

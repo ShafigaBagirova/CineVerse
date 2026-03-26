@@ -1,5 +1,6 @@
 ﻿using Application.Common.Interfaces;
 using Application.Common.Responses;
+using Application.Screenings.Events;
 using AutoMapper;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,7 @@ public sealed class UpdateScreeningCommandHandler : IRequestHandler<UpdateScreen
     private readonly IMapper _mapper;
     private readonly ILogger<UpdateScreeningCommandHandler> _logger;
     private readonly ICacheService _cacheService;
+    private readonly IPublisher _publisher;
 
     public UpdateScreeningCommandHandler(
         IScreeningRepository screeningRepository,
@@ -24,7 +26,8 @@ public sealed class UpdateScreeningCommandHandler : IRequestHandler<UpdateScreen
         IHallRepository hallRepository,
         IMapper mapper,
         ILogger<UpdateScreeningCommandHandler> logger,
-        ICacheService cacheService)
+        ICacheService cacheService,
+        IPublisher publisher)
     {
         _screeningRepository = screeningRepository;
         _movieRepository = movieRepository;
@@ -32,6 +35,7 @@ public sealed class UpdateScreeningCommandHandler : IRequestHandler<UpdateScreen
         _mapper = mapper;
         _logger = logger;
         _cacheService = cacheService;
+        _publisher = publisher;
     }
 
     public async Task<BaseResponse> Handle(UpdateScreeningCommand request, CancellationToken cancellationToken)
@@ -63,6 +67,8 @@ public sealed class UpdateScreeningCommandHandler : IRequestHandler<UpdateScreen
 
         var oldHallId = screening.HallId;
         var oldMovieId = screening.MovieId;
+        var oldStartTime = screening.StartTime;
+        var oldEndTime = screening.EndTime;
 
         var targetMovieId = dto.MovieId ?? screening.MovieId;
         var targetHallId = dto.HallId ?? screening.HallId;
@@ -125,10 +131,33 @@ public sealed class UpdateScreeningCommandHandler : IRequestHandler<UpdateScreen
             return BaseResponse.Fail("There is already another screening scheduled in this hall for the selected time range.");
         }
 
+        // 🔥 Refund trigger edən kritik dəyişikliklər
+        var requiresRefund =
+            oldHallId != targetHallId ||
+            oldStartTime != targetStartTime ||
+            oldEndTime != targetEndTime;
+
         _mapper.Map(dto, screening);
 
         await _screeningRepository.UpdateAsync(screening, cancellationToken);
         await _screeningRepository.SaveChangesAsync(cancellationToken);
+
+        if (requiresRefund)
+        {
+            _logger.LogInformation(
+                "Screening material change detected. Refund process will start. ScreeningId: {ScreeningId}, OldHallId: {OldHallId}, NewHallId: {NewHallId}, OldStartTime: {OldStartTime}, NewStartTime: {NewStartTime}, OldEndTime: {OldEndTime}, NewEndTime: {NewEndTime}",
+                screening.Id,
+                oldHallId,
+                targetHallId,
+                oldStartTime,
+                targetStartTime,
+                oldEndTime,
+                targetEndTime);
+
+            await _publisher.Publish(
+                new ScreeningRescheduledEvent(screening.Id),
+                cancellationToken);
+        }
 
         _logger.LogInformation(
             "UpdateScreeningCommand completed successfully. ScreeningId: {ScreeningId}, HallId: {HallId}, MovieId: {MovieId}",

@@ -1,6 +1,7 @@
 ﻿using Application.Common.Responses;
 using Application.Payments.Commands;
 using Application.Payments.Dtos;
+using Application.Payments.Queries;
 using Infrastructure.Payments;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -48,5 +49,50 @@ public class PaymentController : ControllerBase
             return BadRequest(result);
 
         return Ok();
+    }
+    [Authorize]
+    [HttpGet("seat-hold/{seatHoldId:int}/status")]
+    public async Task<ActionResult<BaseResponse<GetPaymentStatusBySeatHoldIdResponse>>> GetPaymentStatusBySeatHoldId(int seatHoldId)
+    {
+        var result = await _mediator.Send(new GetPaymentStatusBySeatHoldIdQuery(seatHoldId));
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+    [Authorize]
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<BaseResponse<GetPaymentByIdResponse>>> GetById(int id)
+    {
+        var result = await _mediator.Send(new GetPaymentByIdQuery(id));
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+    [Authorize]
+    [HttpGet("my")]
+    public async Task<ActionResult<BaseResponse<PaginatedResponse<GetMyPaymentsResponse>>>> GetMyPayments(
+        [FromQuery] GetMyPaymentsRequest request)
+    {
+        var result = await _mediator.Send(new GetMyPaymentsQuery(request));
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+    [Authorize]
+    [HttpPost("retry/{seatHoldId:guid}")]
+    public async Task<ActionResult<BaseResponse<RetryPaymentResponse>>> RetryPayment(int seatHoldId)
+    {
+        var result = await _mediator.Send(new RetryPaymentCommand(seatHoldId));
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
     }
 }

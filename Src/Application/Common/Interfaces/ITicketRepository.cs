@@ -13,5 +13,6 @@ public interface ITicketRepository: IRepository<Ticket,int>
     DateTime? purchasedAfterUtc,DateTime? purchasedBeforeUtc,int pageNumber,int pageSize,
     CancellationToken cancellationToken);
     Task<List<int>> GetSoldSeatIdsByScreeningAsync(int screeningId, CancellationToken cancellationToken);
+    Task<List<Ticket>> GetPaidTicketsByScreeningIdAsync(int screeningId, CancellationToken cancellationToken);
 }
 
