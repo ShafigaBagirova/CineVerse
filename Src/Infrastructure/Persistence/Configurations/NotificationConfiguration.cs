@@ -30,7 +30,7 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         builder.Property(x => x.Type)
             .IsRequired();
 
-        builder.Property(x => x.CreatedAtUtc)
+        builder.Property(x => x.CreatedAt)
             .IsRequired();
 
         builder.HasIndex(x => new { x.UserId, x.IsRead });
