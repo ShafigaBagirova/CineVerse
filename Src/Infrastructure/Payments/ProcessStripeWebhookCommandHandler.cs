@@ -22,6 +22,7 @@ public sealed class ProcessStripeWebhookCommandHandler
     private readonly ILogger<ProcessStripeWebhookCommandHandler> _logger;
     private readonly StripeSettings _stripeSettings;
     private readonly ICacheService _cacheService;
+    private readonly IUserNotificationService _userNotificationService;
 
     public ProcessStripeWebhookCommandHandler(
         IPaymentRepository paymentRepository,
@@ -30,7 +31,8 @@ public sealed class ProcessStripeWebhookCommandHandler
         IProcessedWebhookEventRepository processedWebhookEventRepository,
         ILogger<ProcessStripeWebhookCommandHandler> logger,
         IOptions<StripeSettings> stripeSettings,
-        ICacheService cacheService)
+        ICacheService cacheService,
+        IUserNotificationService userNotificationService)
     {
         _paymentRepository = paymentRepository;
         _seatHoldRepository = seatHoldRepository;
@@ -39,6 +41,7 @@ public sealed class ProcessStripeWebhookCommandHandler
         _logger = logger;
         _stripeSettings = stripeSettings.Value;
         _cacheService = cacheService;
+        _userNotificationService = userNotificationService;
     }
 
     public async Task<BaseResponse> Handle(ProcessStripeWebhookCommand request, CancellationToken cancellationToken)
@@ -199,6 +202,21 @@ public sealed class ProcessStripeWebhookCommandHandler
 
             await _cacheService.RemoveAsync($"payment-status-seatHold:{payment.SeatHoldId}", cancellationToken);
             await MarkEventAsProcessedAsync(stripeEvent.Id, cancellationToken);
+            try
+            {
+                await _userNotificationService.SendPaymentSucceededEmailAsync(
+                    seatHold.UserId,
+                    seatHold.ScreeningId,
+                    cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Payment success email sending failed. UserId: {UserId}, ScreeningId: {ScreeningId}",
+                    seatHold.UserId,
+                    seatHold.ScreeningId);
+            }
 
             _logger.LogInformation(
                 "Stripe payment processed successfully. PaymentId: {PaymentId}, SeatHoldId: {SeatHoldId}, EventId: {EventId}",
@@ -250,6 +268,24 @@ public sealed class ProcessStripeWebhookCommandHandler
             await _cacheService.RemoveAsync($"payment-status-seatHold:{payment.SeatHoldId}", cancellationToken);
 
             await MarkEventAsProcessedAsync(stripeEvent.Id, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(payment.UserId))
+            {
+                try
+                {
+                    await _userNotificationService.SendPaymentFailedEmailAsync(
+                        payment.UserId,
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "Payment failed email sending failed. UserId: {UserId}, PaymentId: {PaymentId}",
+                        payment.UserId,
+                        payment.Id);
+                }
+            }
+
 
             _logger.LogInformation(
                 "Stripe payment marked as failed. PaymentId: {PaymentId}, ProviderPaymentIntentId: {ProviderPaymentIntentId}, EventId: {EventId}",

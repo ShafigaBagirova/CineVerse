@@ -21,7 +21,7 @@ public class SeatController : ControllerBase
     {
         _mediator = mediator;
     }
-    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.ManageScreenings)]
     [HttpPost]
     public async Task<ActionResult<BaseResponse>> Create([FromBody] CreateSeatRequest request)
     {
@@ -32,7 +32,7 @@ public class SeatController : ControllerBase
 
         return Ok(result);
     }
-    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.ManageScreenings)]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<BaseResponse>> Update(int id, [FromBody] UpdateSeatRequest request)
     {
@@ -43,7 +43,7 @@ public class SeatController : ControllerBase
 
         return Ok(result);
     }
-    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.ManageScreenings)]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult<BaseResponse>> Delete(int id)
     {

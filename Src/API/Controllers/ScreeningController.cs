@@ -19,7 +19,7 @@ public class ScreeningController : ControllerBase
     {
         _mediator = mediator;
     }
-    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.ManageScreenings)]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<BaseResponse>> Update(int id, [FromBody] UpdateScreeningRequest request)
     {
@@ -30,7 +30,7 @@ public class ScreeningController : ControllerBase
 
         return Ok(result);
     }
-    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.ManageScreenings)]
     [HttpPost]
     public async Task<ActionResult<BaseResponse>> Create([FromBody] CreateScreeningRequest request)
     {
@@ -41,7 +41,7 @@ public class ScreeningController : ControllerBase
 
         return Ok(result);
     }
-    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.ManageScreenings)]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult<BaseResponse>> Delete(int id)
     {
@@ -52,6 +52,7 @@ public class ScreeningController : ControllerBase
 
         return Ok(result);
     }
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<BaseResponse<GetScreeningByIdResponse>>> GetById(int id)
     {
