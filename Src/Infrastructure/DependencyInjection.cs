@@ -134,6 +134,8 @@ public static class DependencyInjection
         services.AddScoped<IProcessedWebhookEventRepository,ProcessedWebhookEventRepository>();
         services.AddScoped<IUserNotificationService, UserNotificationService>();
         services.AddScoped<IUserEmailProvider, UserEmailProvider>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IInAppNotificationService, InAppNotificationService>();
         return services;
     }
 }
