@@ -12,17 +12,20 @@ public sealed class ScreeningRescheduledEventHandler
     private readonly IPaymentRepository _paymentRepository;
     private readonly ILogger<ScreeningRescheduledEventHandler> _logger;
     private readonly IStripeService _stripeService;
+    private readonly IUserNotificationService _userNotificationService;
 
     public ScreeningRescheduledEventHandler(
         ITicketRepository ticketRepository,
         IPaymentRepository paymentRepository,
         ILogger<ScreeningRescheduledEventHandler> logger,
-        IStripeService stripeService)
+        IStripeService stripeService,
+        IUserNotificationService userNotificationService)
     {
         _ticketRepository = ticketRepository;
         _paymentRepository = paymentRepository;
         _logger = logger;
         _stripeService = stripeService;
+        _userNotificationService = userNotificationService;
     }
 
     public async Task Handle(
@@ -95,7 +98,26 @@ public sealed class ScreeningRescheduledEventHandler
                 await _paymentRepository.UpdateAsync(payment, cancellationToken);
                 await _ticketRepository.UpdateAsync(ticket, cancellationToken);
                 await _paymentRepository.SaveChangesAsync(cancellationToken);
+                try
+                {
+                    await _userNotificationService.SendScreeningRescheduledEmailAsync(
+                        ticket.UserId,
+                        ticket.ScreeningId,
+                        cancellationToken);
 
+                    await _userNotificationService.SendRefundCompletedEmailAsync(
+                        ticket.UserId,
+                        ticket.ScreeningId,
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "Rescheduled screening refund email sending failed. TicketId: {TicketId}, UserId: {UserId}",
+                        ticket.Id,
+                        ticket.UserId);
+                }
                 _logger.LogInformation(
                     "Refund completed successfully. ScreeningId: {ScreeningId}, TicketId: {TicketId}, PaymentId: {PaymentId}",
                     notification.ScreeningId,

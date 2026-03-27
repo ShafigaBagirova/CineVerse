@@ -14,16 +14,19 @@ public sealed class ScreeningCancelledEventHandler
     private readonly IPaymentRepository _paymentRepository;
     private readonly ILogger<ScreeningCancelledEventHandler> _logger;
     private readonly IStripeService _stripeService;
+    private readonly IUserNotificationService _userNotificationService;
     public ScreeningCancelledEventHandler(
         ITicketRepository ticketRepository,
         IPaymentRepository paymentRepository,
         ILogger<ScreeningCancelledEventHandler> logger,
-        IStripeService stripeService)
+        IStripeService stripeService,
+        IUserNotificationService userNotificationService)
     {
         _ticketRepository = ticketRepository;
         _paymentRepository = paymentRepository;
         _logger = logger;
         _stripeService = stripeService;
+        _userNotificationService = userNotificationService;
     }
 
     public async Task Handle(ScreeningCancelledEvent notification, CancellationToken cancellationToken)
@@ -96,7 +99,26 @@ public sealed class ScreeningCancelledEventHandler
                 await _ticketRepository.UpdateAsync(ticket, cancellationToken);
 
                 await _paymentRepository.SaveChangesAsync(cancellationToken);
+                try
+                {
+                    await _userNotificationService.SendScreeningCancelledEmailAsync(
+                        ticket.UserId,
+                        ticket.ScreeningId,
+                        cancellationToken);
 
+                    await _userNotificationService.SendRefundCompletedEmailAsync(
+                        ticket.UserId,
+                        ticket.ScreeningId,
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "Cancelled screening refund email sending failed. TicketId: {TicketId}, UserId: {UserId}",
+                        ticket.Id,
+                        ticket.UserId);
+                }
                 _logger.LogInformation(
                     "Refund success. PaymentId: {PaymentId}, TicketId: {TicketId}",
                     payment.Id,

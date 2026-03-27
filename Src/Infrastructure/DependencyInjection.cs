@@ -132,6 +132,8 @@ public static class DependencyInjection
         services.AddHostedService<MovieSyncBackgroundService>();
         services.AddScoped<IMovieSyncService, MovieSyncService>();
         services.AddScoped<IProcessedWebhookEventRepository,ProcessedWebhookEventRepository>();
+        services.AddScoped<IUserNotificationService, UserNotificationService>();
+        services.AddScoped<IUserEmailProvider, UserEmailProvider>();
         return services;
     }
 }

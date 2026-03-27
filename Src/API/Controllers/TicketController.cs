@@ -19,7 +19,7 @@ public class TicketController : ControllerBase
         _mediator = mediator;
     }
 
-    [Authorize(Policy = Policies.Authenticated)]
+    [Authorize(Policy = Policies.PurchaseTicket)]
     [HttpGet("my")]
     public async Task<ActionResult<BaseResponse<PaginatedResponse<GetMyTicketsResponse>>>> GetMyTickets(
         [FromQuery] GetMyTicketsRequest request)
@@ -31,7 +31,7 @@ public class TicketController : ControllerBase
 
         return Ok(result);
     }
-    [Authorize(Policy = Policies.Authenticated)]
+    [Authorize(Policy = Policies.PurchaseTicket)]
     [HttpGet("{id:int}")]
     public async Task<ActionResult<BaseResponse<GetTicketByIdResponse>>> GetTicketById([FromRoute] int id)
     {
@@ -42,7 +42,7 @@ public class TicketController : ControllerBase
 
         return Ok(result);
     }
-    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.ManageScreenings)]
     [HttpGet("screenings/{screeningId:int}")]
     public async Task<ActionResult<BaseResponse<PaginatedResponse<GetTicketsByScreeningResponse>>>> GetTicketsByScreening(
        [FromRoute] int screeningId,

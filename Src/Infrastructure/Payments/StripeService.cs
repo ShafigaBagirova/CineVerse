@@ -25,17 +25,12 @@ public sealed class StripeService : IStripeService
         try
         {
             var service = new PaymentIntentService();
-
+            var amountInSmallestUnit = (long)(amount * 100);
             var options = new PaymentIntentCreateOptions
             {
-                Amount = (long)Math.Round(amount * 100, MidpointRounding.AwayFromZero),
-
-                Currency = currency.ToLower(),
-
-                AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions
-                {
-                    Enabled = true
-                }
+                Amount = amountInSmallestUnit,
+                Currency = currency,
+                PaymentMethodTypes = new List<string> { "card" }
             };
 
             var requestOptions = new RequestOptions

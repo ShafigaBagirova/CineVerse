@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace API.Extensions;
 
@@ -13,7 +14,11 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddApi(this IServiceCollection services, IConfiguration config)
     {
-        services.AddControllers();
+        services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            });
 
         services.AddSwaggerGen(options =>
         {

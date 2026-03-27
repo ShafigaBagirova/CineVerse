@@ -19,7 +19,7 @@ public class CinemaController : ControllerBase
     {
         _mediator = mediator;
     }
-    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.ManageCinemas)]
     [HttpPost]
     public async Task<ActionResult<BaseResponse>> Create([FromBody] CreateCinemaRequest request)
     {
@@ -27,7 +27,7 @@ public class CinemaController : ControllerBase
 
         return result.Success ? Ok(result) : BadRequest(result);
     }
-    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.ManageCinemas)]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult<BaseResponse>> Delete([FromRoute] int id)
     {
@@ -35,7 +35,7 @@ public class CinemaController : ControllerBase
 
         return result.Success ? Ok(result) : NotFound(result);
     }
-    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.ManageCinemas)]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<BaseResponse>> Update(
     [FromRoute] int id,

@@ -20,7 +20,7 @@ public class HallController : ControllerBase
         _mediator = mediator;
     }
 
-    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.ManageCinemas)]
     [HttpPost]
     public async Task<ActionResult<BaseResponse>> Create([FromBody] CreateHallRequest request)
     {
@@ -32,7 +32,7 @@ public class HallController : ControllerBase
         return Ok(result);
     }
 
-    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.ManageCinemas)]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<BaseResponse>> Update(
     [FromRoute] int id,
@@ -45,7 +45,7 @@ public class HallController : ControllerBase
 
         return Ok(result);
     }
-    [Authorize(Policy = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.ManageCinemas)]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult<BaseResponse>> Delete([FromRoute] int id)
     {
