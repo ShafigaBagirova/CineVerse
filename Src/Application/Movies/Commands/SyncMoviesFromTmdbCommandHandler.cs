@@ -2,6 +2,7 @@
 using Application.Common.Interfaces;
 using Application.Common.Responses;
 using Application.Movies.Dtos;
+using Application.Movies.Events;
 using AutoMapper;
 using Domain.Entities;
 using MediatR;
@@ -19,14 +20,17 @@ public sealed class SyncMoviesFromTmdbCommandHandler
     private readonly ILogger<SyncMoviesFromTmdbCommandHandler> _logger;
     private readonly IGenreRepository _genreRepository;
     private readonly IMovieGenreRepository _movieGenreRepository;
+    private readonly IPublisher _publisher;
 
     public SyncMoviesFromTmdbCommandHandler(
         IMovieProvider movieProvider,
         IMovieRepository movieRepository,
         IMovieVideoRepository movieVideoRepository,
         IMapper mapper,
-        ILogger<SyncMoviesFromTmdbCommandHandler> logger,IGenreRepository genreRepository,
-        IMovieGenreRepository movieGenreRepository)
+        ILogger<SyncMoviesFromTmdbCommandHandler> logger,
+        IGenreRepository genreRepository,
+        IMovieGenreRepository movieGenreRepository,
+        IPublisher publisher)
     {
         _movieProvider = movieProvider;
         _movieRepository = movieRepository;
@@ -35,6 +39,7 @@ public sealed class SyncMoviesFromTmdbCommandHandler
         _logger = logger;
         _genreRepository = genreRepository;
         _movieGenreRepository = movieGenreRepository;
+        _publisher = publisher;
     }
 
     public async Task<BaseResponse> Handle(
@@ -44,6 +49,8 @@ public sealed class SyncMoviesFromTmdbCommandHandler
         _logger.LogInformation("TMDB movie sync started. Page: {Page}", request.Page);
 
         var externalMovies = await _movieProvider.GetMoviesAsync(request.Page, cancellationToken);
+
+        var createdCount = 0;
 
         foreach (var externalMovie in externalMovies)
         {
@@ -66,9 +73,11 @@ public sealed class SyncMoviesFromTmdbCommandHandler
 
                 await _movieRepository.AddAsync(movie, cancellationToken);
                 await _movieRepository.SaveChangesAsync(cancellationToken);
-                await SyncGenresAsync(movie.Id, externalMovie, cancellationToken);
 
+                await SyncGenresAsync(movie.Id, externalMovie, cancellationToken);
                 await SyncTrailerAsync(movie.Id, externalMovie.ExternalId, cancellationToken);
+
+                createdCount++;
             }
             else
             {
@@ -85,12 +94,26 @@ public sealed class SyncMoviesFromTmdbCommandHandler
 
                 await _movieRepository.UpdateAsync(existingMovie, cancellationToken);
                 await _movieRepository.SaveChangesAsync(cancellationToken);
+
                 await SyncGenresAsync(existingMovie.Id, externalMovie, cancellationToken);
                 await SyncTrailerAsync(existingMovie.Id, externalMovie.ExternalId, cancellationToken);
             }
         }
 
-        _logger.LogInformation("TMDB movie sync completed successfully.");
+        if (createdCount > 0)
+        {
+            await _publisher.Publish(
+                new MoviesBulkImportedEvent(createdCount),
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Bulk movie notification published. CreatedCount: {CreatedCount}",
+                createdCount);
+        }
+
+        _logger.LogInformation(
+            "TMDB movie sync completed successfully. CreatedCount: {CreatedCount}",
+            createdCount);
 
         return new BaseResponse
         {
@@ -98,10 +121,11 @@ public sealed class SyncMoviesFromTmdbCommandHandler
             Message = "Movies synced succesfully from TMDB."
         };
     }
+
     private async Task SyncGenresAsync(
-    int movieId,
-    ExternalMovieDto externalMovie,
-    CancellationToken cancellationToken)
+        int movieId,
+        ExternalMovieDto externalMovie,
+        CancellationToken cancellationToken)
     {
         if (externalMovie.GenreIds is null || !externalMovie.GenreIds.Any())
             return;
@@ -162,6 +186,7 @@ public sealed class SyncMoviesFromTmdbCommandHandler
             movieId,
             newGenreIds.Count);
     }
+
     private async Task SyncTrailerAsync(
         int movieId,
         long tmdbId,

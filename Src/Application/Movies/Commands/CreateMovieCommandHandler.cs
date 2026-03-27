@@ -1,6 +1,7 @@
 ﻿using Application.Common.Helpers;
 using Application.Common.Interfaces;
 using Application.Common.Responses;
+using Application.Movies.Events;
 using AutoMapper;
 using Domain.Entities;
 using Domain.Enums;
@@ -16,17 +17,19 @@ public sealed class CreateMovieCommandHandler
     private readonly IMapper _mapper;
     private readonly ILogger<CreateMovieCommandHandler> _logger;
     private readonly ICacheService _cacheService;
-
+    private readonly IPublisher _publisher;
     public CreateMovieCommandHandler(
         IMovieRepository movieRepository,
         IMapper mapper,
         ILogger<CreateMovieCommandHandler> logger,
-        ICacheService cacheService)
+        ICacheService cacheService,
+        IPublisher publisher)
     {
         _movieRepository = movieRepository;
         _mapper = mapper;
         _logger = logger;
         _cacheService = cacheService;
+        _publisher = publisher;
     }
 
     public async Task<BaseResponse> Handle(CreateMovieCommand request, CancellationToken cancellationToken)
@@ -89,7 +92,7 @@ public sealed class CreateMovieCommandHandler
 
         await _movieRepository.AddAsync(movie, cancellationToken);
         await _movieRepository.SaveChangesAsync(cancellationToken);
-
+        await _publisher.Publish(new MovieCreatedEvent(movie.Id, movie.Title),cancellationToken);
         await _cacheService.RemoveAsync("movies:all", cancellationToken);
 
         _logger.LogInformation(

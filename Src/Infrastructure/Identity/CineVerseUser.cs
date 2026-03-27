@@ -22,5 +22,7 @@ public class CineVerseUser: IdentityUser
     public ICollection<SeatHold> SeatHolds { get; set; } = new List<SeatHold>();
     public ICollection<Payment> Payments { get; set; }= new List<Payment>();
     public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+    public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+    public ICollection<RecommendationNotificationLog> Recommendations { get; set; } = new List<RecommendationNotificationLog>();
 
 }

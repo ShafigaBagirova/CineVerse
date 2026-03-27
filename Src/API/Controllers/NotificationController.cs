@@ -54,4 +54,15 @@ public class NotificationController : ControllerBase
 
         return Ok(result);
     }
+    [Authorize(Roles = "Admin")]
+    [HttpPost("recommendations/refresh")]
+    public async Task<ActionResult<BaseResponse>> RefreshRecommendations()
+    {
+        var result = await _mediator.Send(new NotifyAllUsersRecommendationsCommand());
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
 }
