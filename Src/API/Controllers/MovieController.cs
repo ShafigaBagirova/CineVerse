@@ -115,5 +115,16 @@ public class MovieController : ControllerBase
 
         return Ok(response);
     }
+    [Authorize(Policy=Policies.Authenticated)]
+    [HttpGet("suggested")]
+    public async Task<ActionResult<BaseResponse<PaginatedResponse<GetSuggestedMoviesResponse>>>> GetSuggestedMovies(
+    [FromQuery] GetSuggestedMoviesRequest request)
+    {
+        var result = await _mediator.Send(new GetSuggestedMoviesQuery(request));
 
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
 }

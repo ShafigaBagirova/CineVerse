@@ -3,9 +3,11 @@ using Application.Common.Options;
 using Infrastructure.Email;
 using Infrastructure.FileStorage;
 using Infrastructure.Identity;
+using Infrastructure.Notifications;
 using Infrastructure.Payments;
 using Infrastructure.Persistence.Context;
 using Infrastructure.Persistence.Repositories;
+using Infrastructure.Recommendation;
 using Infrastructure.Redis;
 using Infrastructure.Tmdb;
 using Microsoft.AspNetCore.Authorization;
@@ -136,6 +138,10 @@ public static class DependencyInjection
         services.AddScoped<IUserEmailProvider, UserEmailProvider>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IInAppNotificationService, InAppNotificationService>();
+        services.AddScoped<IUserIdsProvider, UserIdsProvider>();
+        services.AddScoped<IRecommendationService, RecommendationService>();
+        services.AddScoped<IRecommendationNotificationLogRepository, RecommendationNotificationLogRepository>();
+        services.AddHostedService<RecommendationRefreshBackgroundService>();
         return services;
     }
 }
