@@ -23,7 +23,7 @@ public sealed class MinioFileStorageService : IFileStorageService
         Stream content,
         string fileName,
         string contentType,
-        int movieId,
+        string folder,
         CancellationToken ct = default)
     {
         if (content is null)
@@ -53,7 +53,7 @@ public sealed class MinioFileStorageService : IFileStorageService
 
         var extension = Path.GetExtension(fileName);
         var uniqueFileName = $"{Guid.NewGuid()}{extension}";
-        var objectKey = $"property-ads/{movieId}/{uniqueFileName}";
+        var objectKey = $"property-ads/{folder}/{uniqueFileName}";
 
         var putObjectArgs = new PutObjectArgs()
             .WithBucket(_options.Bucket)

@@ -18,8 +18,13 @@ public sealed class CreateFoodItemCommandValidator
         RuleFor(x => x.Request.Price)
             .GreaterThan(0);
 
-        RuleFor(x => x.Request.ImageUrl)
-            .MaximumLength(500);
+
+        RuleFor(x => x.Request.Image)
+            .Must(file => file == null ||
+                          file.ContentType == "image/jpeg" ||
+                          file.ContentType == "image/png" ||
+                          file.ContentType == "image/webp")
+            .WithMessage("Only JPEG, PNG, or WEBP images are allowed.");
 
         RuleFor(x => x.Request.FoodCategoryId)
             .GreaterThan(0);

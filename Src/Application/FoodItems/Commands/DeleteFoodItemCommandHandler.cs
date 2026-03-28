@@ -1,5 +1,6 @@
 ﻿using Application.Common.Interfaces;
 using Application.Common.Responses;
+using Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -10,13 +11,16 @@ public sealed class DeleteFoodItemCommandHandler
 {
     private readonly IFoodItemRepository _foodItemRepository;
     private readonly ILogger<DeleteFoodItemCommandHandler> _logger;
+    private readonly ICacheService _cacheService;
 
     public DeleteFoodItemCommandHandler(
         IFoodItemRepository foodItemRepository,
-        ILogger<DeleteFoodItemCommandHandler> logger)
+        ILogger<DeleteFoodItemCommandHandler> logger,
+        ICacheService cacheService)
     {
         _foodItemRepository = foodItemRepository;
         _logger = logger;
+        _cacheService = cacheService;
     }
 
     public async Task<BaseResponse> Handle(
@@ -42,7 +46,10 @@ public sealed class DeleteFoodItemCommandHandler
 
         await _foodItemRepository.UpdateAsync(item, cancellationToken);
         await _foodItemRepository.SaveChangesAsync(cancellationToken);
-
+        await _cacheService.RemoveAsync($"fooditem:{item.Id}");
+        await _cacheService.RemoveByPrefixAsync("fooditems:");
+        await _cacheService.RemoveByPrefixAsync("foodcategories:withitems:");
+        await _cacheService.RemoveByPrefixAsync("foodorders:top-selling:");
         _logger.LogInformation(
             "DeleteFoodItemCommand completed successfully. FoodItemId: {FoodItemId}",
             item.Id);

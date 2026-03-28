@@ -3,11 +3,11 @@
 public interface IFileStorageService
 {
     Task<string> SaveAsync(
-        Stream content,
-        string fileName,
-        string contentType,
-        int movieId,
-        CancellationToken ct = default);
+            Stream content,
+            string fileName,
+            string contentType,
+            string folder,
+            CancellationToken ct = default);
 
     Task DeleteFileAsync(
         string objectKey,

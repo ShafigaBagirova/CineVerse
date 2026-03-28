@@ -10,13 +10,16 @@ public sealed class DeleteFoodCategoryCommandHandler
 {
     private readonly IFoodCategoryRepository _repository;
     private readonly ILogger<DeleteFoodCategoryCommandHandler> _logger;
+    private readonly ICacheService _cacheService;
 
     public DeleteFoodCategoryCommandHandler(
         IFoodCategoryRepository repository,
-        ILogger<DeleteFoodCategoryCommandHandler> logger)
+        ILogger<DeleteFoodCategoryCommandHandler> logger,
+        ICacheService cacheService)
     {
         _repository = repository;
         _logger = logger;
+        _cacheService = cacheService;
     }
 
     public async Task<BaseResponse> Handle(
@@ -35,6 +38,8 @@ public sealed class DeleteFoodCategoryCommandHandler
 
         await _repository.UpdateAsync(category, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
+        await _cacheService.RemoveAsync($"foodcategory:{category.Id}");
+        await _cacheService.RemoveByPrefixAsync("foodcategories:");
 
         return BaseResponse.Ok("Food category deleted successfully.");
     }

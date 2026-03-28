@@ -1,6 +1,7 @@
 ﻿using Application.Common.Responses;
 using Application.FoodCategories.Commands;
 using Application.FoodCategories.Dtos;
+using Application.FoodCategories.Queries;
 using Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -52,6 +53,41 @@ public class FoodCategoryController : ControllerBase
     public async Task<ActionResult<BaseResponse>> Delete(int id)
     {
         var result = await _mediator.Send(new DeleteFoodCategoryCommand(id));
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+    [Authorize]
+    [HttpGet]
+    public async Task<ActionResult<BaseResponse<List<FoodCategoryResponse>>>> GetAll(
+    [FromQuery] GetAllFoodCategoriesRequest request)
+    {
+        var result = await _mediator.Send(new GetAllFoodCategoriesQuery(request));
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+    [Authorize]
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<BaseResponse<FoodCategoryResponse>>> GetById(int id)
+    {
+        var result = await _mediator.Send(new GetFoodCategoryByIdQuery(id));
+
+        if (!result.Success)
+            return NotFound(result);
+
+        return Ok(result);
+    }
+    [Authorize]
+    [HttpGet("with-items")]
+    public async Task<ActionResult<BaseResponse<List<FoodCategoryWithItemsResponse>>>> GetCategoriesWithItems(
+    [FromQuery] GetFoodCategoriesWithItemsRequest request)
+    {
+        var result = await _mediator.Send(new GetFoodCategoriesWithItemsQuery(request));
 
         if (!result.Success)
             return BadRequest(result);

@@ -23,7 +23,7 @@ public sealed class FoodItemConfiguration : IEntityTypeConfiguration<FoodItem>
             .HasColumnType("decimal(18,2)")
             .IsRequired();
 
-        builder.Property(x => x.ImageUrl)
+        builder.Property(x => x.ImageObjectKey)
             .HasMaxLength(500);
 
         builder.Property(x => x.IsAvailable)
@@ -35,6 +35,9 @@ public sealed class FoodItemConfiguration : IEntityTypeConfiguration<FoodItem>
         builder.HasOne(x => x.FoodCategory)
             .WithMany(x => x.FoodItems)
             .HasForeignKey(x => x.FoodCategoryId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(x => x.Cinema)
+            .WithMany(x => x.FoodItems)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

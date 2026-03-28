@@ -155,6 +155,9 @@ namespace Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("CinemaId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -172,6 +175,8 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CinemaId");
+
                     b.ToTable("FoodCategories", (string)null);
                 });
 
@@ -183,6 +188,9 @@ namespace Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("CinemaId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
@@ -190,7 +198,7 @@ namespace Infrastructure.Migrations
                     b.Property<int>("FoodCategoryId")
                         .HasColumnType("int");
 
-                    b.Property<string>("ImageUrl")
+                    b.Property<string>("ImageObjectKey")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
@@ -210,6 +218,8 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CinemaId");
+
                     b.HasIndex("FoodCategoryId");
 
                     b.ToTable("FoodItems", (string)null);
@@ -225,6 +235,9 @@ namespace Infrastructure.Migrations
 
                     b.Property<DateTime?>("CancelledAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("CinemaId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("ConfirmedAtUtc")
                         .HasColumnType("datetime2");
@@ -269,6 +282,8 @@ namespace Infrastructure.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CinemaId");
 
                     b.HasIndex("ScreeningId");
 
@@ -1321,19 +1336,44 @@ namespace Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.FoodCategory", b =>
+                {
+                    b.HasOne("Domain.Entities.Cinema", "Cinema")
+                        .WithMany("FoodCategories")
+                        .HasForeignKey("CinemaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Cinema");
+                });
+
             modelBuilder.Entity("Domain.Entities.FoodItem", b =>
                 {
+                    b.HasOne("Domain.Entities.Cinema", "Cinema")
+                        .WithMany("FoodItems")
+                        .HasForeignKey("CinemaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Domain.Entities.FoodCategory", "FoodCategory")
                         .WithMany("FoodItems")
                         .HasForeignKey("FoodCategoryId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("Cinema");
+
                     b.Navigation("FoodCategory");
                 });
 
             modelBuilder.Entity("Domain.Entities.FoodOrder", b =>
                 {
+                    b.HasOne("Domain.Entities.Cinema", "Cinema")
+                        .WithMany("FoodOrders")
+                        .HasForeignKey("CinemaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Domain.Entities.Screening", "Screening")
                         .WithMany("FoodOrders")
                         .HasForeignKey("ScreeningId")
@@ -1351,6 +1391,8 @@ namespace Infrastructure.Migrations
                         .HasForeignKey("SeatId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Cinema");
 
                     b.Navigation("Screening");
 
@@ -1646,6 +1688,12 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Domain.Entities.Cinema", b =>
                 {
+                    b.Navigation("FoodCategories");
+
+                    b.Navigation("FoodItems");
+
+                    b.Navigation("FoodOrders");
+
                     b.Navigation("Halls");
                 });
 
