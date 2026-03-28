@@ -10,15 +10,12 @@ using Infrastructure.Persistence.Repositories;
 using Infrastructure.Recommendation;
 using Infrastructure.Redis;
 using Infrastructure.Tmdb;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Minio;
-using Serilog;
 using StackExchange.Redis;
 using System.Net.Http.Headers;
 
@@ -142,6 +139,10 @@ public static class DependencyInjection
         services.AddScoped<IRecommendationService, RecommendationService>();
         services.AddScoped<IRecommendationNotificationLogRepository, RecommendationNotificationLogRepository>();
         services.AddHostedService<RecommendationRefreshBackgroundService>();
+        services.AddScoped<IFoodCategoryRepository, FoodCategoryRepository>();
+        services.AddScoped<IFoodItemRepository, FoodItemRepository>();
+        services.AddScoped<IFoodOrderRepository, FoodOrderRepository>();
+        services.AddScoped<IFoodOrderItemRepository, FoodOrderItemRepository>();
         return services;
     }
 }
