@@ -1,4 +1,5 @@
-﻿using Application.Common.Interfaces;
+﻿using Application.Common.Helpers;
+using Application.Common.Interfaces;
 using Application.Common.Responses;
 using Domain.Entities;
 using MediatR;
@@ -46,10 +47,10 @@ public sealed class DeleteFoodItemCommandHandler
 
         await _foodItemRepository.UpdateAsync(item, cancellationToken);
         await _foodItemRepository.SaveChangesAsync(cancellationToken);
-        await _cacheService.RemoveAsync($"fooditem:{item.Id}");
-        await _cacheService.RemoveByPrefixAsync("fooditems:");
-        await _cacheService.RemoveByPrefixAsync("foodcategories:withitems:");
-        await _cacheService.RemoveByPrefixAsync("foodorders:top-selling:");
+        await _cacheService.RemoveAsync(FoodItemCacheKey.GetById(item.Id), cancellationToken);
+        await _cacheService.RemoveByPrefixAsync(FoodItemCacheKey.AllPrefix);
+        await _cacheService.RemoveByPrefixAsync(FoodCategoryCacheKey.WithItemsPrefix);
+        await _cacheService.RemoveByPrefixAsync(FoodOrderCacheKey.TopSellingPrefix);
         _logger.LogInformation(
             "DeleteFoodItemCommand completed successfully. FoodItemId: {FoodItemId}",
             item.Id);

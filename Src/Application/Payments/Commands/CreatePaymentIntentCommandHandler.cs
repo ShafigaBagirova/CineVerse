@@ -22,6 +22,7 @@ public sealed class CreatePaymentIntentCommandHandler
     private readonly IMapper _mapper;
     private readonly ILogger<CreatePaymentIntentCommandHandler> _logger;
     private readonly ICacheService _cacheService;
+    private readonly IFoodOrderRepository _foodOrderRepository;
 
     public CreatePaymentIntentCommandHandler(
         IPaymentRepository paymentRepository,
@@ -31,7 +32,8 @@ public sealed class CreatePaymentIntentCommandHandler
         IStripeService stripeService,
         IMapper mapper,
         ILogger<CreatePaymentIntentCommandHandler> logger,
-        ICacheService cacheService)
+        ICacheService cacheService,
+        IFoodOrderRepository foodOrderRepository)
     {
         _paymentRepository = paymentRepository;
         _seatHoldRepository = seatHoldRepository;
@@ -41,6 +43,7 @@ public sealed class CreatePaymentIntentCommandHandler
         _mapper = mapper;
         _logger = logger;
         _cacheService = cacheService;
+        _foodOrderRepository = foodOrderRepository;
     }
 
     public async Task<BaseResponse<CreatePaymentIntentResponse>> Handle(
@@ -134,7 +137,6 @@ public sealed class CreatePaymentIntentCommandHandler
             return BaseResponse<CreatePaymentIntentResponse>.Fail(
                 "A pending payment already exists for this seat hold.");
         }
-
         var screening = await _screeningRepository.GetByIdAsync(seatHold.ScreeningId, cancellationToken);
         if (screening is null)
         {
@@ -146,18 +148,25 @@ public sealed class CreatePaymentIntentCommandHandler
             return BaseResponse<CreatePaymentIntentResponse>.Fail("Screening not found.");
         }
 
-        var amount = screening.Price;
+        var foodOrder = await _foodOrderRepository.GetActiveBySeatHoldIdAsync(
+            seatHold.Id,
+            cancellationToken);
 
-        if (amount <= 0)
+        var ticketAmount = screening.Price;
+        var foodAmount = foodOrder?.TotalAmount ?? 0m;
+        var amount = ticketAmount + foodAmount;
+
+        if (ticketAmount <= 0 || amount <= 0)
         {
             _logger.LogWarning(
-                "CreatePaymentIntentCommand failed. Invalid screening price. ScreeningId: {ScreeningId}, Amount: {Amount}",
+                "CreatePaymentIntentCommand failed. Invalid payment amount. ScreeningId: {ScreeningId}, TicketAmount: {TicketAmount}, FoodAmount: {FoodAmount}, TotalAmount: {TotalAmount}",
                 screening.Id,
+                ticketAmount,
+                foodAmount,
                 amount);
 
             return BaseResponse<CreatePaymentIntentResponse>.Fail("Invalid payment amount.");
         }
-
         var idempotencyKey = $"create-payment-{seatHold.Id}-{Guid.NewGuid()}";
 
         var stripeResult = await _stripeService.CreatePaymentIntentAsync(amount,"azn", idempotencyKey, cancellationToken);
@@ -166,8 +175,10 @@ public sealed class CreatePaymentIntentCommandHandler
         {
             SeatHoldId = seatHold.Id,
             UserId = userId,
-            Amount = amount,
+            TotalAmount = amount,
             Currency = PaymentCurrency.Azn,
+            TicketAmount = ticketAmount,
+            FoodAmount = foodAmount,
             Status = PaymentStatus.Pending,
             Provider = PaymentProvider.Stripe,
             ProviderPaymentIntentId = stripeResult.PaymentIntentId,
@@ -196,13 +207,15 @@ public sealed class CreatePaymentIntentCommandHandler
             cancellationToken);
 
         _logger.LogInformation(
-            "Payment intent created successfully. PaymentId: {PaymentId}, SeatHoldId: {SeatHoldId}, UserId: {UserId}, ProviderPaymentIntentId: {ProviderPaymentIntentId}, Amount: {Amount}, Currency: {Currency}",
+            "Payment intent created successfully. PaymentId: {PaymentId}, SeatHoldId: {SeatHoldId}, TicketAmount:{TicketAmount},FoodAmount:{FoodAmount},UserId: {UserId}, ProviderPaymentIntentId: {ProviderPaymentIntentId}, Amount: {Amount}, Currency: {Currency}",
             payment.Id,
             payment.SeatHoldId,
             payment.UserId,
             payment.ProviderPaymentIntentId,
-            payment.Amount,
-            payment.Currency);
+            payment.TotalAmount,
+            payment.Currency,
+            payment.TicketAmount,
+            payment.FoodAmount);
 
         var response = _mapper.Map<CreatePaymentIntentResponse>(payment);
 

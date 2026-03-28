@@ -1,4 +1,5 @@
-﻿using Application.Common.Interfaces;
+﻿using Application.Common.Helpers;
+using Application.Common.Interfaces;
 using Application.Common.Responses;
 using AutoMapper;
 using Domain.Entities;
@@ -40,7 +41,7 @@ public sealed class CreateFoodCategoryCommandHandler
 
         await _repository.AddAsync(entity, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
-        await _cacheService.RemoveByPrefixAsync("foodcategories:");
+        await _cacheService.RemoveByPrefixAsync(FoodCategoryCacheKey.AllPrefix);
 
         return BaseResponse.Ok("Food category created successfully.");
     }

@@ -152,4 +152,17 @@ public sealed class FoodOrderRepository
             .OrderBy(x => x.Date)
             .ToListAsync(cancellationToken);
     }
+    public async Task<FoodOrder?> GetActiveBySeatHoldIdAsync(
+    int seatHoldId,
+    CancellationToken cancellationToken = default)
+    {
+        return await _context.FoodOrders
+            .AsNoTracking()
+            .Include(x => x.FoodOrderItems)
+            .FirstOrDefaultAsync(
+                x => x.SeatHoldId == seatHoldId &&
+                     x.Status != FoodOrderStatus.Cancelled &&
+                     x.Status != FoodOrderStatus.Refunded,
+                cancellationToken);
+    }
 }
