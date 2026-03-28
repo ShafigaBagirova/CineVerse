@@ -18,4 +18,5 @@ public interface IFoodOrderRepository:IRepository<FoodOrder,int>
     Task<List<FoodOrder>> ToListAsync(IQueryable<FoodOrder> query, CancellationToken cancellationToken = default);
 
     Task<List<OrdersByDayResponse>> GetOrdersByDayAsync(int? cinemaId, int? screeningId, DateTime? from, DateTime? to,CancellationToken cancellationToken = default);
+    Task<FoodOrder?> GetActiveBySeatHoldIdAsync(int seatHoldId, CancellationToken cancellationToken = default);
 }

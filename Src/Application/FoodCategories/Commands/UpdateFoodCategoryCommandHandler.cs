@@ -1,4 +1,5 @@
-﻿using Application.Common.Interfaces;
+﻿using Application.Common.Helpers;
+using Application.Common.Interfaces;
 using Application.Common.Responses;
 using AutoMapper;
 using MediatR;
@@ -44,8 +45,9 @@ public sealed class UpdateFoodCategoryCommandHandler
 
         await _repository.UpdateAsync(category, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
-        await _cacheService.RemoveAsync($"foodcategory:{category.Id}");
-        await _cacheService.RemoveByPrefixAsync("foodcategories:");
+        await _cacheService.RemoveAsync(FoodCategoryCacheKey.GetById(category.Id), cancellationToken);
+        await _cacheService.RemoveByPrefixAsync(FoodCategoryCacheKey.AllPrefix);
+        await _cacheService.RemoveByPrefixAsync(FoodCategoryCacheKey.WithItemsPrefix);
 
         return BaseResponse.Ok("Food category updated successfully.");
     }

@@ -1,4 +1,5 @@
-﻿using Application.Common.Interfaces;
+﻿using Application.Common.Helpers;
+using Application.Common.Interfaces;
 using Application.Common.Responses;
 using AutoMapper;
 using Domain.Entities;
@@ -73,10 +74,10 @@ public sealed class CreateFoodItemCommandHandler
 
         await _foodItemRepository.AddAsync(entity, cancellationToken);
         await _foodItemRepository.SaveChangesAsync(cancellationToken);
-        await _cacheService.RemoveByPrefixAsync("fooditems:");
-        await _cacheService.RemoveByPrefixAsync("foodcategories:withitems:");
-        await _cacheService.RemoveByPrefixAsync("foodorders:top-selling:");
 
+        await _cacheService.RemoveByPrefixAsync(FoodItemCacheKey.AllPrefix);
+        await _cacheService.RemoveByPrefixAsync(FoodCategoryCacheKey.WithItemsPrefix);
+        await _cacheService.RemoveByPrefixAsync(FoodOrderCacheKey.TopSellingPrefix);
         _logger.LogInformation(
             "CreateFoodItemCommand completed successfully. FoodItemId: {FoodItemId}",
             entity.Id);

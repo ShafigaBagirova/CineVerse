@@ -1,5 +1,7 @@
-﻿using Application.Common.Interfaces;
+﻿using Application.Common.Helpers;
+using Application.Common.Interfaces;
 using Application.Common.Responses;
+using Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -38,8 +40,8 @@ public sealed class DeleteFoodCategoryCommandHandler
 
         await _repository.UpdateAsync(category, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
-        await _cacheService.RemoveAsync($"foodcategory:{category.Id}");
-        await _cacheService.RemoveByPrefixAsync("foodcategories:");
+        await _cacheService.RemoveAsync(FoodCategoryCacheKey.GetById(category.Id), cancellationToken);
+        await _cacheService.RemoveByPrefixAsync(FoodCategoryCacheKey.AllPrefix);
 
         return BaseResponse.Ok("Food category deleted successfully.");
     }

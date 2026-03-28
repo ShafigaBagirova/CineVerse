@@ -1,4 +1,5 @@
-﻿using Application.Common.Interfaces;
+﻿using Application.Common.Helpers;
+using Application.Common.Interfaces;
 using Application.Common.Options;
 using Application.Common.Responses;
 using Domain.Entities;
@@ -23,6 +24,7 @@ public sealed class ProcessStripeWebhookCommandHandler
     private readonly StripeSettings _stripeSettings;
     private readonly ICacheService _cacheService;
     private readonly IUserNotificationService _userNotificationService;
+    private readonly IFoodOrderRepository _foodOrderRepository;
 
     public ProcessStripeWebhookCommandHandler(
         IPaymentRepository paymentRepository,
@@ -32,7 +34,8 @@ public sealed class ProcessStripeWebhookCommandHandler
         ILogger<ProcessStripeWebhookCommandHandler> logger,
         IOptions<StripeSettings> stripeSettings,
         ICacheService cacheService,
-        IUserNotificationService userNotificationService)
+        IUserNotificationService userNotificationService,
+        IFoodOrderRepository foodOrderRepository)
     {
         _paymentRepository = paymentRepository;
         _seatHoldRepository = seatHoldRepository;
@@ -42,6 +45,7 @@ public sealed class ProcessStripeWebhookCommandHandler
         _stripeSettings = stripeSettings.Value;
         _cacheService = cacheService;
         _userNotificationService = userNotificationService;
+        _foodOrderRepository = foodOrderRepository;
     }
 
     public async Task<BaseResponse> Handle(ProcessStripeWebhookCommand request, CancellationToken cancellationToken)
@@ -114,6 +118,7 @@ public sealed class ProcessStripeWebhookCommandHandler
                 return BaseResponse.Ok("Payment already processed.");
             }
 
+
             var seatHold = await _seatHoldRepository.GetByIdAsync(payment.SeatHoldId, cancellationToken);
             if (seatHold is null)
             {
@@ -158,8 +163,17 @@ public sealed class ProcessStripeWebhookCommandHandler
 
             await _paymentRepository.UpdateAsync(payment, cancellationToken);
             await _seatHoldRepository.UpdateAsync(seatHold, cancellationToken);
-            await _paymentRepository.SaveChangesAsync(cancellationToken);
 
+            var foodOrder = await _foodOrderRepository.GetActiveBySeatHoldIdAsync(seatHold.Id,cancellationToken);
+            if (foodOrder is not null && foodOrder.Status == FoodOrderStatus.Pending)
+            {
+                foodOrder.Status = FoodOrderStatus.Confirmed;
+                foodOrder.ConfirmedAtUtc = DateTime.UtcNow;
+
+                await _foodOrderRepository.UpdateAsync(foodOrder, cancellationToken);
+            }  
+            
+            await _paymentRepository.SaveChangesAsync(cancellationToken);
             if (!ticketExists)
             {
                 var ticket = new Ticket
@@ -167,7 +181,7 @@ public sealed class ProcessStripeWebhookCommandHandler
                     ScreeningId = seatHold.ScreeningId,
                     SeatId = seatHold.SeatId,
                     UserId = seatHold.UserId,
-                    Price = payment.Amount,
+                    Price = payment.TotalAmount,
                     Status = TicketStatus.Paid,
                     PurchasedAtUtc = DateTime.UtcNow
                 };
@@ -199,8 +213,13 @@ public sealed class ProcessStripeWebhookCommandHandler
                     seatHold.ScreeningId,
                     seatHold.SeatId);
             }
+            await _cacheService.RemoveAsync(PaymentCacheKey.GetBySeatHoldId(payment.SeatHoldId), cancellationToken);
 
-            await _cacheService.RemoveAsync($"payment-status-seatHold:{payment.SeatHoldId}", cancellationToken);
+            await _cacheService.RemoveAsync(FoodOrderCacheKey.AllPrefix, cancellationToken);
+            await _cacheService.RemoveByPrefixAsync(FoodOrderCacheKey.MyOrdersPrefix);
+            await _cacheService.RemoveByPrefixAsync(FoodOrderCacheKey.SummaryPrefix);
+            await _cacheService.RemoveByPrefixAsync(FoodOrderCacheKey.TopSellingPrefix);
+            await _cacheService.RemoveByPrefixAsync(FoodOrderCacheKey.OrdersByDayPrefix);
             await MarkEventAsProcessedAsync(stripeEvent.Id, cancellationToken);
             try
             {

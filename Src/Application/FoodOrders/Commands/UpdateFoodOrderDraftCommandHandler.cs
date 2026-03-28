@@ -1,4 +1,5 @@
-﻿using Application.Common.Interfaces;
+﻿using Application.Common.Helpers;
+using Application.Common.Interfaces;
 using Application.Common.Responses;
 using Domain.Entities;
 using Domain.Enums;
@@ -96,10 +97,10 @@ public sealed class UpdateFoodOrderDraftCommandHandler
 
         await _foodOrderRepository.UpdateAsync(foodOrder, cancellationToken);
         await _foodOrderRepository.SaveChangesAsync(cancellationToken);
-        await _cacheService.RemoveAsync($"foodorder:{foodOrder.Id}");
-        await _cacheService.RemoveByPrefixAsync("foodorders:");
-        await _cacheService.RemoveByPrefixAsync("myfoodorders:");
-        await _cacheService.RemoveByPrefixAsync("foodordersummary:");
+        await _cacheService.RemoveAsync(FoodOrderCacheKey.GetById(foodOrder.Id), cancellationToken);
+        await _cacheService.RemoveByPrefixAsync(FoodOrderCacheKey.AllPrefix);
+        await _cacheService.RemoveByPrefixAsync(FoodOrderCacheKey.MyOrdersPrefix);
+        await _cacheService.RemoveByPrefixAsync(FoodOrderCacheKey.SummaryPrefix);
 
         _logger.LogInformation(
             "UpdateFoodOrderDraftCommand completed successfully. FoodOrderId: {FoodOrderId}, TotalAmount: {TotalAmount}",
