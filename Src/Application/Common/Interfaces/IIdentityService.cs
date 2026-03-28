@@ -26,9 +26,20 @@ public interface IIdentityService
     Task<(bool Success, string? Token, string? Message)> GenerateChangeEmailTokenAsync(string userId, string newEmail);
     Task<BaseResponse> ConfirmEmailChangeAsync(string userId,string newEmail,string token);
     Task<UserProfileDto?> GetUserByIdAsync(string userId);
-    Task<List<UserProfileDto>> GetAllUsersAsync();
     Task<Dictionary<string, string>> GetUserNamesByIdsAsync(IEnumerable<string> userIds);
     Task<bool> UserExistsAsync(string userId);
     Task<List<FollowUserItemDto>> GetUsersByIdsAsync(List<string> userIds, CancellationToken cancellationToken);
-
+    Task<UserInfoDto?> GetUserByEmailAsync(string email, CancellationToken cancellationToken);
+    Task<(bool Success, List<string> Errors, string? UserId)> CreateGoogleUserAsync(
+        string email,
+        string? firstName,
+        string? lastName,
+        string provider,
+        string providerKey,
+        string? profilePictureUrl,
+        CancellationToken cancellationToken);
+    Task<UserInfoDto?> GetUserByIdAsync(string userId, CancellationToken cancellationToken);
+    Task<BaseResponse> UpdateAvatarAsync(string userId, string? avatarUrl, CancellationToken cancellationToken);
+    Task<string?> GetAvatarUrlAsync(string userId, CancellationToken cancellationToken);
+    Task<PaginatedResponse<UserProfileDto>> GetUsersAsync(GetUsersRequest request,CancellationToken cancellationToken);
 }

@@ -4,5 +4,5 @@ namespace Application.Common.Interfaces;
 
 public interface IJwtTokenGenerator
 {
-    (string AccessToken, DateTime ExpiresAtUtc) GenerateAccessToken(JwtUserInfoDto user, IEnumerable<string> roles);
+    (string AccessToken, DateTime ExpiresAtUtc) GenerateAccessToken(JwtUserInfoDto user);
 }

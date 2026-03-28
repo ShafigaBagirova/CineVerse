@@ -2,6 +2,6 @@
 using MediatR;
 
 namespace Application.Auth.User.Queries;
-public sealed record GetAllUsersQuery()
-    : IRequest<List<UserProfileDto>>;
 
+public sealed record GetMyProfileQuery()
+    : IRequest<UserProfileDto?>;

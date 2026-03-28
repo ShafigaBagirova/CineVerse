@@ -314,20 +314,9 @@ public sealed class IdentityService : IIdentityService
         return new UserProfileDto(
             user.Id,
             user.UserName ?? string.Empty,
-            user.FullName ?? string.Empty
+            user.FullName ?? string.Empty,
+            user.AvatarUrl
         );
-    }
-    public async Task<List<UserProfileDto>> GetAllUsersAsync()
-    {
-        var users = _userManager.Users
-            .Select(u => new UserProfileDto(
-                u.Id,
-                u.UserName ?? string.Empty,
-                u.FullName ?? string.Empty
-            ))
-            .ToList();
-
-        return await Task.FromResult(users);
     }
     public async Task<Dictionary<string, string>> GetUserNamesByIdsAsync(
     IEnumerable<string> userIds)
@@ -367,5 +356,157 @@ public sealed class IdentityService : IIdentityService
                 AvatarUrl = x.AvatarUrl
             })
             .ToListAsync(cancellationToken);
+    }
+    public async Task<UserInfoDto?> GetUserByEmailAsync(string email, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+
+        if (user is null)
+            return null;
+
+        var roles = await _userManager.GetRolesAsync(user);
+
+        return new UserInfoDto
+        {
+            Id = user.Id,
+            Email = user.Email!,
+            UserName = user.UserName,
+            FullName = user.FullName,
+            AvatarUrl = user.AvatarUrl,
+            Roles = roles.ToList()
+        };
+    }
+    public async Task<(bool Success, List<string> Errors, string? UserId)> CreateGoogleUserAsync(
+    string email,
+    string? firstName,
+    string? lastName,
+    string provider,
+    string providerKey,
+    string? profilePictureUrl,
+    CancellationToken cancellationToken)
+    {
+        var user = new CineVerseUser
+        {
+            UserName = email,
+            Email = email,
+            FullName = $"{firstName} {lastName}".Trim(),
+            EmailConfirmed = true,
+            AvatarUrl = profilePictureUrl
+        };
+
+        var createResult = await _userManager.CreateAsync(user);
+
+        if (!createResult.Succeeded)
+        {
+            return (
+                false,
+                createResult.Errors.Select(e => e.Description).ToList(),
+                null
+            );
+        }
+
+        var loginResult = await _userManager.AddLoginAsync(
+            user,
+            new UserLoginInfo(provider, providerKey, provider));
+
+        if (!loginResult.Succeeded)
+        {
+            return (
+                false,
+                loginResult.Errors.Select(e => e.Description).ToList(),
+                null
+            );
+        }
+
+        await _userManager.AddToRoleAsync(user, "User");
+
+        return (true, new List<string>(), user.Id);
+    }
+    public async Task<UserInfoDto?> GetUserByIdAsync(string userId, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+
+        if (user is null)
+            return null;
+
+        var roles = await _userManager.GetRolesAsync(user);
+
+        return new UserInfoDto
+        {
+            Id = user.Id,
+            Email = user.Email!,
+            UserName = user.UserName,
+            FullName = user.FullName,
+            AvatarUrl = user.AvatarUrl,
+            Roles = roles.ToList()
+        };
+    }
+    public async Task<BaseResponse> UpdateAvatarAsync(
+    string userId,
+    string? avatarUrl,
+    CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+
+        if (user is null)
+            return BaseResponse.Fail("User not found.");
+
+        user.AvatarUrl = avatarUrl;
+
+        var result = await _userManager.UpdateAsync(user);
+
+        if (!result.Succeeded)
+        {
+            return BaseResponse.Fail(
+                string.Join(", ", result.Errors.Select(x => x.Description)));
+        }
+
+        return BaseResponse.Ok("Avatar updated successfully.");
+    }
+
+    public async Task<string?> GetAvatarUrlAsync(
+        string userId,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        return user?.AvatarUrl;
+    }
+    public async Task<PaginatedResponse<UserProfileDto>> GetUsersAsync(
+    GetUsersRequest request,
+    CancellationToken cancellationToken)
+    {
+        var query = _userManager.Users.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+        {
+            var search = request.SearchTerm.Trim().ToLower();
+
+            query = query.Where(u =>
+                (u.UserName != null && u.UserName.ToLower().Contains(search)) ||
+                (u.Email != null && u.Email.ToLower().Contains(search)) ||
+                (u.FullName != null && u.FullName.ToLower().Contains(search)));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var users = await query
+            .OrderBy(u => u.UserName)
+            .Skip((request.PageNumber - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(u => new UserProfileDto(
+                u.Id,
+                u.UserName ?? string.Empty,
+                u.FullName ?? string.Empty,
+                u.AvatarUrl
+            ))
+            .ToListAsync(cancellationToken);
+
+        return new PaginatedResponse<UserProfileDto>
+        {
+            Items = users,
+            PageNumber = request.PageNumber,
+            PageSize = request.PageSize,
+            TotalCount = totalCount
+        };
     }
 }

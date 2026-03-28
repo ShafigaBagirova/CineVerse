@@ -18,9 +18,7 @@ public sealed class IssueTokenPairHandler(
             "Issuing token pair for UserId: {UserId}",
             request.User.UserId);
 
-        var (accessToken, expiresAtUtc) = jwtTokenGenerator.GenerateAccessToken(
-            request.User,
-            request.User.Roles);
+        var (accessToken, expiresAtUtc) = jwtTokenGenerator.GenerateAccessToken( request.User);
 
         var newRt = await mediator.Send(
             new CreateRefreshTokenCommand(request.User.UserId), ct);
