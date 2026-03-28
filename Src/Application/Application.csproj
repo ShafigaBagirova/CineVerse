@@ -19,6 +19,7 @@
 
 	<ItemGroup>
 	  <Folder Include="FoodCategories\Queries\" />
+	  <Folder Include="FoodItems\Queries\" />
 	</ItemGroup>
 
 </Project>

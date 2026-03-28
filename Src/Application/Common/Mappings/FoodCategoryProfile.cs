@@ -4,9 +4,9 @@ using Domain.Entities;
 
 namespace Application.Common.Mappings;
 
-public sealed class FoodCategoryMappingProfile : Profile
+public sealed class FoodCategoryProfile : Profile
 {
-    public FoodCategoryMappingProfile()
+    public FoodCategoryProfile()
     {
         CreateMap<CreateFoodCategoryRequest, FoodCategory>();
 
