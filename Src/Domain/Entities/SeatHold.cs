@@ -12,5 +12,6 @@ public class SeatHold: BaseEntity<int>
     public SeatHoldStatus Status { get; set; }
     public DateTime ExpiresAtUtc { get; set; }
     public ICollection<Payment> Payments { get; set; }= new List<Payment>();
+    public ICollection<FoodOrder> FoodOrders { get; set; }= new List<FoodOrder>();
 
 }

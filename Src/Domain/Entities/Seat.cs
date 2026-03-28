@@ -12,4 +12,5 @@ public class Seat : BaseEntity<int>
     public Hall Hall { get; set; } = default!;
     public ICollection<SeatHold> SeatHolds { get; set; } = new List<SeatHold>();
     public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+    public ICollection<FoodOrder> FoodOrders { get; set; } = new List<FoodOrder>();
 }

@@ -37,4 +37,8 @@ public class CineVerseDbContext : IdentityDbContext<CineVerseUser>
     public DbSet<ProcessedWebhookEvent> ProcessedWebhookEvents { get; set; }
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<RecommendationNotificationLog> RecommendationNotificationLogs { get; set; }
+    public DbSet<FoodOrder> FoodOrders { get; set; }
+    public DbSet<FoodOrderItem> FoodOrderItems { get; set; }
+    public DbSet<FoodCategory> FoodCategories { get; set; }
+    public DbSet<FoodItem> FoodItems { get; set; }  
 }

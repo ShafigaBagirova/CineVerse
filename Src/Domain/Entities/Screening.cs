@@ -19,4 +19,5 @@ public class Screening: BaseEntity<int>
     public PaymentCurrency Currency { get; set; }
     public ICollection<SeatHold> SeatHolds { get; set; } = new List<SeatHold>();
     public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+    public ICollection<FoodOrder> FoodOrders { get; set; } = new List<FoodOrder>();
 }
