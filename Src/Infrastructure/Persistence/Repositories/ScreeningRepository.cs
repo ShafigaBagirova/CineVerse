@@ -105,4 +105,9 @@ public class ScreeningRepository:GenericRepository<Screening,int>, IScreeningRep
     {
         return await _context.Screenings.AnyAsync(x => x.Id == id, cancellationToken);
     }
+    public async Task<int> CountActiveAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Screenings
+            .CountAsync(x => x.Status == ScreeningStatus.Completed, cancellationToken);
+    }
 }

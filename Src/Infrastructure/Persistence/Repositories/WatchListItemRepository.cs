@@ -69,5 +69,8 @@ public class WatchListItemRepository:GenericRepository<WatchListItem,int>, IWatc
                 x => x.MovieId == movieId && x.UserId == userId,
                 cancellationToken);
     }
-
+    public async Task<int> CountAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.WatchlistItems.CountAsync(cancellationToken);
+    }
 }

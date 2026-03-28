@@ -203,7 +203,7 @@ public sealed class CreatePaymentIntentCommandHandler
         }
 
         await _cacheService.RemoveAsync(
-            $"{PaymentCacheKeys.GetPaymentsBySeatHoldPrefix}{seatHold.Id}",
+            $"{PaymentCacheKey.GetPaymentsBySeatHoldPrefix}{seatHold.Id}",
             cancellationToken);
 
         _logger.LogInformation(

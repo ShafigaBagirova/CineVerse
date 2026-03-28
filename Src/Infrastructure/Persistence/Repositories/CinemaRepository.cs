@@ -71,4 +71,8 @@ public class CinemaRepository:GenericRepository<Cinema,int>, ICinemaRepository
 
         return (items, totalCount);
     }
+    public async Task<int> CountAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Cinemas.CountAsync(cancellationToken);
+    }
 }

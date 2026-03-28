@@ -18,7 +18,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         _jwt = jwtOptions.Value;
     }
 
-    public (string AccessToken, DateTime ExpiresAtUtc) GenerateAccessToken(JwtUserInfoDto user, IEnumerable<string> roles)
+    public (string AccessToken, DateTime ExpiresAtUtc) GenerateAccessToken(JwtUserInfoDto user)
     {
         var now = DateTime.UtcNow;
         var expiresAt = now.AddMinutes(_jwt.ExpirationMinutes);
@@ -30,7 +30,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
              new(ClaimTypes.Email, user.Email),     
              new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
-        foreach (var role in roles.Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var role in user.Roles.Distinct(StringComparer.OrdinalIgnoreCase))
             claims.Add(new Claim(ClaimTypes.Role, role));
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Secret));

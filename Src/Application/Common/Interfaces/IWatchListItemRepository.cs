@@ -10,4 +10,5 @@ public interface IWatchListItemRepository:IRepository<WatchListItem,int>
     CancellationToken cancellationToken);
     Task<int> GetCountByUserIdAsync(string userId, CancellationToken cancellationToken);
     Task<bool> ExistsAsync(int movieId, string userId, CancellationToken cancellationToken);
+    Task<int> CountAsync(CancellationToken cancellationToken = default);
 }

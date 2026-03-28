@@ -6,6 +6,7 @@ using Application.Auth.UserName.Dtos;
 using Application.Common.Responses;
 using Application.Follows.Dtos;
 using Domain.Enums;
+using Microsoft.AspNetCore.Identity;
 
 namespace Application.Common.Interfaces;
 
@@ -42,4 +43,7 @@ public interface IIdentityService
     Task<BaseResponse> UpdateAvatarAsync(string userId, string? avatarUrl, CancellationToken cancellationToken);
     Task<string?> GetAvatarUrlAsync(string userId, CancellationToken cancellationToken);
     Task<PaginatedResponse<UserProfileDto>> GetUsersAsync(GetUsersRequest request,CancellationToken cancellationToken);
+    Task<int> CountUsersAsync(CancellationToken cancellationToken);
+    Task<int> CountVipUsersAsync(CancellationToken cancellationToken);
+
 }

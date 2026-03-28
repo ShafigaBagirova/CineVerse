@@ -17,4 +17,6 @@ public interface IPaymentRepository:IRepository<Payment,int>
     DateTime? toDateUtc,int pageNumber,int pageSize,CancellationToken cancellationToken);
     Task<(List<Payment> Payments, int TotalCount)> GetRefundHistoryAsync(PaymentProvider? provider,string? userId,DateTime? fromDateUtc,
     DateTime? toDateUtc,int pageNumber,int pageSize,CancellationToken cancellationToken);
+    Task<int> CountByStatusAsync(PaymentStatus status, CancellationToken cancellationToken = default);
+    Task<decimal> SumSuccessfulPaymentsAsync(CancellationToken cancellationToken = default);
 }

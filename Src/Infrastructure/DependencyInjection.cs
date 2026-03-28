@@ -143,6 +143,7 @@ public static class DependencyInjection
         services.AddScoped<IFoodItemRepository, FoodItemRepository>();
         services.AddScoped<IFoodOrderRepository, FoodOrderRepository>();
         services.AddScoped<IFoodOrderItemRepository, FoodOrderItemRepository>();
+        services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
         return services;
     }
 }

@@ -16,6 +16,7 @@ public class CineVerseUser: IdentityUser
     public DateTime? LastLoginAt { get; set; }
     public string? Provider { get; set; }  
     public string? ProviderKey { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<MovieRating> MovieRatings { get; set; } = new List<MovieRating>();
     public ICollection<Review> Reviews { get; set; } = new List<Review>();

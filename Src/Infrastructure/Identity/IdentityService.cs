@@ -509,4 +509,13 @@ public sealed class IdentityService : IIdentityService
             TotalCount = totalCount
         };
     }
+    public async Task<int> CountUsersAsync(CancellationToken cancellationToken)
+    {
+        return await _userManager.Users.CountAsync(cancellationToken);
+    }
+
+    public async Task<int> CountVipUsersAsync(CancellationToken cancellationToken)
+    {
+        return await _userManager.Users.CountAsync(x => x.IsVip, cancellationToken);
+    }
 }
