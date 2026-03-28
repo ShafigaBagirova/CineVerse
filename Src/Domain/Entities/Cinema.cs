@@ -11,5 +11,8 @@ public class Cinema:BaseEntity<int>
     public string? Email { get; set; }
     public bool IsActive { get; set; } = true;
     public ICollection<Hall> Halls { get; set; } = new List<Hall>();
+    public ICollection<FoodCategory> FoodCategories { get; set; } = new List<FoodCategory>();
+    public ICollection<FoodItem> FoodItems { get; set; } = new List<FoodItem>();
+    public ICollection<FoodOrder> FoodOrders { get; set; } = new List<FoodOrder>();
 
 }

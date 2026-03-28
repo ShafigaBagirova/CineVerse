@@ -29,5 +29,8 @@ public sealed class FoodCategoryConfiguration : IEntityTypeConfiguration<FoodCat
             .WithOne(x => x.FoodCategory)
             .HasForeignKey(x => x.FoodCategoryId)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(x=>x.Cinema)
+            .WithMany(x=>x.FoodCategories)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

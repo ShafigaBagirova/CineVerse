@@ -13,15 +13,18 @@ public sealed class CreateFoodCategoryCommandHandler
     private readonly IFoodCategoryRepository _repository;
     private readonly ILogger<CreateFoodCategoryCommandHandler> _logger;
     private readonly IMapper _mapper;
+    private readonly ICacheService _cacheService;
 
     public CreateFoodCategoryCommandHandler(
         IFoodCategoryRepository repository,
         ILogger<CreateFoodCategoryCommandHandler> logger,
-        IMapper mapper)
+        IMapper mapper,
+        ICacheService cacheService)
     {
         _repository = repository;
         _logger = logger;
         _mapper = mapper;
+        _cacheService = cacheService;
     }
 
     public async Task<BaseResponse> Handle(
@@ -37,6 +40,7 @@ public sealed class CreateFoodCategoryCommandHandler
 
         await _repository.AddAsync(entity, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
+        await _cacheService.RemoveByPrefixAsync("foodcategories:");
 
         return BaseResponse.Ok("Food category created successfully.");
     }

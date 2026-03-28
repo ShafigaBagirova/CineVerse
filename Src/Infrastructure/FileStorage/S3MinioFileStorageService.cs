@@ -23,7 +23,7 @@ public sealed class S3MinioFileStorageService : IFileStorageService
         Stream content,
         string fileName,
         string contentType,
-         int mediaId,
+         string folder,
         CancellationToken ct = default)
     {
         if (content is null)

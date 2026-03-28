@@ -35,4 +35,20 @@ public sealed class FoodItemRepository: GenericRepository<FoodItem, int>, IFoodI
             .Where(x => ids.Contains(x.Id) && x.IsActive && x.IsAvailable)
             .ToListAsync(cancellationToken);
     }
+    public Task<IQueryable<FoodItem>> GetQueryableAsync()
+    {
+        IQueryable<FoodItem> query = _context.FoodItems
+            .AsNoTracking()
+            .Include(x => x.FoodCategory);
+
+        return Task.FromResult(query);
+    }
+
+    public async Task<List<FoodItem>> ToListAsync(
+        IQueryable<FoodItem> query,
+        CancellationToken cancellationToken = default)
+    {
+        return await query.ToListAsync(cancellationToken);
+    }
+
 }

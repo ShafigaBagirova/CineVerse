@@ -1,4 +1,5 @@
-﻿using Domain.Entities;
+﻿using Application.FoodOrders.Dtos;
+using Domain.Entities;
 
 namespace Application.Common.Interfaces;
 
@@ -13,4 +14,8 @@ public interface IFoodOrderRepository:IRepository<FoodOrder,int>
     Task<bool> ExistsPendingBySeatHoldIdAsync(int seatHoldId,CancellationToken cancellationToken);
 
     Task<List<FoodOrder>> GetPendingByScreeningIdAsync(int screeningId,CancellationToken cancellationToken);
+    Task<IQueryable<FoodOrder>> GetQueryableAsync();
+    Task<List<FoodOrder>> ToListAsync(IQueryable<FoodOrder> query, CancellationToken cancellationToken = default);
+
+    Task<List<OrdersByDayResponse>> GetOrdersByDayAsync(int? cinemaId, int? screeningId, DateTime? from, DateTime? to,CancellationToken cancellationToken = default);
 }

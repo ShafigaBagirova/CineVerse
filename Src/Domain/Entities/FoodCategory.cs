@@ -6,6 +6,7 @@ public class FoodCategory : BaseEntity<int>
     public string? Description { get; set; }
     public bool IsActive { get; set; } = true;
     public int DisplayOrder { get; set; }
-
+    public int CinemaId { get; set; }
+    public Cinema Cinema { get; set; } = default!;
     public ICollection<FoodItem> FoodItems { get; set; } = new List<FoodItem>();
 }

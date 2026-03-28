@@ -1,4 +1,5 @@
 ﻿using Application.Common.Interfaces;
+using Application.FoodOrders.Dtos;
 using Domain.Entities;
 using Domain.Enums;
 using Infrastructure.Persistence.Context;
@@ -88,6 +89,67 @@ public sealed class FoodOrderRepository
                  x.Status == FoodOrderStatus.Preparing ||
                  x.Status == FoodOrderStatus.Ready))
             .OrderBy(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+    public async Task<List<FoodOrder>> ToListAsync(
+       IQueryable<FoodOrder> query,
+       CancellationToken cancellationToken = default)
+    {
+        return await query.ToListAsync(cancellationToken);
+    }
+
+    public Task<IQueryable<FoodOrder>> GetQueryableAsync()
+    {
+        IQueryable<FoodOrder> query = _context.FoodOrders
+            .AsNoTracking()
+            .Include(x => x.FoodOrderItems)
+                .ThenInclude(x => x.FoodItem);
+
+        return Task.FromResult(query);
+    }
+
+    public async Task<List<OrdersByDayResponse>> GetOrdersByDayAsync(
+        int? cinemaId,
+        int? screeningId,
+        DateTime? from,
+        DateTime? to,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.FoodOrders
+            .AsNoTracking()
+            .Where(x => x.Status == FoodOrderStatus.Confirmed ||
+                        x.Status == FoodOrderStatus.Delivered)
+            .AsQueryable();
+
+        if (cinemaId.HasValue)
+        {
+            query = query.Where(x => x.CinemaId == cinemaId.Value);
+        }
+
+        if (screeningId.HasValue)
+        {
+            query = query.Where(x => x.ScreeningId == screeningId.Value);
+        }
+
+        if (from.HasValue)
+        {
+            query = query.Where(x => x.CreatedAt >= from.Value);
+        }
+
+        if (to.HasValue)
+        {
+            query = query.Where(x => x.CreatedAt <= to.Value);
+        }
+
+        return await query
+            .GroupBy(x => x.CreatedAt.Date)
+            .Select(g => new OrdersByDayResponse
+            {
+                Date = g.Key,
+                OrderCount = g.Count(),
+                TotalRevenue = g.Sum(x => x.TotalAmount)
+            })
+            .OrderBy(x => x.Date)
             .ToListAsync(cancellationToken);
     }
 }

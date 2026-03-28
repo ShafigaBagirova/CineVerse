@@ -11,5 +11,9 @@ public sealed class FoodCategoryProfile : Profile
         CreateMap<CreateFoodCategoryRequest, FoodCategory>();
 
         CreateMap<UpdateFoodCategoryRequest, FoodCategory>();
+        CreateMap<FoodCategory, FoodCategoryResponse>();
+
+        CreateMap<FoodCategory, FoodCategoryWithItemsResponse>()
+            .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.FoodItems));
     }
 }

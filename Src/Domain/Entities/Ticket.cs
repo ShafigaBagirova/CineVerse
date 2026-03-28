@@ -13,4 +13,5 @@ public class Ticket : BaseEntity<int>
     public Screening Screening { get; set; } = default!;
     public Seat Seat { get; set; } = default!;
     public PaymentCurrency Currency { get; set; }
+
 }

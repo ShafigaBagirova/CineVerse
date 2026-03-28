@@ -25,4 +25,50 @@ public sealed class FoodCategoryRepository
             .ThenBy(x => x.Name)
             .ToListAsync(cancellationToken);
     }
+    public Task<IQueryable<FoodCategory>> GetQueryableAsync()
+    {
+        IQueryable<FoodCategory> query = _context.FoodCategories.AsNoTracking();
+        return Task.FromResult(query);
+    }
+
+    public async Task<List<FoodCategory>> ToListAsync(
+        IQueryable<FoodCategory> query,
+        CancellationToken cancellationToken = default)
+    {
+        return await query.ToListAsync(cancellationToken);
+    }
+    public async Task<List<FoodCategory>> GetCategoriesWithItemsAsync(
+       int? cinemaId,
+       bool? isActive,
+       string? search,
+       CancellationToken cancellationToken = default)
+    {
+        var query = _context.FoodCategories
+            .AsNoTracking()
+            .Include(x => x.FoodItems.Where(fi => fi.IsAvailable))
+            .AsQueryable();
+
+        if (cinemaId.HasValue)
+        {
+            query = query.Where(x => x.CinemaId == cinemaId.Value);
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(x => x.IsActive == isActive.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalizedSearch = search.Trim().ToLower();
+
+            query = query.Where(x =>
+                x.Name.ToLower().Contains(normalizedSearch) ||
+                (x.Description != null && x.Description.ToLower().Contains(normalizedSearch)));
+        }
+
+        return await query
+            .OrderBy(x => x.Id)
+            .ToListAsync(cancellationToken);
+    }
 }

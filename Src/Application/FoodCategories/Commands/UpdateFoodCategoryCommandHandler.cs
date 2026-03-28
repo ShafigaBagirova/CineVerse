@@ -12,15 +12,18 @@ public sealed class UpdateFoodCategoryCommandHandler
     private readonly IFoodCategoryRepository _repository;
     private readonly ILogger<UpdateFoodCategoryCommandHandler> _logger;
     private readonly IMapper _mapper;
+    private readonly ICacheService _cacheService;
 
     public UpdateFoodCategoryCommandHandler(
         IFoodCategoryRepository repository,
         ILogger<UpdateFoodCategoryCommandHandler> logger,
-        IMapper mapper)
+        IMapper mapper,
+        ICacheService cacheService)
     {
         _repository = repository;
         _logger = logger;
         _mapper = mapper;
+        _cacheService = cacheService;
     }
 
     public async Task<BaseResponse> Handle(
@@ -41,6 +44,8 @@ public sealed class UpdateFoodCategoryCommandHandler
 
         await _repository.UpdateAsync(category, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
+        await _cacheService.RemoveAsync($"foodcategory:{category.Id}");
+        await _cacheService.RemoveByPrefixAsync("foodcategories:");
 
         return BaseResponse.Ok("Food category updated successfully.");
     }

@@ -44,6 +44,10 @@ public sealed class FoodOrderConfiguration : IEntityTypeConfiguration<FoodOrder>
             .HasForeignKey(x => x.SeatId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.Cinema)
+            .WithMany(x=>x.FoodOrders)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasMany(x => x.FoodOrderItems)
             .WithOne(x => x.FoodOrder)
             .HasForeignKey(x => x.FoodOrderId)
