@@ -662,9 +662,6 @@ namespace Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<string>("CineVerseUserId")
                         .HasColumnType("nvarchar(450)");
 
@@ -674,6 +671,9 @@ namespace Infrastructure.Migrations
 
                     b.Property<int>("Currency")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("FoodAmount")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime?>("PaidAtUtc")
                         .HasColumnType("datetime2");
@@ -686,7 +686,7 @@ namespace Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<DateTime>("RefundedAtUtc")
+                    b.Property<DateTime?>("RefundedAtUtc")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("SeatHoldId")
@@ -694,6 +694,12 @@ namespace Infrastructure.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("TicketAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("UserId")
                         .IsRequired()
@@ -1128,6 +1134,9 @@ namespace Infrastructure.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("DateOfBirth")
                         .HasColumnType("datetime2");
 
@@ -1173,6 +1182,12 @@ namespace Infrastructure.Migrations
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
+
+                    b.Property<string>("Provider")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProviderKey")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");

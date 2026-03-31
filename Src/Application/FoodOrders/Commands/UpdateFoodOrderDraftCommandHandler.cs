@@ -60,6 +60,9 @@ public sealed class UpdateFoodOrderDraftCommandHandler
         if (foodOrder.Status != FoodOrderStatus.Pending)
             return BaseResponse.Fail("Only pending food orders can be updated.");
 
+        if (request.Request.Items is null || request.Request.Items.Count == 0)
+            return BaseResponse.Fail("At least one food item is required.");
+
         var foodItemIds = request.Request.Items
             .Select(x => x.FoodItemId)
             .Distinct()
@@ -70,13 +73,20 @@ public sealed class UpdateFoodOrderDraftCommandHandler
         if (foodItems.Count != foodItemIds.Count)
             return BaseResponse.Fail("One or more food items are invalid or unavailable.");
 
+        if (foodItems.Any(x => !x.IsAvailable))
+            return BaseResponse.Fail("One or more food items are invalid or unavailable.");
+
         foodOrder.FoodOrderItems.Clear();
 
         decimal totalAmount = 0;
 
         foreach (var item in request.Request.Items)
         {
-            var foodItem = foodItems.First(x => x.Id == item.FoodItemId);
+            var foodItem = foodItems.FirstOrDefault(x => x.Id == item.FoodItemId);
+
+            if (foodItem is null)
+                return BaseResponse.Fail("One or more food items are invalid or unavailable.");
+
             var totalPrice = foodItem.Price * item.Quantity;
 
             foodOrder.FoodOrderItems.Add(new FoodOrderItem
@@ -97,6 +107,7 @@ public sealed class UpdateFoodOrderDraftCommandHandler
 
         await _foodOrderRepository.UpdateAsync(foodOrder, cancellationToken);
         await _foodOrderRepository.SaveChangesAsync(cancellationToken);
+
         await _cacheService.RemoveAsync(FoodOrderCacheKey.GetById(foodOrder.Id), cancellationToken);
         await _cacheService.RemoveByPrefixAsync(FoodOrderCacheKey.AllPrefix);
         await _cacheService.RemoveByPrefixAsync(FoodOrderCacheKey.MyOrdersPrefix);

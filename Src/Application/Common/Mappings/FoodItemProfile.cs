@@ -12,7 +12,20 @@ public class FoodItemProfile:Profile
             .ForMember(dest => dest.ImageObjectKey, opt => opt.Ignore());
 
         CreateMap<UpdateFoodItemRequest, FoodItem>()
-            .ForMember(dest => dest.ImageObjectKey, opt => opt.Ignore());
+            .ForMember(dest => dest.ImageObjectKey, opt => opt.Ignore())
+            .ForMember(dest => dest.FoodCategoryId, opt => opt.Ignore())
+            .ForMember(dest => dest.CinemaId, opt => opt.Ignore())
+            .ForAllMembers(opt => opt.Condition((src, dest, srcMember) =>
+            {
+                if (srcMember is null)
+                    return false;
+
+                if (srcMember is string str)
+                    return !string.IsNullOrWhiteSpace(str);
+
+                return true;
+            }));
+
         CreateMap<FoodItem, FoodItemResponse>();
         CreateMap<FoodItem, FoodItemResponse>()
          .ForMember(dest => dest.FoodCategoryName,

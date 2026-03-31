@@ -14,5 +14,5 @@ public interface IScreeningRepository:IRepository<Screening,int>
     ScreeningStatus? status,ScreeningFormat? format,bool? isActive,DateTime? dateFrom,DateTime? dateTo,
     CancellationToken cancellationToken);
     Task<bool> ExistsAsync(int id, CancellationToken cancellationToken);
-
+    Task<int> CountActiveAsync(CancellationToken cancellationToken = default);
 }

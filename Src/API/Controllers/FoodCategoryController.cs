@@ -20,7 +20,7 @@ public class FoodCategoryController : ControllerBase
         _mediator = mediator;
     }
 
-    [Authorize(Roles = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.AdminOnly)]
     [HttpPost]
     public async Task<ActionResult<BaseResponse>> Create(
         [FromBody] CreateFoodCategoryRequest request)
@@ -34,7 +34,7 @@ public class FoodCategoryController : ControllerBase
     }
 
 
-    [Authorize(Roles = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.AdminOnly)]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<BaseResponse>> Update(
         int id,
@@ -48,7 +48,7 @@ public class FoodCategoryController : ControllerBase
         return Ok(result);
     }
 
-    [Authorize(Roles = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.AdminOnly)]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult<BaseResponse>> Delete(int id)
     {

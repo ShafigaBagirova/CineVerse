@@ -2,6 +2,7 @@
 using Application.Auth.Email.Dtos;
 using Application.Auth.Password.Commands;
 using Application.Auth.Password.Dtos;
+using Application.Auth.User.Commands;
 using Application.Auth.User.Dtos;
 using Application.Auth.User.Queries;
 using Application.Auth.UserName.Commands;
@@ -191,11 +192,57 @@ public class UserController : ControllerBase
         return Ok(BaseResponse<UserProfileDto>.Ok(result));
     }
 
-    [HttpGet]
-    [Authorize(Policy = Policies.AdminOnly)]
-    public async Task<ActionResult<BaseResponse<List<UserProfileDto>>>> GetAllUsers(CancellationToken ct)
+    [Authorize]
+    [HttpDelete("avatar")]
+    public async Task<IActionResult> DeleteAvatar(CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetAllUsersQuery(), ct);
-        return Ok(BaseResponse<List<UserProfileDto>>.Ok(result));
+        var result = await _mediator.Send(
+            new DeleteUserAvatarCommand(),
+            cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+    [Authorize]
+    [HttpPost("avatar")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<BaseResponse>> UploadAvatar(
+        [FromForm] UploadAvatarRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new UploadUserAvatarCommand(request),
+            cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<ActionResult<BaseResponse>> GetMyProfile(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new GetMyProfileQuery(),
+            cancellationToken);
+
+        if (result is null)
+            return NotFound("User not found.");
+
+        return Ok(result);
+    }
+    [HttpGet]
+    public async Task<ActionResult<BaseResponse>> GetUsers(
+    [FromQuery] GetUsersRequest request,
+    CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new GetUsersQuery(request),
+            cancellationToken);
+
+        return Ok(result);
     }
 }

@@ -170,4 +170,19 @@ public class PaymentRepository:GenericRepository<Payment,int>,IPaymentRepository
 
         return (payments, totalCount);
     }
+    public async Task<int> CountByStatusAsync(
+    PaymentStatus status,
+    CancellationToken cancellationToken = default)
+    {
+        return await _context.Payments
+            .CountAsync(x => x.Status == status, cancellationToken);
+    }
+
+    public async Task<decimal> SumSuccessfulPaymentsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Payments
+            .Where(x => x.Status == PaymentStatus.Succeeded)
+            .SumAsync(x => (decimal?)x.TotalAmount, cancellationToken) ?? 0m;
+    }
 }

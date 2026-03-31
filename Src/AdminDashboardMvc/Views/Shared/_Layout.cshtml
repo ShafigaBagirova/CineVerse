@@ -1,0 +1,71 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Admin Dashboard</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <style>
+        body {
+            margin: 0;
+            background-color: #f8f9fa;
+        }
+
+        .sidebar {
+            width: 240px;
+            min-height: 100vh;
+            background-color: #212529;
+            color: white;
+            position: fixed;
+            left: 0;
+            top: 0;
+            padding-top: 20px;
+        }
+
+        .sidebar a {
+            display: block;
+            color: #ddd;
+            padding: 12px 20px;
+            text-decoration: none;
+        }
+
+        .sidebar a:hover {
+            background-color: #343a40;
+            color: white;
+        }
+
+        .main-content {
+            margin-left: 240px;
+            padding: 24px;
+        }
+
+        .card-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h4 class="text-center mb-4">Admin Panel</h4>
+        <a asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+        <a asp-controller="Cinema" asp-action="Index">Cinemas</a>
+        <a asp-controller="Hall" asp-action="Index">Halls</a>
+        <a asp-controller="Movie" asp-action="Index">Movies</a>
+        <a asp-controller="Screening" asp-action="Index">Screenings</a>
+        <a asp-controller="Seat" asp-action="Index">Seats</a>
+        <a asp-controller="Payment" asp-action="Index">Payments</a>
+        <a asp-controller="FoodCategory" asp-action="Index">Food Categories</a>
+        <a asp-controller="FoodItem" asp-action="Index">Food Items</a>
+        <a asp-controller="Review" asp-action="Index">Reviews</a>
+        <a asp-controller="User" asp-action="Index">Users</a>
+    </div>
+
+    <div class="main-content">
+        @RenderBody()
+    </div>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

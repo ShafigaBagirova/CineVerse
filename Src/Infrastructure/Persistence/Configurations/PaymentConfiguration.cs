@@ -19,7 +19,13 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(x => x.UserId)
             .IsRequired();
 
-        builder.Property(x => x.Amount)
+        builder.Property(x => x.TicketAmount)
+            .HasColumnType("decimal(18,2)")
+            .IsRequired();
+        builder.Property(x => x.FoodAmount)
+            .HasColumnType("decimal(18,2)")
+            .IsRequired();
+        builder.Property(x => x.TotalAmount)
             .HasColumnType("decimal(18,2)")
             .IsRequired();
 

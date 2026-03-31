@@ -55,10 +55,12 @@ public sealed class CreateFoodItemCommandHandler
 
             return BaseResponse.Fail("Food category not found.");
         }
+        
 
         var entity = _mapper.Map<FoodItem>(request.Request);
         entity.Name = entity.Name.Trim();
         entity.IsActive = true;
+        entity.CinemaId = category.CinemaId;
 
         if (request.Request.Image is not null && request.Request.Image.Length > 0)
         {

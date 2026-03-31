@@ -127,4 +127,8 @@ public class TicketRepository:GenericRepository<Ticket,int>, ITicketRepository
                 x.Status == TicketStatus.Paid)
             .ToListAsync(cancellationToken);
     }
+    public async Task<int> CountSoldTicketsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Tickets.CountAsync(x => x.Status == TicketStatus.Paid, cancellationToken);
+    }
 }

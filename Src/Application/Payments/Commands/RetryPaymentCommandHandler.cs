@@ -19,6 +19,7 @@ public sealed class RetryPaymentCommandHandler
     private readonly ICacheService _cacheService;
     private readonly IScreeningRepository _screeningRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IFoodOrderRepository _foodOrderRepository;
 
     public RetryPaymentCommandHandler(
         IPaymentRepository paymentRepository,
@@ -27,7 +28,8 @@ public sealed class RetryPaymentCommandHandler
         ILogger<RetryPaymentCommandHandler> logger,
         ICacheService cacheService,
         IScreeningRepository screeningRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IFoodOrderRepository foodOrderRepository)
     {
         _paymentRepository = paymentRepository;
         _seatHoldRepository = seatHoldRepository;
@@ -36,6 +38,7 @@ public sealed class RetryPaymentCommandHandler
         _cacheService = cacheService;
         _screeningRepository = screeningRepository;
         _currentUserService = currentUserService;
+        _foodOrderRepository = foodOrderRepository;
     }
 
     public async Task<BaseResponse<RetryPaymentResponse>> Handle(
@@ -158,7 +161,7 @@ public sealed class RetryPaymentCommandHandler
 
             return BaseResponse<RetryPaymentResponse>.Fail("Screening not found.");
         }
-
+        var foodOrder = await _foodOrderRepository.GetActiveBySeatHoldIdAsync(seatHold.Id,cancellationToken);
         if (screening.Price <= 0)
         {
             _logger.LogWarning(
@@ -168,16 +171,39 @@ public sealed class RetryPaymentCommandHandler
 
             return BaseResponse<RetryPaymentResponse>.Fail("Invalid payment amount.");
         }
+
+
+        var ticketAmount = screening.Price;
+        var foodAmount = foodOrder?.TotalAmount ?? 0m;
+        var totalAmount = ticketAmount + foodAmount;
+
+        if (ticketAmount <= 0 || totalAmount <= 0)
+        {
+            _logger.LogWarning(
+                "Retry payment failed. Invalid payment amount. ScreeningId: {ScreeningId}, TicketAmount: {TicketAmount}, FoodAmount: {FoodAmount}, TotalAmount: {TotalAmount}",
+                screening.Id,
+                ticketAmount,
+                foodAmount,
+                totalAmount);
+
+            return BaseResponse<RetryPaymentResponse>.Fail("Invalid payment amount.");
+        }
+
         var idempotencyKey = $"retry-payment-{seatHold.Id}-{Guid.NewGuid()}";
 
-
-        var stripeResult = await _stripeService.CreatePaymentIntentAsync(screening.Price, "azn",idempotencyKey,cancellationToken);
+        var stripeResult = await _stripeService.CreatePaymentIntentAsync(
+            totalAmount,
+            "azn",
+            idempotencyKey,
+            cancellationToken);
 
         var payment = new Payment
         {
             SeatHoldId = seatHold.Id,
-            UserId = seatHold.UserId, 
-            Amount = screening.Price,
+            UserId = seatHold.UserId,
+            TicketAmount = ticketAmount,
+            FoodAmount = foodAmount,
+            TotalAmount = totalAmount,
             Currency = PaymentCurrency.Azn,
             Provider = PaymentProvider.Stripe,
             ProviderPaymentIntentId = stripeResult.PaymentIntentId,
@@ -218,7 +244,9 @@ public sealed class RetryPaymentCommandHandler
             Provider = payment.Provider,
             ProviderPaymentIntentId = payment.ProviderPaymentIntentId!,
             ClientSecret = stripeResult.ClientSecret,
-            Amount = payment.Amount,
+            TicketAmount = payment.TicketAmount,
+            FoodAmount = payment.FoodAmount,
+            TotalAmount = payment.TotalAmount,
             Currency = payment.Currency.ToString(),
             Status = payment.Status
         };

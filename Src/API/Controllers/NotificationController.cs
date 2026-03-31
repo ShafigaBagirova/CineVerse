@@ -54,7 +54,7 @@ public class NotificationController : ControllerBase
 
         return Ok(result);
     }
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = Policies.AdminOnly)]
     [HttpPost("recommendations/refresh")]
     public async Task<ActionResult<BaseResponse>> RefreshRecommendations()
     {

@@ -4,6 +4,7 @@ using Application.Auth.Refresh.Commands;
 using Application.Auth.Refresh.Dtos;
 using Application.Auth.Register.Commands;
 using Application.Auth.Register.Dtos;
+using Application.Auth.User.Commands;
 using Application.Auth.User.Queries;
 using Application.Common.Responses;
 using Domain.Constants;
@@ -109,4 +110,20 @@ public sealed class AuthController : ControllerBase
 
         return Ok(BaseResponse<JwtUserInfoDto>.Ok(result));
     }
+    [AllowAnonymous]
+    [HttpPost("google-login")]
+    public async Task<ActionResult<BaseResponse>> GoogleLogin(
+       [FromBody] GoogleLoginRequest request,
+       CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new GoogleLoginCommand(request.IdToken),
+            cancellationToken);
+
+        if (!result.Success)
+            return Unauthorized(result);
+
+        return Ok(result);
+    }
+
 }

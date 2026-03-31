@@ -1,34 +1,58 @@
 ﻿using Application.FoodItems.Commands;
+using Application.FoodItems.Dtos;
 using FluentValidation;
 
 namespace Application.Validations.FoodItems;
 
-public sealed class UpdateFoodItemCommandValidator
-    : AbstractValidator<UpdateFoodItemCommand>
-{
-    public UpdateFoodItemCommandValidator()
+ public sealed class UpdateFoodItemRequestValidator : AbstractValidator<UpdateFoodItemRequest>
     {
-        RuleFor(x => x.Id)
-            .GreaterThan(0);
+        public UpdateFoodItemRequestValidator()
+        {
+            RuleFor(x => x)
+                .Must(HaveAtLeastOneField)
+                .WithMessage("At least one field must be provided for update.");
 
-        RuleFor(x => x.Request.Name)
-            .NotEmpty()
-            .MaximumLength(150);
+            When(x => x.Name is not null, () =>
+            {
+                RuleFor(x => x.Name)
+                    .Must(x => !string.IsNullOrWhiteSpace(x))
+                    .WithMessage("Name cannot be empty.")
+                    .MaximumLength(100);
+            });
 
-        RuleFor(x => x.Request.Description)
-            .MaximumLength(1000);
+            When(x => x.Description is not null, () =>
+            {
+                RuleFor(x => x.Description)
+                    .Must(x => !string.IsNullOrWhiteSpace(x))
+                    .WithMessage("Description cannot be empty.")
+                    .MaximumLength(500);
+            });
 
-        RuleFor(x => x.Request.Price)
-            .GreaterThan(0);
+            When(x => x.Price.HasValue, () =>
+            {
+                RuleFor(x => x.Price!.Value)
+                    .GreaterThanOrEqualTo(0)
+                    .WithMessage("Price must be greater than or equal to 0.");
+            });
 
 
-        RuleFor(x => x.Request.Image)
-            .Must(file => file == null ||
-                          file.ContentType == "image/jpeg" ||
-                          file.ContentType == "image/png" ||
-                          file.ContentType == "image/webp")
-            .WithMessage("Only JPEG, PNG, or WEBP images are allowed.");
-        RuleFor(x => x.Request.FoodCategoryId)
-            .GreaterThan(0);
-    }
-}
+
+            When(x => x.FoodCategoryId.HasValue, () =>
+            {
+                RuleFor(x => x.FoodCategoryId!.Value)
+                    .GreaterThan(0)
+                    .WithMessage("FoodCategoryId must be greater than 0.");
+            });
+        }
+
+        private static bool HaveAtLeastOneField(UpdateFoodItemRequest request)
+        {
+            return request.Name is not null
+                   || request.Description is not null
+                   || request.Price.HasValue
+                   || request.IsAvailable.HasValue
+                   || request.FoodCategoryId.HasValue;
+        }
+  }
+
+

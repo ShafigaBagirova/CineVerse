@@ -6,4 +6,5 @@ public interface IEmailVerificationCodeRepository:IRepository<EmailVerificationC
 {
     Task<EmailVerificationCode?> GetActiveByEmailAsync(string email, CancellationToken ct);
     Task<bool> MarkAsUsedAsync(Guid id, CancellationToken ct);
+    Task<EmailVerificationCode?> GetLatestByEmailAsync(string email, CancellationToken ct);
 }

@@ -16,5 +16,8 @@ public sealed class CreateFoodCategoryCommandValidator
 
         RuleFor(x => x.Request.DisplayOrder)
             .GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Request.CinemaId)
+            .NotEmpty()
+            .WithMessage("CinemaId is required.");
     }
 }

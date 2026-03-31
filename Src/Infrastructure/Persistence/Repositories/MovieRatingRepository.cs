@@ -58,4 +58,8 @@ public class MovieRatingRepository :  GenericRepository<MovieRating, int>, IMovi
             .Take(pageSize)
             .ToListAsync(cancellationToken);
     }
+    public async Task<int> CountAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.MovieRatings.CountAsync(cancellationToken);
+    }
 }

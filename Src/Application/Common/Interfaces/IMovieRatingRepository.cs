@@ -10,4 +10,5 @@ public interface IMovieRatingRepository: IRepository<MovieRating,int>
     Task<int> GetCountByUserIdAsync(string userId, CancellationToken cancellationToken);
     Task<List<MovieRating>> GetPagedByUserIdAsync(string userId,int page,int pageSize,
     CancellationToken cancellationToken);
+    Task<int> CountAsync(CancellationToken cancellationToken = default);
 }
