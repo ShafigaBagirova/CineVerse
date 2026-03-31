@@ -12,7 +12,6 @@ public sealed class UpdateFoodCategoryCommandValidator
             .GreaterThan(0);
 
         RuleFor(x => x.Request.Name)
-            .NotEmpty()
             .MaximumLength(100);
 
         RuleFor(x => x.Request.Description)

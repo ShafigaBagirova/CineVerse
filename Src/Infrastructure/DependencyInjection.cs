@@ -144,6 +144,7 @@ public static class DependencyInjection
         services.AddScoped<IFoodOrderRepository, FoodOrderRepository>();
         services.AddScoped<IFoodOrderItemRepository, FoodOrderItemRepository>();
         services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
+        services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
         return services;
     }
 }

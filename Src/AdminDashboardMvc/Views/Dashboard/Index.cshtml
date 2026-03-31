@@ -1,0 +1,197 @@
+﻿@model DashboardViewModel
+
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<h2 class="mb-4">Dashboard</h2>
+
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div>Total Revenue</div>
+                <div class="card-value">@Model.Summary?.TotalRevenue</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div>Total Users</div>
+                <div class="card-value">@Model.Summary?.TotalUsers</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div>Total Movies</div>
+                <div class="card-value">@Model.Summary?.TotalMovies</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div>Total Screenings</div>
+                <div class="card-value">@Model.Summary?.TotalScreenings</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div>Total Tickets</div>
+                <div class="card-value">@Model.Summary?.TotalTickets</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div>Total Payments</div>
+                <div class="card-value">@Model.Summary?.TotalPayments</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header">Top Movies</div>
+            <div class="card-body">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Movie</th>
+                            <th>Tickets</th>
+                            <th>Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.TopMovies)
+                        {
+                            <tr>
+                                <td>@item.MovieTitle</td>
+                                <td>@item.TicketsSold</td>
+                                <td>@item.Revenue</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header">Revenue Chart Data</div>
+            <div class="card-body">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Label</th>
+                            <th>Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.RevenueChart)
+                        {
+                            <tr>
+                                <td>@item.Label</td>
+                                <td>@item.Revenue</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header">Recent Payments</div>
+            <div class="card-body">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Payment Id</th>
+                            <th>User</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.RecentPayments)
+                        {
+                            <tr>
+                                <td>@item.PaymentId</td>
+                                <td>@item.UserName</td>
+                                <td>@item.Amount</td>
+                                <td>@item.Status</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header">Recent Users</div>
+            <div class="card-body">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Full Name</th>
+                            <th>Email</th>
+                            <th>Created At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.RecentUsers)
+                        {
+                            <tr>
+                                <td>@item.FullName</td>
+                                <td>@item.Email</td>
+                                <td>@item.CreatedAt</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header">Screening Occupancy</div>
+    <div class="card-body">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Screening Id</th>
+                    <th>Movie</th>
+                    <th>Hall</th>
+                    <th>Occupancy %</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.ScreeningOccupancies)
+                {
+                    <tr>
+                        <td>@item.ScreeningId</td>
+                        <td>@item.MovieTitle</td>
+                        <td>@item.HallName</td>
+                        <td>@item.OccupancyRate</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

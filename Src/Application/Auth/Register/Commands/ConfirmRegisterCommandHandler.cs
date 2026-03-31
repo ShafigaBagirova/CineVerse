@@ -1,4 +1,5 @@
-﻿using Application.Common.Interfaces;
+﻿using Application.Common.Helpers;
+using Application.Common.Interfaces;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
@@ -6,17 +7,21 @@ using System.Text;
 
 namespace Application.Auth.Register.Commands;
 
-public sealed class ConfirmRegisterHandler(
+public sealed class ConfirmRegisterCommandHandler(
     IEmailVerificationCodeRepository codeRepository,
     IIdentityService identityService,
-    ILogger<ConfirmRegisterHandler> logger)
+    ILogger<ConfirmRegisterCommandHandler> logger)
     : IRequestHandler<ConfirmRegisterCommand, bool>
 {
     public async Task<bool> Handle(ConfirmRegisterCommand request, CancellationToken ct)
     {
+        
+        var email = request.Email.Trim().ToLower();
+        
+       
         logger.LogInformation("Confirm register attempt for Email: {Email}", request.Email);
-
-        var record = await codeRepository.GetActiveByEmailAsync(request.Email, ct);
+        
+        var record = await codeRepository.GetActiveByEmailAsync(email, ct);
 
         if (record is null)
         {
@@ -36,7 +41,8 @@ public sealed class ConfirmRegisterHandler(
             return false;
         }
 
-        var codeHash = ComputeSha256(request.Code);
+        var code = request.Code.Trim();
+        var codeHash = VerificationCodeHasher.Hash(code);
 
         if (!string.Equals(record.CodeHash, codeHash, StringComparison.Ordinal))
         {
@@ -59,9 +65,4 @@ public sealed class ConfirmRegisterHandler(
         return true;
     }
 
-    private static string ComputeSha256(string input)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
-        return Convert.ToHexString(bytes);
-    }
 }

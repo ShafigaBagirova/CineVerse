@@ -53,35 +53,27 @@ public sealed class UpdateFoodItemCommandHandler
             return BaseResponse.Fail("Food item not found.");
         }
 
-        var category = await _foodCategoryRepository.GetByIdAsync(
-            request.Request.FoodCategoryId,
-            cancellationToken);
-
-        if (category is null || !category.IsActive)
+        if (request.Request.FoodCategoryId.HasValue && request.Request.FoodCategoryId.Value > 0)
         {
-            _logger.LogWarning(
-                "UpdateFoodItemCommand failed. Food category not found or inactive. FoodCategoryId: {FoodCategoryId}",
-                request.Request.FoodCategoryId);
+            var category = await _foodCategoryRepository.GetByIdAsync(
+                request.Request.FoodCategoryId.Value,
+                cancellationToken);
 
-            return BaseResponse.Fail("Food category not found.");
+            if (category is null || !category.IsActive)
+                return BaseResponse.Fail("Food category not found.");
+
+            item.FoodCategoryId = category.Id;
+            item.CinemaId = category.CinemaId;
         }
 
-        var oldImageObjectKey = item.ImageObjectKey;
 
         _mapper.Map(request.Request, item);
-        item.Name = item.Name.Trim();
+        if (!string.IsNullOrWhiteSpace(item.Name))
+            item.Name = item.Name.Trim();
 
-        if (request.Request.Image is not null && request.Request.Image.Length > 0)
-        {
-            await using var stream = request.Request.Image.OpenReadStream();
+        if (!string.IsNullOrWhiteSpace(item.Description))
+            item.Description = item.Description.Trim();
 
-            item.ImageObjectKey = await _fileStorageService.SaveAsync(
-                stream,
-                request.Request.Image.FileName,
-                request.Request.Image.ContentType,
-                "food-items",
-                cancellationToken);
-        }
 
         await _foodItemRepository.UpdateAsync(item, cancellationToken);
         await _foodItemRepository.SaveChangesAsync(cancellationToken);
@@ -89,23 +81,6 @@ public sealed class UpdateFoodItemCommandHandler
         await _cacheService.RemoveByPrefixAsync(FoodItemCacheKey.AllPrefix);
         await _cacheService.RemoveByPrefixAsync(FoodCategoryCacheKey.WithItemsPrefix);
         await _cacheService.RemoveByPrefixAsync(FoodOrderCacheKey.TopSellingPrefix);
-
-        if (!string.IsNullOrWhiteSpace(oldImageObjectKey) &&
-            oldImageObjectKey != item.ImageObjectKey)
-        {
-            try
-            {
-                await _fileStorageService.DeleteFileAsync(oldImageObjectKey, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "Old food item image delete failed. FoodItemId: {FoodItemId}, ObjectKey: {ObjectKey}",
-                    item.Id,
-                    oldImageObjectKey);
-            }
-        }
 
         _logger.LogInformation(
             "UpdateFoodItemCommand completed successfully. FoodItemId: {FoodItemId}",

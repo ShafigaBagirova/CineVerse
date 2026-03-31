@@ -18,12 +18,24 @@ public sealed class EmailVerificationCodeRepository
 
     public async Task<EmailVerificationCode?> GetActiveByEmailAsync(string email, CancellationToken ct)
     {
+        var normalizedEmail = email.Trim().ToLower();
+
         return await _context.EmailVerificationCodes
-            .Where(x => x.Email == email && !x.IsUsed)
+            .Where(x => x.Email.Trim().ToLower() == normalizedEmail &&!x.IsUsed &&
+           x.ExpiresAtUtc > DateTime.UtcNow)            
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .FirstOrDefaultAsync(ct);
+
+    }
+    public async Task<EmailVerificationCode?> GetLatestByEmailAsync(string email, CancellationToken ct)
+    {
+        var normalizedEmail = email.Trim().ToLower();
+
+        return await _context.EmailVerificationCodes
+            .Where(x => x.Email.ToLower() == normalizedEmail)
             .OrderByDescending(x => x.CreatedAtUtc)
             .FirstOrDefaultAsync(ct);
     }
-
     public async Task<bool> MarkAsUsedAsync(Guid id, CancellationToken ct)
     {
         var entity = await _context.EmailVerificationCodes.FirstOrDefaultAsync(x => x.Id == id, ct);

@@ -9,10 +9,13 @@ public sealed class UpdateFoodOrderDraftCommandValidator
     public UpdateFoodOrderDraftCommandValidator()
     {
         RuleFor(x => x.Id)
-            .GreaterThan(0);
+           .GreaterThan(0);
 
         RuleFor(x => x.Request.Items)
-            .NotEmpty();
+            .NotNull()
+            .WithMessage("Items are required.")
+            .Must(x => x.Count > 0)
+            .WithMessage("At least one food item is required.");
 
         RuleForEach(x => x.Request.Items).ChildRules(item =>
         {

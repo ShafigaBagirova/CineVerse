@@ -8,14 +8,14 @@ public sealed class UploadUserAvatarCommandValidator
 {
     public UploadUserAvatarCommandValidator()
     {
-        RuleFor(x => x.File)
+        RuleFor(x => x.Request.Avatar)
             .NotNull().WithMessage("Avatar file is required.");
 
-        RuleFor(x => x.File.Length)
+        RuleFor(x => x.Request.Avatar.Length)
             .GreaterThan(0).WithMessage("Avatar file cannot be empty.")
             .LessThanOrEqualTo(5 * 1024 * 1024).WithMessage("Avatar size cannot exceed 5 MB.");
 
-        RuleFor(x => x.File.ContentType)
+        RuleFor(x => x.Request.Avatar.ContentType)
             .Must(contentType =>
                 contentType == "image/jpeg" ||
                 contentType == "image/png" ||

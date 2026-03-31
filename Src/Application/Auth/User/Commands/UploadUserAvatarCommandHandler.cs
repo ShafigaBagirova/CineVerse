@@ -36,12 +36,12 @@ public sealed class UploadUserAvatarCommandHandler
 
         var oldAvatarUrl = await _identityService.GetAvatarUrlAsync(userId, cancellationToken);
 
-        await using var stream = request.File.OpenReadStream();
+        await using var stream = request.Request.Avatar.OpenReadStream();
 
         var avatarPath = await _fileStorageService.SaveAsync(
             stream,
-            request.File.FileName,
-            request.File.ContentType,
+            request.Request.Avatar.FileName,
+            request.Request.Avatar.ContentType,
             "avatars",
             cancellationToken);
 

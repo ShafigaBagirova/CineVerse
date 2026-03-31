@@ -20,7 +20,7 @@ public class FoodItemController : ControllerBase
         _mediator = mediator;
     }
 
-    [Authorize(Roles = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.AdminOnly)]
     [HttpPost]
     public async Task<ActionResult<BaseResponse>> Create([FromForm] CreateFoodItemRequest request)
     {
@@ -32,9 +32,9 @@ public class FoodItemController : ControllerBase
         return Ok(result);
     }
 
-    [Authorize(Roles = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.AdminOnly)]
     [HttpPut("{id:int}")]
-    public async Task<ActionResult<BaseResponse>> Update(int id, [FromForm] UpdateFoodItemRequest request)
+    public async Task<ActionResult<BaseResponse>> Update(int id, [FromBody] UpdateFoodItemRequest request)
     {
         var result = await _mediator.Send(new UpdateFoodItemCommand(id, request));
 
@@ -43,8 +43,22 @@ public class FoodItemController : ControllerBase
 
         return Ok(result);
     }
+    [Authorize(Policy = Policies.AdminOnly)]
+    [HttpPut("{id:int}/image")]
+    public async Task<ActionResult<BaseResponse>> UpdateImage(
+    int id,
+    [FromForm] UpdateFoodItemImageRequest request,
+    CancellationToken ct)
+    {
+        var result = await _mediator.Send(new UpdateFoodItemImageCommand(id, request), ct);
 
-    [Authorize(Roles = Policies.AdminOnly)]
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    [Authorize(Policy = Policies.AdminOnly)]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult<BaseResponse>> Delete(int id)
     {
@@ -78,7 +92,7 @@ public class FoodItemController : ControllerBase
 
         return Ok(result);
     }
-    [Authorize(Roles = Policies.AdminOnly)]
+    [Authorize(Policy = Policies.AdminOnly)]
     [HttpGet("top-selling")]
     public async Task<ActionResult<BaseResponse<List<TopSellingFoodItemResponse>>>> GetTopSelling(
     [FromQuery] int take = 5)

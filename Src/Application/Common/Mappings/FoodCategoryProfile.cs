@@ -10,7 +10,10 @@ public sealed class FoodCategoryProfile : Profile
     {
         CreateMap<CreateFoodCategoryRequest, FoodCategory>();
 
-        CreateMap<UpdateFoodCategoryRequest, FoodCategory>();
+        CreateMap<UpdateFoodCategoryRequest, FoodCategory>()
+           .ForMember(dest => dest.CinemaId, opt => opt.Ignore())
+           .ForMember(dest => dest.DisplayOrder, opt => opt.Ignore())
+           .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
         CreateMap<FoodCategory, FoodCategoryResponse>();
 
         CreateMap<FoodCategory, FoodCategoryWithItemsResponse>()

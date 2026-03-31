@@ -208,10 +208,12 @@ public class UserController : ControllerBase
     [Authorize]
     [HttpPost("avatar")]
     [Consumes("multipart/form-data")]
-    public async Task<ActionResult<BaseResponse>> UploadAvatar([FromForm] IFormFile file, CancellationToken cancellationToken)
+    public async Task<ActionResult<BaseResponse>> UploadAvatar(
+        [FromForm] UploadAvatarRequest request,
+        CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(
-            new UploadUserAvatarCommand(file),
+            new UploadUserAvatarCommand(request),
             cancellationToken);
 
         if (!result.Success)

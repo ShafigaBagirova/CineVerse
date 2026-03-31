@@ -8,21 +8,21 @@ using System.Security.Cryptography;
 
 namespace Application.Auth.Register.Commands;
 
-public sealed class RegisterHandler
+public sealed class RegisterCommandHandler
     : IRequestHandler<RegisterCommand, RegisterResponse>
 {
     private readonly IIdentityService _identityService;
     private readonly IUserUniquenessChecker _userUniquenessChecker;
     private readonly IEmailVerificationCodeRepository _codeRepository;
     private readonly IEmailSender _emailSender;
-    private readonly ILogger<RegisterHandler> _logger;
+    private readonly ILogger<RegisterCommandHandler> _logger;
 
-    public RegisterHandler(
+    public RegisterCommandHandler(
         IIdentityService identityService,
         IUserUniquenessChecker userUniquenessChecker,
         IEmailVerificationCodeRepository codeRepository,
         IEmailSender emailSender,
-        ILogger<RegisterHandler> logger)
+        ILogger<RegisterCommandHandler> logger)
     {
         _identityService = identityService;
         _userUniquenessChecker = userUniquenessChecker;
@@ -120,7 +120,7 @@ public sealed class RegisterHandler
                 };
 
                 await _codeRepository.AddAsync(entity, ct);
-
+                await _codeRepository.SaveChangesAsync(ct);
                 _logger.LogInformation(
                     "New email verification record created. UserId: {UserId}, Email: {Email}",
                     userId,
@@ -167,6 +167,7 @@ public sealed class RegisterHandler
                     userId);
 
                 await _identityService.DeleteUserAsync(userId);
+                await _codeRepository.SaveChangesAsync( ct);
             }
 
             return new RegisterResponse(false, "Registration failed. Please try again.");
