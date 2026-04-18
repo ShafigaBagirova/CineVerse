@@ -1,11 +1,15 @@
-﻿using Application.Common.Options;
+﻿using API;
+using Application.Common.Options;
+using Application.Common.Responses;
 using Domain.Constants;
 using Infrastructure.Payments;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace API.Extensions;
@@ -17,8 +21,28 @@ public static class ServiceCollectionExtensions
         services.AddControllers()
             .AddJsonOptions(options =>
             {
-                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                options.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
+                options.JsonSerializerOptions.Converters.Add(
+                    new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
             });
+
+        services.Configure<ApiBehaviorOptions>(options =>
+        {
+            options.InvalidModelStateResponseFactory = context =>
+            {
+                var errors = context.ModelState
+                    .Where(x => x.Value is { Errors.Count: > 0 })
+                    .SelectMany(x =>
+                        x.Value!.Errors.Select(e =>
+                            string.IsNullOrEmpty(x.Key)
+                                ? e.ErrorMessage
+                                : $"{x.Key}: {e.ErrorMessage}"))
+                    .ToList();
+                var response = BaseResponse.Fail("Validation failed.", errors);
+                return new BadRequestObjectResult(response);
+            };
+        });
 
         services.AddSwaggerGen(options =>
         {
@@ -67,6 +91,29 @@ public static class ServiceCollectionExtensions
                     NameClaimType = ClaimTypes.NameIdentifier
                 };
 
+                options.Events = new JwtBearerEvents
+                {
+                    OnChallenge = async context =>
+                    {
+                        context.HandleResponse();
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.Response.ContentType = "application/json; charset=utf-8";
+                        var message = "Authentication required.";
+                        if (!string.IsNullOrEmpty(context.Error) || !string.IsNullOrEmpty(context.ErrorDescription))
+                            message = context.ErrorDescription ?? context.Error ?? message;
+                        var body = BaseResponse.Fail(message);
+                        await context.Response.WriteAsync(
+                            JsonSerializer.Serialize(body, ApiJsonSerializerOptions.Web));
+                    },
+                    OnForbidden = async context =>
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        context.Response.ContentType = "application/json; charset=utf-8";
+                        var body = BaseResponse.Fail("You do not have permission to perform this action.");
+                        await context.Response.WriteAsync(
+                            JsonSerializer.Serialize(body, ApiJsonSerializerOptions.Web));
+                    }
+                };
             });
 
         services.AddAuthorization(options =>

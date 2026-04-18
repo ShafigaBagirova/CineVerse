@@ -22,6 +22,7 @@ public sealed class SyncMoviesFromTmdbCommandHandler
     private readonly IMovieGenreRepository _movieGenreRepository;
     private readonly IPublisher _publisher;
 
+
     public SyncMoviesFromTmdbCommandHandler(
         IMovieProvider movieProvider,
         IMovieRepository movieRepository,
@@ -54,6 +55,9 @@ public sealed class SyncMoviesFromTmdbCommandHandler
 
         foreach (var externalMovie in externalMovies)
         {
+            var details = await _movieProvider.GetMovieDetailsAsync( externalMovie.ExternalId,cancellationToken);
+
+            externalMovie.DurationMinutes = details?.Runtime;
             var existingMovie = await _movieRepository
                 .GetByTmdbIdAsync(externalMovie.ExternalId, cancellationToken);
 

@@ -68,6 +68,7 @@ public class ReviewRepository:GenericRepository<Review,int>,IReviewRepository
     public async Task<List<Review>> GetPagedByUserIdAsync(string userId, int page,int pageSize,CancellationToken cancellationToken)
     {
         return await _context.Reviews
+            .Include(x => x.Movie)
             .Where(x => x.UserId == userId && !x.IsDeleted)
             .OrderByDescending(x => x.CreatedAt)
             .Skip((page - 1) * pageSize)

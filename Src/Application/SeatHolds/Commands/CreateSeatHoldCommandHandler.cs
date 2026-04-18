@@ -1,6 +1,7 @@
 ﻿using Application.Common.Helpers;
 using Application.Common.Interfaces;
 using Application.Common.Responses;
+using Application.SeatHolds.Dtos;
 using AutoMapper;
 using Domain.Entities;
 using Domain.Enums;
@@ -38,7 +39,9 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
         _cacheService = cacheService;
     }
 
-    public async Task<BaseResponse> Handle(CreateSeatHoldCommand request, CancellationToken cancellationToken)
+    public async Task<BaseResponse> Handle(
+        CreateSeatHoldCommand request,
+        CancellationToken cancellationToken)
     {
         var dto = request.Request;
 
@@ -95,6 +98,16 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
         {
             if (activeHold.ExpiresAtUtc > DateTime.UtcNow)
             {
+                if (string.Equals(activeHold.UserId, userId, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation(
+                        "CreateSeatHold: returning existing active hold for same user. SeatHoldId: {SeatHoldId}",
+                        activeHold.Id);
+
+                    return BaseResponse.Ok(
+                        "Seat hold already active.");
+                }
+
                 _logger.LogWarning(
                     "CreateSeatHoldCommand failed. Active seat hold already exists. SeatHoldId: {SeatHoldId}, ScreeningId: {ScreeningId}, SeatId: {SeatId}, ExpiresAtUtc: {ExpiresAtUtc}",
                     activeHold.Id,
@@ -139,4 +152,5 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
 
         return BaseResponse.Ok("Seat hold created successfully.");
     }
+
 }

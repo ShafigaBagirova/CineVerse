@@ -3,6 +3,9 @@
 public class ReviewDto
 {
     public int Id { get; set; }
+    public int MovieId { get; set; }
+    public string? MovieTitle { get; set; }
+    public string? PosterPath { get; set; }
     public string UserId { get; set; } = default!;
     public string? UserName { get; set; }
     public string Content { get; set; } = default!;

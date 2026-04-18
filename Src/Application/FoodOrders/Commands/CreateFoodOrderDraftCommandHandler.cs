@@ -1,6 +1,7 @@
 ﻿using Application.Common.Helpers;
 using Application.Common.Interfaces;
 using Application.Common.Responses;
+using Application.FoodOrders.Dtos;
 using Domain.Entities;
 using Domain.Enums;
 using MediatR;
@@ -15,26 +16,32 @@ public sealed class CreateFoodOrderDraftCommandHandler
     private readonly IFoodOrderItemRepository _foodOrderItemRepository;
     private readonly IFoodItemRepository _foodItemRepository;
     private readonly ISeatHoldRepository _seatHoldRepository;
+    private readonly IScreeningRepository _screeningRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<CreateFoodOrderDraftCommandHandler> _logger;
     private readonly ICacheService _cacheService;
+    private readonly IMediator _mediator;
 
     public CreateFoodOrderDraftCommandHandler(
         IFoodOrderRepository foodOrderRepository,
         IFoodOrderItemRepository foodOrderItemRepository,
         IFoodItemRepository foodItemRepository,
         ISeatHoldRepository seatHoldRepository,
+        IScreeningRepository screeningRepository,
         ICurrentUserService currentUserService,
         ILogger<CreateFoodOrderDraftCommandHandler> logger,
-        ICacheService cacheService)
+        ICacheService cacheService,
+        IMediator mediator)
     {
         _foodOrderRepository = foodOrderRepository;
         _foodOrderItemRepository = foodOrderItemRepository;
         _foodItemRepository = foodItemRepository;
         _seatHoldRepository = seatHoldRepository;
+        _screeningRepository = screeningRepository;
         _currentUserService = currentUserService;
         _logger = logger;
         _cacheService = cacheService;
+        _mediator = mediator;
     }
 
     public async Task<BaseResponse> Handle(
@@ -44,7 +51,10 @@ public sealed class CreateFoodOrderDraftCommandHandler
         var userId = _currentUserService.UserId;
 
         if (string.IsNullOrWhiteSpace(userId))
+        {
+            _logger.LogWarning("CreateFoodOrderDraft rejected: authenticated user id is missing.");
             return BaseResponse.Fail("Authenticated user not found.");
+        }
 
         _logger.LogInformation(
             "CreateFoodOrderDraftCommand started. UserId: {UserId}, SeatHoldId: {SeatHoldId}",
@@ -56,20 +66,65 @@ public sealed class CreateFoodOrderDraftCommandHandler
             cancellationToken);
 
         if (seatHold is null)
+        {
+            _logger.LogWarning(
+                "CreateFoodOrderDraft rejected: seat hold not found. SeatHoldId: {SeatHoldId}",
+                request.Request.SeatHoldId);
             return BaseResponse.Fail("Seat hold not found.");
+        }
 
-        if (seatHold.UserId != userId)
+        if (!string.Equals(seatHold.UserId, userId, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning(
+                "CreateFoodOrderDraft rejected: seat hold belongs to another user. SeatHoldId: {SeatHoldId}",
+                request.Request.SeatHoldId);
             return BaseResponse.Fail("You are not allowed to create a food order for this seat hold.");
+        }
 
         if (seatHold.Status != SeatHoldStatus.Active)
+        {
+            _logger.LogWarning(
+                "CreateFoodOrderDraft rejected: seat hold is not active. SeatHoldId: {SeatHoldId}, Status: {Status}",
+                request.Request.SeatHoldId,
+                seatHold.Status);
             return BaseResponse.Fail("Food order can only be created for an active seat hold.");
+        }
+
+        var cinemaId = await _screeningRepository.GetCinemaIdForScreeningAsync(
+            seatHold.ScreeningId,
+            cancellationToken);
+
+        if (cinemaId is null or <= 0)
+        {
+            _logger.LogWarning(
+                "CreateFoodOrderDraft rejected: could not resolve cinema for screening. ScreeningId: {ScreeningId}, SeatHoldId: {SeatHoldId}",
+                seatHold.ScreeningId,
+                seatHold.Id);
+            return BaseResponse.Fail("Could not resolve cinema for this screening.");
+        }
 
         var existingPendingOrder = await _foodOrderRepository.GetPendingBySeatHoldIdAsync(
             request.Request.SeatHoldId,
             cancellationToken);
 
         if (existingPendingOrder is not null)
-            return BaseResponse.Fail("A pending food order already exists for this seat hold.");
+        {
+            _logger.LogInformation(
+                "CreateFoodOrderDraft: pending order already exists for seat hold; updating draft. FoodOrderId: {FoodOrderId}, SeatHoldId: {SeatHoldId}",
+                existingPendingOrder.Id,
+                request.Request.SeatHoldId);
+
+            return await _mediator.Send(
+                new UpdateFoodOrderDraftCommand(
+                    existingPendingOrder.Id,
+                    new UpdateFoodOrderDraftRequest
+                    {
+                        Items = request.Request.Items,
+                        DeliveryType = request.Request.DeliveryType,
+                        Note = request.Request.Note
+                    }),
+                cancellationToken);
+        }
 
         var foodItemIds = request.Request.Items
             .Select(x => x.FoodItemId)
@@ -79,7 +134,15 @@ public sealed class CreateFoodOrderDraftCommandHandler
         var foodItems = await _foodItemRepository.GetByIdsAsync(foodItemIds, cancellationToken);
 
         if (foodItems.Count != foodItemIds.Count)
+        {
+            var foundIds = foodItems.Select(x => x.Id).ToHashSet();
+            var missing = foodItemIds.Where(id => !foundIds.Contains(id)).ToList();
+            _logger.LogWarning(
+                "CreateFoodOrderDraft rejected: one or more food items invalid or unavailable (inactive/unavailable or unknown id). RequestedDistinctIds: {Requested}, MissingOrUnavailable: {Missing}",
+                foodItemIds,
+                missing);
             return BaseResponse.Fail("One or more food items are invalid or unavailable.");
+        }
 
         var foodOrder = new FoodOrder
         {
@@ -87,6 +150,7 @@ public sealed class CreateFoodOrderDraftCommandHandler
             SeatHoldId = seatHold.Id,
             ScreeningId = seatHold.ScreeningId,
             SeatId = seatHold.SeatId,
+            CinemaId = cinemaId.Value,
             DeliveryType = request.Request.DeliveryType,
             Status = FoodOrderStatus.Pending,
             Note = request.Request.Note,

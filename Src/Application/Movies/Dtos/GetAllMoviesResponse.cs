@@ -16,7 +16,7 @@ public class GetAllMoviesResponse
     public string? Country { get; set; }
 
     public int? ReleaseYear { get; set; }
-    public DateTime? ReleaseDate { get; set; }
+    public DateOnly? ReleaseDate { get; set; }
 
     public decimal? TmdbRating { get; set; }
     public decimal? UserAverageRating { get; set; }

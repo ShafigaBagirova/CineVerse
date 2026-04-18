@@ -15,20 +15,17 @@ public sealed class GetPaymentStatusBySeatHoldIdQueryHandler
     private readonly ISeatHoldRepository _seatHoldRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<GetPaymentStatusBySeatHoldIdQueryHandler> _logger;
-    private readonly ICacheService _cacheService;
 
     public GetPaymentStatusBySeatHoldIdQueryHandler(
         IPaymentRepository paymentRepository,
         ISeatHoldRepository seatHoldRepository,
         IMapper mapper,
-        ILogger<GetPaymentStatusBySeatHoldIdQueryHandler> logger,
-        ICacheService cacheService)
+        ILogger<GetPaymentStatusBySeatHoldIdQueryHandler> logger)
     {
         _paymentRepository = paymentRepository;
         _seatHoldRepository = seatHoldRepository;
         _mapper = mapper;
         _logger = logger;
-        _cacheService = cacheService;
     }
 
     public async Task<BaseResponse<GetPaymentStatusBySeatHoldIdResponse>> Handle(
@@ -39,19 +36,6 @@ public sealed class GetPaymentStatusBySeatHoldIdQueryHandler
             "GetPaymentStatusBySeatHoldIdQuery started. SeatHoldId: {SeatHoldId}",
             request.SeatHoldId);
 
-        var cacheKey = $"payment-status-seatHold:{request.SeatHoldId}";
-
-        var cachedResponse = await _cacheService.GetAsync<GetPaymentStatusBySeatHoldIdResponse>(cacheKey);
-        if (cachedResponse is not null)
-        {
-            _logger.LogInformation(
-                "Payment status returned from cache. SeatHoldId: {SeatHoldId}",
-                request.SeatHoldId);
-
-            return BaseResponse<GetPaymentStatusBySeatHoldIdResponse>.Ok(
-                cachedResponse,
-                "Payment status retrieved successfully.");
-        }
 
         var seatHoldExists = await _seatHoldRepository.ExistsAsync(request.SeatHoldId, cancellationToken);
         if (!seatHoldExists)
@@ -88,8 +72,6 @@ public sealed class GetPaymentStatusBySeatHoldIdQueryHandler
         {
             response = _mapper.Map<GetPaymentStatusBySeatHoldIdResponse>(payment);
         }
-
-        await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromSeconds(20));
 
         _logger.LogInformation(
             "GetPaymentStatusBySeatHoldIdQuery completed successfully. SeatHoldId: {SeatHoldId}, HasPayment: {HasPayment}, Status: {Status}",

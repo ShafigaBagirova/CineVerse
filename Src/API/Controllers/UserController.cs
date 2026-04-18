@@ -178,19 +178,6 @@ public class UserController : ControllerBase
 
         return response.Success ? Ok(response) : BadRequest(response);
     }
-    [HttpGet("{id}")]
-    [Authorize(Policy = Policies.Authenticated)]
-    public async Task<ActionResult<BaseResponse<UserProfileDto>>> GetUserById(
-    [FromRoute] string id,
-    CancellationToken ct)
-    {
-        var result = await _mediator.Send(new GetUserByIdQuery(id), ct);
-
-        if (result is null)
-            return NotFound(BaseResponse<UserProfileDto>.Fail("User could not be found."));
-
-        return Ok(BaseResponse<UserProfileDto>.Ok(result));
-    }
 
     [Authorize]
     [HttpDelete("avatar")]
@@ -230,10 +217,25 @@ public class UserController : ControllerBase
             cancellationToken);
 
         if (result is null)
-            return NotFound("User not found.");
+            return NotFound(BaseResponse.Fail("User not found."));
 
         return Ok(result);
     }
+
+    [HttpGet("{id}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<BaseResponse<UserProfileDto>>> GetUserById(
+        [FromRoute] string id,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GetUserByIdQuery(id), ct);
+
+        if (result is null)
+            return NotFound(BaseResponse<UserProfileDto>.Fail("User could not be found."));
+
+        return Ok(BaseResponse<UserProfileDto>.Ok(result));
+    }
+
     [HttpGet]
     public async Task<ActionResult<BaseResponse>> GetUsers(
     [FromQuery] GetUsersRequest request,
