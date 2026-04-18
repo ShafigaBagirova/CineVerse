@@ -247,7 +247,9 @@ export function getMovieReleaseYear(movie: GetAllMoviesResponse): number | null 
   return Number.isFinite(y) && !Number.isNaN(y) ? y : null
 }
 
-export async function getAllMovies(query: GetAllMoviesQuery = {}) {
+export type GetAllMoviesOptions = { quiet?: boolean }
+
+export async function getAllMovies(query: GetAllMoviesQuery = {}, options?: GetAllMoviesOptions) {
   const params = new URLSearchParams()
   appendMovieListQueryParams(params, query)
   const qs = params.toString() ? `?${params.toString()}` : ""
@@ -255,6 +257,7 @@ export async function getAllMovies(query: GetAllMoviesQuery = {}) {
   const data = await apiRequest<PaginatedResponse<GetAllMoviesResponse>>(`/api/movie${qs}`, {
     method: "GET",
     auth: false,
+    quiet: options?.quiet,
   })
 
   // Defensive: always return an array (handles null items or PascalCase from non-camel JSON)
@@ -280,6 +283,65 @@ export async function getSuggestedMovies(pageNumber = 1, pageSize = 6) {
   const qs = buildQuery({ pageNumber, pageSize })
   return apiRequest<PaginatedResponse<GetSuggestedMoviesResponse>>(`/api/movie/suggested${qs}`, {
     method: "GET",
+    auth: true,
+  })
+}
+
+/** POST /api/movie — body matches `CreateMovieCommand` / nested `createMovieRequest`. */
+export type CreateMovieBody = {
+  title: string
+  description: string
+  country: string
+  ageRating: string
+  tagline: string
+  releaseDate: string
+  director: string
+  durationMinutes: number
+  language: string
+  tmdbId: number
+}
+
+export type MovieStatus = "Released" | "Upcoming" | "Cancelled" | "PostProduction"
+
+export type UpdateMovieBody = {
+  title?: string
+  description?: string
+  country?: string
+  ageRating?: string
+  tagline?: string
+  releaseDate?: string
+  director?: string
+  durationMinutes?: number
+  language?: string
+  status?: MovieStatus
+}
+
+export async function createMovie(body: CreateMovieBody) {
+  return apiRequest<unknown>("/api/movie", {
+    method: "POST",
+    auth: true,
+    body: { createMovieRequest: body },
+  })
+}
+
+export async function updateMovie(id: number, body: UpdateMovieBody) {
+  return apiRequest<unknown>(`/api/movie/${id}`, {
+    method: "PUT",
+    auth: true,
+    body,
+  })
+}
+
+export async function deleteMovie(id: number) {
+  return apiRequest<unknown>(`/api/movie/${id}`, {
+    method: "DELETE",
+    auth: true,
+  })
+}
+
+export async function syncMoviesFromTmdb(page: number) {
+  return apiRequest<unknown>(`/api/movie/sync-tmdb?page=${page}`, {
+    method: "POST",
     auth: true,
   })
 }

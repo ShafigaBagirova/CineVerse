@@ -18,7 +18,12 @@ export default async function ShowtimesPage() {
     getAllMovies({ pageNumber: 1, pageSize: 100, sortBy: "title", desc: true })
   )
   const screeningsResponse = await loadWithContext("screenings", () =>
-    getAllScreenings({ pageNumber: 1, pageSize: 100, isActive: true, status: "Scheduled" })
+    getAllScreenings({
+      pageNumber: 1,
+      pageSize: 100,
+      isActive: true,
+      status: "Scheduled",
+    })
   )
   const hallsResponse = await loadWithContext("halls", () => getAllHalls(1, 100))
   const cinemasResponse = await loadWithContext("cinemas", () => getAllCinemas(1, 100))

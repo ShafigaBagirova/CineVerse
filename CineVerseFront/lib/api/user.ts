@@ -105,6 +105,45 @@ export async function getUserProfile(userId: string): Promise<UserPublicProfileD
   }
 }
 
+/** GET /api/user — paginated directory (same handler as search; use `searchTerm` to filter). */
+export interface UserListItemDto {
+  userId: string
+  id: string
+  userName: string
+  fullName: string
+  avatarUrl?: string | null
+}
+
+export async function getUsersList(params: { pageNumber?: number; pageSize?: number; searchTerm?: string }) {
+  const query = new URLSearchParams({
+    pageNumber: String(params.pageNumber ?? 1),
+    pageSize: String(params.pageSize ?? 20),
+  })
+  const term = params.searchTerm?.trim()
+  if (term) query.set("searchTerm", term)
+
+  const data = await apiRequest<PaginatedResponse<UserListItemDto>>(`/api/user?${query.toString()}`, {
+    method: "GET",
+    auth: true,
+  })
+  const rawItems = data.items ?? (data as unknown as { Items?: unknown[] }).Items ?? []
+  const items = Array.isArray(rawItems)
+    ? rawItems.map((row) => {
+        const n = normalizeUserSearchItem(row)
+        const o = row as Record<string, unknown>
+        const fullName = (o.fullName ?? o.FullName) as string | null | undefined
+        return {
+          userId: n.id,
+          id: n.id,
+          userName: n.userName,
+          fullName: fullName != null && fullName !== "" ? String(fullName) : "",
+          avatarUrl: n.avatarUrl,
+        }
+      })
+    : []
+  return { ...data, items }
+}
+
 export async function searchUsers(searchTerm: string, pageNumber = 1, pageSize = 10) {
   const term = searchTerm.trim()
   const query = new URLSearchParams({

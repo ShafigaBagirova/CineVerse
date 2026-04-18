@@ -22,9 +22,54 @@ export async function getHallById(id: number) {
   })
 }
 
-export async function getAllHalls(pageNumber = 1, pageSize = 100) {
+/** Backend validation: page size must be 1–100 (see GetAllHallsQueryValidator). */
+function clampHallPagination(pageNumber: number, pageSize: number) {
+  const pn = Math.max(1, Math.trunc(Number(pageNumber)) || 1)
+  const ps = Math.min(100, Math.max(1, Math.trunc(Number(pageSize)) || 10))
+  return { pageNumber: pn, pageSize: ps }
+}
+
+export type GetAllHallsOptions = { quiet?: boolean }
+
+export async function getAllHalls(pageNumber = 1, pageSize = 100, options?: GetAllHallsOptions) {
+  const { pageNumber: pn, pageSize: ps } = clampHallPagination(pageNumber, pageSize)
   return apiRequest<PaginatedResponse<GetAllHallsResponse>>(
-    `/api/hall?pageNumber=${pageNumber}&pageSize=${pageSize}`,
-    { method: "GET", auth: false }
+    `/api/hall?pageNumber=${pn}&pageSize=${ps}`,
+    { method: "GET", auth: false, quiet: options?.quiet }
   )
+}
+
+export type CreateHallBody = {
+  name: string
+  cinemaId: number
+  capacity: number
+}
+
+export type UpdateHallBody = {
+  name?: string
+  cinemaId?: number
+  capacity?: number
+}
+
+export async function createHall(body: CreateHallBody) {
+  return apiRequest<unknown>("/api/hall", {
+    method: "POST",
+    auth: true,
+    body,
+  })
+}
+
+export async function updateHall(id: number, body: UpdateHallBody) {
+  return apiRequest<unknown>(`/api/hall/${id}`, {
+    method: "PUT",
+    auth: true,
+    body,
+  })
+}
+
+export async function deleteHall(id: number) {
+  return apiRequest<unknown>(`/api/hall/${id}`, {
+    method: "DELETE",
+    auth: true,
+  })
 }
