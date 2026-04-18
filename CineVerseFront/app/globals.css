@@ -1,0 +1,164 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #e8e8e8;
+  --card: #151515;
+  --card-foreground: #e8e8e8;
+  --popover: #151515;
+  --popover-foreground: #e8e8e8;
+  --primary: #6ba89b;
+  --primary-foreground: #0a0a0a;
+  --secondary: #232323;
+  --secondary-foreground: #c8dbd5;
+  --muted: #232323;
+  --muted-foreground: #808080;
+  --accent: #7ebbb0;
+  --accent-foreground: #0a0a0a;
+  --destructive: #dc2626;
+  --destructive-foreground: #fff;
+  --border: #2d2d2d;
+  --input: #151515;
+  --ring: #6ba89b;
+  --chart-1: #7ebbb0;
+  --chart-2: #6ba89b;
+  --chart-3: #5a968a;
+  --chart-4: #9bc9bf;
+  --chart-5: #b5d7ce;
+  --radius: 0.75rem;
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #e8e8e8;
+  --sidebar-primary: #6ba89b;
+  --sidebar-primary-foreground: #0a0a0a;
+  --sidebar-accent: #232323;
+  --sidebar-accent-foreground: #c8dbd5;
+  --sidebar-border: #2d2d2d;
+  --sidebar-ring: #6ba89b;
+  --green: #6ba89b;
+  --green-light: #9bc9bf;
+  --green-muted: #5a968a;
+  --surface: #151515;
+  --surface-hover: #232323;
+  --success: #059669;
+  --warning: #d97706;
+  --glow-green: rgba(107, 168, 155, 0.08);
+  --glow-green-strong: rgba(107, 168, 155, 0.15);
+}
+
+@theme inline {
+  --font-sans: 'Inter', 'Geist', 'Geist Fallback';
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-green: var(--green);
+  --color-green-light: var(--green-light);
+  --color-green-muted: var(--green-muted);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  
+  html {
+    scrollbar-color: var(--green) var(--background);
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background: linear-gradient(
+      135deg,
+      #0a0a0a 0%,
+      #0f0f12 40%,
+      #0a0a0a 100%
+    );
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Strong pale moonlight atmosphere - prominent soft green glow */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.25) 100%),
+      radial-gradient(ellipse at 50% 20%, rgba(107, 168, 155, 0.32) 0%, transparent 50%),
+      radial-gradient(ellipse at 30% 80%, rgba(107, 168, 155, 0.24) 0%, transparent 45%),
+      radial-gradient(ellipse at 80% 40%, rgba(107, 168, 155, 0.2) 0%, transparent 40%);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* Atmospheric glow for interactive elements */
+  button, a, input[type="button"], input[type="submit"] {
+    @apply transition-all duration-300;
+  }
+
+  button:hover, a:hover {
+    box-shadow: 0 0 18px rgba(107, 168, 155, 0.4), 0 0 28px rgba(107, 168, 155, 0.2), 0 0 22px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Strong glow on focus */
+  button:focus, a:focus, input:focus {
+    box-shadow: 0 0 24px rgba(107, 168, 155, 0.5), 0 0 36px rgba(107, 168, 155, 0.3), 0 0 28px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Elevated surface styling with prominent green accent */
+  [class*="card"], [class*="rounded"], section, nav {
+    position: relative;
+    border-color: color-mix(in srgb, var(--border) 65%, var(--green) 35%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(107, 168, 155, 0.35);
+  }
+
+  /* Strong green accent for borders on hover/focus */
+  [class*="card"]:hover {
+    border-color: color-mix(in srgb, var(--border) 50%, var(--green) 50%);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 24px rgba(107, 168, 155, 0.4), inset 0 1px 0 rgba(107, 168, 155, 0.4);
+  }
+}
