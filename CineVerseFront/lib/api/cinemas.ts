@@ -22,10 +22,14 @@ export interface GetCinemaByIdResponse {
   isActive: boolean
 }
 
-export async function getAllCinemas(pageNumber = 1, pageSize = 50) {
+export type GetAllCinemasOptions = { quiet?: boolean }
+
+export async function getAllCinemas(pageNumber = 1, pageSize = 50, options?: GetAllCinemasOptions) {
+  const pn = Math.max(1, Math.trunc(Number(pageNumber)) || 1)
+  const ps = Math.min(100, Math.max(1, Math.trunc(Number(pageSize)) || 10))
   return apiRequest<PaginatedResponse<GetAllCinemasResponse>>(
-    `/api/cinema?pageNumber=${pageNumber}&pageSize=${pageSize}`,
-    { method: "GET", auth: false }
+    `/api/cinema?pageNumber=${pn}&pageSize=${ps}`,
+    { method: "GET", auth: false, quiet: options?.quiet }
   )
 }
 

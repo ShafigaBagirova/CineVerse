@@ -41,6 +41,10 @@ export function Navbar() {
   const { status, user, logout } = useAuth()
   const { notifications, unreadCount, loading, error, authRequired, markAsRead } = useNotifications()
 
+  if (pathname.startsWith("/admin")) {
+    return null
+  }
+
   const submitUserSearch = async (value: string) => {
     const q = value.trim()
     if (!q) {

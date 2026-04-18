@@ -11,7 +11,8 @@ import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button"
 import { useAuth } from "@/components/providers/auth-provider"
-import { register } from "@/lib/api/auth"
+import { getCurrentUser, register } from "@/lib/api/auth"
+import { isAdminUser } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 
 const PENDING_EMAIL_KEY = "cineverse.pendingVerificationEmail"
@@ -78,7 +79,8 @@ export default function AuthPage() {
     try {
       await login(loginForm)
       setSuccess("Login successful.")
-      router.push("/profile")
+      const me = await getCurrentUser()
+      router.push(isAdminUser(me) ? "/admin/dashboard" : "/home")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.")
     } finally {
@@ -122,7 +124,8 @@ export default function AuthPage() {
       try {
         await loginWithGoogle(credential)
         setSuccess("Signed in with Google.")
-        router.push("/profile")
+        const me = await getCurrentUser()
+        router.push(isAdminUser(me) ? "/admin/dashboard" : "/home")
       } catch (err) {
         setError(err instanceof Error ? err.message : "Google sign-in failed.")
       } finally {
