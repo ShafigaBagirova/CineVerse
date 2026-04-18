@@ -48,6 +48,14 @@ public class GoogleLoginCommandHandler
             return BaseResponse<AuthResponse>.Fail("Invalid Google token.");
         }
 
+        _logger.LogInformation("Google ID token signature and audience validated successfully.");
+
+        if (string.IsNullOrWhiteSpace(googleUser.Email) || string.IsNullOrWhiteSpace(googleUser.Subject))
+        {
+            _logger.LogWarning("Google token validated but email or subject was missing.");
+            return BaseResponse<AuthResponse>.Fail("Invalid Google account information.");
+        }
+
         if (!googleUser.EmailVerified)
         {
             _logger.LogWarning("Google email is not verified. Email: {Email}", googleUser.Email);
@@ -81,7 +89,13 @@ public class GoogleLoginCommandHandler
                     "User could not be loaded after Google registration.");
             }
         }
-        var jwtUser = new JwtUserInfoDto(user.Id,user.Email,user.UserName ?? user.Email,user.Roles);
+
+        var jwtUser = await _identityService.GetUserInfoAsync(user.Id);
+        if (jwtUser is null)
+        {
+            _logger.LogWarning("Google login: user record not found after lookup. UserId: {UserId}", user.Id);
+            return BaseResponse<AuthResponse>.Fail("User could not be loaded.");
+        }
 
         var (accessToken, expiresAtUtc) = _jwtTokenGenerator.GenerateAccessToken(jwtUser);
 
@@ -89,7 +103,8 @@ public class GoogleLoginCommandHandler
         {
             UserId = user.Id,
             Token = Guid.NewGuid().ToString("N"),
-            ExpiresAtUtc = DateTime.UtcNow.AddDays(7)
+            ExpiresAtUtc = DateTime.UtcNow.AddDays(7),
+            CreatedAtUtc = DateTime.UtcNow
         };
 
         await _refreshTokenRepository.AddAsync(refreshToken, cancellationToken);

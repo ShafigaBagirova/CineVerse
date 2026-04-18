@@ -113,7 +113,8 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
             query = query.Where(x => x.UserAverageRating.HasValue && x.UserAverageRating.Value <= maxUserRating.Value);
         }
 
-        query = sortBy?.Trim().ToLower() switch
+        // Query sortBy is normalized like the validator (camelCase API values lowercased: userrating, tmdbrating, createdat).
+        query = sortBy?.Trim().ToLowerInvariant() switch
         {
             "title" => desc
                 ? query.OrderByDescending(x => x.Title)
@@ -123,11 +124,11 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
                 ? query.OrderByDescending(x => x.ReleaseDate)
                 : query.OrderBy(x => x.ReleaseDate),
 
-            "tmdb_rating" => desc
+            "tmdb_rating" or "tmdbrating" => desc
                 ? query.OrderByDescending(x => x.TmdbRating)
                 : query.OrderBy(x => x.TmdbRating),
 
-            "user_rating" => desc
+            "user_rating" or "userrating" => desc
                 ? query.OrderByDescending(x => x.UserAverageRating)
                 : query.OrderBy(x => x.UserAverageRating),
 
@@ -157,6 +158,7 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
         return await _context.Movies
     .Include(m => m.MovieGenres)
         .ThenInclude(mg => mg.Genre)
+    .Include(m => m.Videos)
     .Include(m => m.Reviews.Where(r => !r.IsDeleted))
     .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }

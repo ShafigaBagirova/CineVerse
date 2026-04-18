@@ -20,11 +20,38 @@ public class MovieProfile : Profile
          opt.Condition((src, dest, srcMember) => srcMember != null));
 
         CreateMap<Movie, GetAllMoviesResponse>()
-        .ForMember(d => d.PosterUrl,
-        opt => opt.MapFrom(src =>
-            src.PosterPath == null
-                ? null
-                : $"https://image.tmdb.org/t/p/w500{src.PosterPath}"));
+        .ForMember(
+            d => d.TmdbId,
+            opt => opt.MapFrom(src =>
+                src.TmdbId.HasValue
+                && src.TmdbId.Value >= int.MinValue
+                && src.TmdbId.Value <= int.MaxValue
+                    ? (int)src.TmdbId.Value
+                    : 0))
+        .ForMember(
+            d => d.Status,
+            opt => opt.MapFrom(src => src.Status.ToString()))
+        .ForMember(
+            d => d.ReleaseYear,
+            opt => opt.MapFrom(src =>
+                src.ReleaseDate.HasValue ? src.ReleaseDate.Value.Year : (int?)null))
+        .ForMember(
+            d => d.DurationMinutes,
+            opt => opt.MapFrom(src => src.DurationMinutes ?? 0))
+        .ForMember(
+            d => d.PosterUrl,
+            opt => opt.MapFrom(src =>
+                src.PosterPath != null
+                    ? "https://image.tmdb.org/t/p/w500" + src.PosterPath
+                    : null))
+        .ForMember(
+            d => d.BackdropUrl,
+            opt => opt.MapFrom(src =>
+                src.BackdropPath != null
+                    ? "https://image.tmdb.org/t/p/original" + src.BackdropPath
+                    : null));
+
+        CreateMap<MovieVideo, MovieVideoDto>();
 
         CreateMap<Movie, GetMovieByIdResponse>()
           .ForMember(d => d.PosterUrl,
@@ -34,6 +61,8 @@ public class MovieProfile : Profile
                       : $"https://image.tmdb.org/t/p/w500{src.PosterPath}"))
             .ForMember(dest => dest.Genres,
         opt => opt.MapFrom(src => src.MovieGenres))
+          .ForMember(dest => dest.Videos,
+              opt => opt.MapFrom(src => src.Videos))
           .ForMember(d => d.BackdropUrl,
               opt => opt.MapFrom(src =>
                   src.BackdropPath == null

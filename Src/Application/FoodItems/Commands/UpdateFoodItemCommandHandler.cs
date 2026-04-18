@@ -1,7 +1,6 @@
 ﻿using Application.Common.Helpers;
 using Application.Common.Interfaces;
 using Application.Common.Responses;
-using AutoMapper;
 using Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -13,23 +12,17 @@ public sealed class UpdateFoodItemCommandHandler
 {
     private readonly IFoodItemRepository _foodItemRepository;
     private readonly IFoodCategoryRepository _foodCategoryRepository;
-    private readonly IFileStorageService _fileStorageService;
-    private readonly IMapper _mapper;
     private readonly ILogger<UpdateFoodItemCommandHandler> _logger;
     private readonly ICacheService _cacheService;
 
     public UpdateFoodItemCommandHandler(
         IFoodItemRepository foodItemRepository,
         IFoodCategoryRepository foodCategoryRepository,
-        IFileStorageService fileStorageService,
-        IMapper mapper,
         ILogger<UpdateFoodItemCommandHandler> logger,
         ICacheService cacheService)
     {
         _foodItemRepository = foodItemRepository;
         _foodCategoryRepository = foodCategoryRepository;
-        _fileStorageService = fileStorageService;
-        _mapper = mapper;
         _logger = logger;
         _cacheService = cacheService;
     }
@@ -53,10 +46,12 @@ public sealed class UpdateFoodItemCommandHandler
             return BaseResponse.Fail("Food item not found.");
         }
 
-        if (request.Request.FoodCategoryId.HasValue && request.Request.FoodCategoryId.Value > 0)
+        var req = request.Request;
+
+        if (req.FoodCategoryId.HasValue && req.FoodCategoryId.Value > 0)
         {
             var category = await _foodCategoryRepository.GetByIdAsync(
-                request.Request.FoodCategoryId.Value,
+                req.FoodCategoryId.Value,
                 cancellationToken);
 
             if (category is null || !category.IsActive)
@@ -66,14 +61,21 @@ public sealed class UpdateFoodItemCommandHandler
             item.CinemaId = category.CinemaId;
         }
 
+        // Partial update: only apply fields present in the request (omit/null = leave DB value unchanged).
+        if (req.Name is not null)
+            item.Name = req.Name.Trim();
 
-        _mapper.Map(request.Request, item);
-        if (!string.IsNullOrWhiteSpace(item.Name))
-            item.Name = item.Name.Trim();
+        if (req.Description is not null)
+            item.Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim();
 
-        if (!string.IsNullOrWhiteSpace(item.Description))
-            item.Description = item.Description.Trim();
+        if (req.Price.HasValue)
+            item.Price = req.Price.Value;
 
+        if (req.IsAvailable.HasValue)
+            item.IsAvailable = req.IsAvailable.Value;
+
+        if (req.IsActive.HasValue)
+            item.IsActive = req.IsActive.Value;
 
         await _foodItemRepository.UpdateAsync(item, cancellationToken);
         await _foodItemRepository.SaveChangesAsync(cancellationToken);

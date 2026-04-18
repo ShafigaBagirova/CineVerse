@@ -51,6 +51,7 @@ namespace Application.Validations.FoodItems;
                    || request.Description is not null
                    || request.Price.HasValue
                    || request.IsAvailable.HasValue
+                   || request.IsActive.HasValue
                    || request.FoodCategoryId.HasValue;
         }
   }

@@ -245,14 +245,17 @@ public sealed class ProcessStripeWebhookCommandHandler
 
             return BaseResponse.Ok("Payment processed successfully.");
         }
-
-        if (stripeEvent.Type == "payment_intent.payment_failed")
+        if (stripeEvent.Type == "payment_intent.succeeded")
         {
             var paymentIntent = stripeEvent.Data.Object as PaymentIntent;
 
+            _logger.LogInformation(
+                "DEBUG: payment_intent.succeeded received. Incoming PaymentIntentId: {PaymentIntentId}",
+                paymentIntent?.Id);
+
             if (paymentIntent is null)
             {
-                _logger.LogWarning("Stripe payment_failed webhook received with null PaymentIntent.");
+                _logger.LogWarning("Stripe webhook failed. PaymentIntent payload is null.");
                 return BaseResponse.Fail("Invalid payment intent payload.");
             }
 
@@ -260,49 +263,28 @@ public sealed class ProcessStripeWebhookCommandHandler
                 paymentIntent.Id,
                 cancellationToken);
 
+            _logger.LogInformation(
+                "DEBUG: Lookup Payment. Incoming PaymentIntentId: {PaymentIntentId}, PaymentFound: {PaymentFound}",
+                paymentIntent.Id,
+                payment is not null);
+
+            if (payment is not null)
+            {
+                _logger.LogInformation(
+                    "DEBUG: Matched Payment. PaymentId: {PaymentId}, SeatHoldId: {SeatHoldId}, StoredProviderPaymentIntentId: {StoredProviderPaymentIntentId}, Status: {Status}",
+                    payment.Id,
+                    payment.SeatHoldId,
+                    payment.ProviderPaymentIntentId,
+                    payment.Status);
+            }
+
             if (payment is null)
             {
                 _logger.LogWarning(
-                    "Stripe payment_failed webhook ignored. Payment not found. ProviderPaymentIntentId: {ProviderPaymentIntentId}",
+                    "CRITICAL: Payment not found for PaymentIntentId: {PaymentIntentId}",
                     paymentIntent.Id);
 
                 return BaseResponse.Fail("Payment not found.");
-            }
-
-            if (payment.Status == PaymentStatus.Failed)
-            {
-                _logger.LogInformation(
-                    "Stripe payment_failed webhook ignored. Payment already marked failed. PaymentId: {PaymentId}",
-                    payment.Id);
-
-                await MarkEventAsProcessedAsync(stripeEvent.Id, cancellationToken);
-
-                return BaseResponse.Ok("Payment already marked as failed.");
-            }
-
-            payment.Status = PaymentStatus.Failed;
-
-            await _paymentRepository.UpdateAsync(payment, cancellationToken);
-            await _paymentRepository.SaveChangesAsync(cancellationToken);
-            await _cacheService.RemoveAsync($"payment-status-seatHold:{payment.SeatHoldId}", cancellationToken);
-
-            await MarkEventAsProcessedAsync(stripeEvent.Id, cancellationToken);
-            if (!string.IsNullOrWhiteSpace(payment.UserId))
-            {
-                try
-                {
-                    await _userNotificationService.SendPaymentFailedEmailAsync(
-                        payment.UserId,
-                        cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(
-                        ex,
-                        "Payment failed email sending failed. UserId: {UserId}, PaymentId: {PaymentId}",
-                        payment.UserId,
-                        payment.Id);
-                }
             }
 
 

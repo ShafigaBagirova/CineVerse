@@ -57,7 +57,7 @@ public sealed class DeleteUserAvatarCommandHandler
             cancellationToken);
 
         if (!result.Success)
-            return BaseResponse.Fail(result.Message);
+            return BaseResponse.Fail(result.Message ?? "Failed to update avatar.");
 
         _logger.LogInformation("Avatar deleted for user {UserId}", userId);
 

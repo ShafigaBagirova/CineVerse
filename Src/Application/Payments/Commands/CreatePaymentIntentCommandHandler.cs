@@ -207,15 +207,15 @@ public sealed class CreatePaymentIntentCommandHandler
             cancellationToken);
 
         _logger.LogInformation(
-            "Payment intent created successfully. PaymentId: {PaymentId}, SeatHoldId: {SeatHoldId}, TicketAmount:{TicketAmount},FoodAmount:{FoodAmount},UserId: {UserId}, ProviderPaymentIntentId: {ProviderPaymentIntentId}, Amount: {Amount}, Currency: {Currency}",
-            payment.Id,
-            payment.SeatHoldId,
-            payment.UserId,
-            payment.ProviderPaymentIntentId,
-            payment.TotalAmount,
-            payment.Currency,
-            payment.TicketAmount,
-            payment.FoodAmount);
+     "Payment intent created successfully. PaymentId: {PaymentId}, SeatHoldId: {SeatHoldId}, TicketAmount: {TicketAmount}, FoodAmount: {FoodAmount}, UserId: {UserId}, ProviderPaymentIntentId: {ProviderPaymentIntentId}, Amount: {Amount}, Currency: {Currency}",
+     payment.Id,
+     payment.SeatHoldId,
+     payment.TicketAmount,
+     payment.FoodAmount,
+     payment.UserId,
+     payment.ProviderPaymentIntentId,
+     payment.TotalAmount,
+     payment.Currency);
 
         var response = _mapper.Map<CreatePaymentIntentResponse>(payment);
 

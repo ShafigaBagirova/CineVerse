@@ -15,4 +15,6 @@ public interface IScreeningRepository:IRepository<Screening,int>
     CancellationToken cancellationToken);
     Task<bool> ExistsAsync(int id, CancellationToken cancellationToken);
     Task<int> CountActiveAsync(CancellationToken cancellationToken = default);
+
+    Task<int?> GetCinemaIdForScreeningAsync(int screeningId, CancellationToken cancellationToken);
 }

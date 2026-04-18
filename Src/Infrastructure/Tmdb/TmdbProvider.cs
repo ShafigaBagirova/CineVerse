@@ -5,6 +5,7 @@ using Application.Movies.Dtos;
 using Application.MovieVideos.Dtos;
 using AutoMapper;
 using Microsoft.Extensions.Options;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -130,5 +131,22 @@ public sealed class TmdbMovieProvider : IMovieProvider
                 Name = x.Name
             })
             .ToList();
+    }
+    public async Task<TmdbMovieDetailsDto?> GetMovieDetailsAsync(
+    long id,
+    CancellationToken cancellationToken)
+    {
+        _httpClient.DefaultRequestHeaders.Authorization =
+      new AuthenticationHeaderValue("Bearer", _options.ReadAccessToken);
+
+        var response = await _httpClient.GetAsync(
+            $"movie/{id}?language={_options.Language}",
+            cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        return await response.Content.ReadFromJsonAsync<TmdbMovieDetailsDto>(
+            cancellationToken: cancellationToken);
     }
 }

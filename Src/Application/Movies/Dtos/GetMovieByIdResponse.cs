@@ -14,4 +14,5 @@ public class GetMovieByIdResponse
     public int RatingCount { get; set; }
     public List<ReviewDto> Reviews { get; set; } = new();
     public List<MovieGenreDto> Genres { get; set; } = new();
+    public List<MovieVideoDto> Videos { get; set; } = new();
 }

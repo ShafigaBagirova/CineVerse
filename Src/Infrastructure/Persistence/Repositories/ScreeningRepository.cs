@@ -110,4 +110,13 @@ public class ScreeningRepository:GenericRepository<Screening,int>, IScreeningRep
         return await _context.Screenings
             .CountAsync(x => x.Status == ScreeningStatus.Completed, cancellationToken);
     }
+
+    public async Task<int?> GetCinemaIdForScreeningAsync(int screeningId, CancellationToken cancellationToken)
+    {
+        return await _context.Screenings
+            .AsNoTracking()
+            .Where(s => s.Id == screeningId)
+            .Select(s => (int?)s.Hall.CinemaId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }

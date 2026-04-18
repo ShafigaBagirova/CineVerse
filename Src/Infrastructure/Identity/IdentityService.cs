@@ -480,11 +480,24 @@ public sealed class IdentityService : IIdentityService
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
             var search = request.SearchTerm.Trim().ToLower();
+            var tokens = search.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
             query = query.Where(u =>
                 (u.UserName != null && u.UserName.ToLower().Contains(search)) ||
                 (u.Email != null && u.Email.ToLower().Contains(search)) ||
                 (u.FullName != null && u.FullName.ToLower().Contains(search)));
+
+            if (tokens.Length > 1)
+            {
+                foreach (var token in tokens)
+                {
+                    var t = token;
+                    query = query.Where(u =>
+                        (u.UserName != null && u.UserName.ToLower().Contains(t)) ||
+                        (u.Email != null && u.Email.ToLower().Contains(t)) ||
+                        (u.FullName != null && u.FullName.ToLower().Contains(t)));
+                }
+            }
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

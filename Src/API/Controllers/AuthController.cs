@@ -94,6 +94,19 @@ public sealed class AuthController : ControllerBase
         return Ok(BaseResponse.Ok("Email confirmed successfully."));
     }
 
+    [HttpPost("resend-verification")]
+    [AllowAnonymous]
+    public async Task<ActionResult<BaseResponse>> ResendVerification(
+        [FromBody] ResendVerificationCodeRequest request,
+        CancellationToken ct)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Email))
+            return BadRequest(BaseResponse.Fail("Email is required."));
+
+        var result = await _mediator.Send(new ResendVerificationCodeCommand(request.Email.Trim()), ct);
+        return Ok(result);
+    }
+
     [HttpGet("me")]
     [Authorize(Policy = Policies.Authenticated)]
     public async Task<ActionResult<BaseResponse<JwtUserInfoDto>>> GetCurrentUser(CancellationToken ct)
@@ -113,9 +126,12 @@ public sealed class AuthController : ControllerBase
     [AllowAnonymous]
     [HttpPost("google-login")]
     public async Task<ActionResult<BaseResponse>> GoogleLogin(
-       [FromBody] GoogleLoginRequest request,
+       [FromBody] GoogleLoginRequest? request,
        CancellationToken cancellationToken)
     {
+        if (request is null || string.IsNullOrWhiteSpace(request.IdToken))
+            return BadRequest(BaseResponse<AuthResponse>.Fail("Google id token is required."));
+
         var result = await _mediator.Send(
             new GoogleLoginCommand(request.IdToken),
             cancellationToken);

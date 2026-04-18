@@ -88,14 +88,11 @@ public sealed class GetAllMoviesQueryValidator : AbstractValidator<GetAllMoviesQ
         When(x => !string.IsNullOrWhiteSpace(x.Request.SortBy), () =>
         {
             RuleFor(x => x.Request.SortBy!)
-                .Must(x => new[]
+                .Must(sortBy =>
                 {
-                    "title",
-                    "year",
-                    "tmdbRating",
-                    "userRating",
-                    "createdAt"
-                }.Contains(x.ToLower()))
+                    var key = sortBy.Trim().ToLowerInvariant();
+                    return key is "title" or "year" or "tmdbrating" or "userrating" or "createdat";
+                })
                 .WithMessage("SortBy must be one of: title, year, tmdbRating, userRating, createdAt.");
         });
     }

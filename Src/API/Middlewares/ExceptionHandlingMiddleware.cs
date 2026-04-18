@@ -1,4 +1,5 @@
-﻿using Application.Common.Responses;
+﻿using API;
+using Application.Common.Responses;
 using FluentValidation;
 using System.Net;
 using System.Text.Json;
@@ -82,7 +83,7 @@ public class ExceptionHandlingMiddleware
         string traceId)
     {
         context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-        context.Response.ContentType = "application/json";
+        context.Response.ContentType = "application/json; charset=utf-8";
 
         var errors = ex.Errors
        .Select(e =>
@@ -96,7 +97,7 @@ public class ExceptionHandlingMiddleware
             TraceId = traceId
         };
 
-        await context.Response.WriteAsync(JsonSerializer.Serialize(body));
+        await context.Response.WriteAsync(JsonSerializer.Serialize(body, ApiJsonSerializerOptions.Web));
     }
     private static async Task WriteNotFoundResponseAsync(
     HttpContext context,
@@ -104,7 +105,7 @@ public class ExceptionHandlingMiddleware
     string traceId)
     {
         context.Response.StatusCode = (int)HttpStatusCode.NotFound;
-        context.Response.ContentType = "application/json";
+        context.Response.ContentType = "application/json; charset=utf-8";
 
         var body = new BaseResponse<object>
         {
@@ -114,14 +115,14 @@ public class ExceptionHandlingMiddleware
             TraceId = traceId
         };
 
-        await context.Response.WriteAsync(JsonSerializer.Serialize(body));
+        await context.Response.WriteAsync(JsonSerializer.Serialize(body, ApiJsonSerializerOptions.Web));
     }
     private static async Task WriteErrorResponseAsync(
         HttpContext context,
         string traceId)
     {
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-        context.Response.ContentType = "application/json";
+        context.Response.ContentType = "application/json; charset=utf-8";
 
         var body = new BaseResponse<object>
         {
@@ -131,6 +132,6 @@ public class ExceptionHandlingMiddleware
             TraceId = traceId
         };
 
-        await context.Response.WriteAsync(JsonSerializer.Serialize(body));
+        await context.Response.WriteAsync(JsonSerializer.Serialize(body, ApiJsonSerializerOptions.Web));
     }
 }
