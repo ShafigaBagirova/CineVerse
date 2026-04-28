@@ -53,9 +53,15 @@ public sealed class DeleteScreeningCommandHandler : IRequestHandler<DeleteScreen
         await _publisher.Publish(new ScreeningCancelledEvent(screening.Id), cancellationToken);
 
         await _cacheService.RemoveAsync("screenings_all");
+        await _cacheService.RemoveByPrefixAsync("screenings_all_");
         await _cacheService.RemoveAsync($"screening_{screening.Id}");
+        await _cacheService.RemoveByPrefixAsync("screening_");
         await _cacheService.RemoveAsync($"hall_{screening.HallId}_screenings");
         await _cacheService.RemoveAsync($"movie_{screening.MovieId}_screenings");
+        _logger.LogInformation(
+            "Screening cache prefixes removed after delete: {PrefixAll}, {PrefixById}",
+            "screenings_all_",
+            "screening_");
 
         return BaseResponse.Ok("Screening deleted successfully.");
     }

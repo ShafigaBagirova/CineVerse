@@ -24,33 +24,44 @@ import {
   type GetAllHallsResponse,
   type UpdateHallBody,
 } from "@/lib/api/halls"
-import { ApiError } from "@/lib/api/types"
+import { ApiError, userFacingApiErrorMessage } from "@/lib/api/types"
 
 export default function AdminHallsPage() {
   const [rows, setRows] = useState<GetAllHallsResponse[]>([])
   const [cinemas, setCinemas] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [form, setForm] = useState({ name: "", cinemaId: 0, capacity: 100 })
   const [editRow, setEditRow] = useState<GetAllHallsResponse | null>(null)
   const [editForm, setEditForm] = useState<UpdateHallBody>({})
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setLoading(true)
+    }
     setError(null)
     try {
       const [h, c] = await Promise.all([
-        getAllHalls(1, 10, { quiet: true }),
-        getAllCinemas(1, 10, { quiet: true }),
+        getAllHalls(1, 100, {
+          sortBy: "createdAt",
+          desc: true,
+          quiet: true,
+        }),
+        getAllCinemas(1, 50, { quiet: true }),
       ])
-      setRows(h.items)
+      const items = h.items ?? []
+      // Backend "delete" is soft (isActive=false); hide removed halls from this list.
+      setRows(items.filter((x) => x.isActive))
       setCinemas(c.items.map((x) => ({ id: x.id, name: x.name })))
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Failed to load halls.")
     } finally {
-      setLoading(false)
+      if (!opts?.silent) {
+        setLoading(false)
+      }
     }
   }, [])
 
@@ -68,17 +79,30 @@ export default function AdminHallsPage() {
     e.preventDefault()
     setBusy(true)
     setError(null)
+    setSuccessMessage(null)
+    const cinemaId = Math.trunc(Number(form.cinemaId))
+    if (!form.name.trim()) {
+      setError("Name is required.")
+      setBusy(false)
+      return
+    }
+    if (cinemaId <= 0) {
+      setError("Select a cinema.")
+      setBusy(false)
+      return
+    }
     try {
       await createHall({
         name: form.name.trim(),
-        cinemaId: form.cinemaId,
-        capacity: Math.max(1, Math.trunc(form.capacity)),
+        cinemaId,
+        capacity: Math.max(1, Math.trunc(Number(form.capacity)) || 1),
       })
+      setSuccessMessage("Hall created.")
       setCreateOpen(false)
       setForm({ name: "", cinemaId: cinemas[0]?.id ?? 0, capacity: 100 })
-      await load()
+      await load({ silent: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Create failed.")
+      setError(userFacingApiErrorMessage(err, "Create failed."))
     } finally {
       setBusy(false)
     }
@@ -89,12 +113,14 @@ export default function AdminHallsPage() {
     if (!editRow) return
     setBusy(true)
     setError(null)
+    setSuccessMessage(null)
     try {
       await updateHall(editRow.id, editForm)
       setEditRow(null)
-      await load()
+      setSuccessMessage("Hall updated.")
+      await load({ silent: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Update failed.")
+      setError(userFacingApiErrorMessage(err, "Update failed."))
     } finally {
       setBusy(false)
     }
@@ -103,11 +129,21 @@ export default function AdminHallsPage() {
   async function onDelete(id: number) {
     if (!window.confirm("Delete this hall?")) return
     setBusy(true)
+    setError(null)
+    setSuccessMessage(null)
     try {
       await deleteHall(id)
-      await load()
+      setRows((prev) => prev.filter((x) => x.id !== id))
+      setSuccessMessage("Hall removed.")
+      await load({ silent: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Delete failed.")
+      if (err instanceof ApiError && err.status === 404) {
+        setError("This hall was already removed. Refreshing the list.")
+        setRows((prev) => prev.filter((x) => x.id !== id))
+        await load({ silent: true })
+      } else {
+        setError(userFacingApiErrorMessage(err, "Delete failed."))
+      }
     } finally {
       setBusy(false)
     }
@@ -169,7 +205,7 @@ export default function AdminHallsPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit" disabled={busy}>
+                <Button type="submit" disabled={busy || cinemas.length === 0}>
                   Create
                 </Button>
               </DialogFooter>
@@ -179,6 +215,7 @@ export default function AdminHallsPage() {
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
+      {successMessage && <p className="text-sm text-green-600 dark:text-green-500">{successMessage}</p>}
 
       <Card className="border-border/60 bg-card/50">
         <CardContent className="p-0">

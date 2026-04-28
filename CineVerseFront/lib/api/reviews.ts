@@ -76,3 +76,21 @@ export async function deleteReview(movieId: number) {
     auth: true,
   })
 }
+
+/** GET /api/review — all reviews (BaseResponse data). */
+export async function getAllReviews(options?: OptionalFetchOptions) {
+  return apiRequest<ReviewDto[]>("/api/review", {
+    method: "GET",
+    auth: true,
+    quiet: options?.quiet,
+  })
+}
+
+/** DELETE /api/review/reviews/{reviewId} — admin (ManageMovies). */
+export async function deleteReviewByAdmin(reviewId: number, options?: OptionalFetchOptions) {
+  return apiRequest<unknown>(`/api/review/reviews/${reviewId}`, {
+    method: "DELETE",
+    auth: true,
+    quiet: options?.quiet,
+  })
+}

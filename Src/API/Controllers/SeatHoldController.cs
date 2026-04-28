@@ -21,7 +21,7 @@ public class SeatHoldController : ControllerBase
     }
     [Authorize(Policy = Policies.Authenticated)]
     [HttpPost]
-    public async Task<ActionResult<BaseResponse>> Create([FromBody] CreateSeatHoldRequest request)
+    public async Task<ActionResult<BaseResponse<GetSeatHoldByIdResponse>>> Create([FromBody] CreateSeatHoldRequest request)
     {
         var result = await _mediator.Send(new CreateSeatHoldCommand(request));
 

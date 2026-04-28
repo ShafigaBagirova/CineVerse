@@ -40,6 +40,10 @@ public sealed class SyncGenresFromTmdbCommandHandler
         int createdCount = 0;
         int updatedCount = 0;
 
+        var existingByTmdbId = await _genreRepository.GetByTmdbGenreIdsAsync(
+            externalGenres.Select(g => g.Id).ToList(),
+            cancellationToken);
+
         foreach (var externalGenre in externalGenres)
         {
             _logger.LogInformation(
@@ -47,8 +51,7 @@ public sealed class SyncGenresFromTmdbCommandHandler
                 externalGenre.Id,
                 externalGenre.Name);
 
-            var existingGenre = await _genreRepository
-                .GetByTmdbGenreIdAsync(externalGenre.Id, cancellationToken);
+            existingByTmdbId.TryGetValue(externalGenre.Id, out var existingGenre);
 
             if (existingGenre is null)
             {

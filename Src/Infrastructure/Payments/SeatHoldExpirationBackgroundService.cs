@@ -1,4 +1,5 @@
 ﻿using Application.Common.Interfaces;
+using Application.Common.Helpers;
 using Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -30,6 +31,7 @@ public class SeatHoldExpirationBackgroundService: BackgroundService
                 using var scope = _scopeFactory.CreateScope();
 
                 var seatHoldRepository = scope.ServiceProvider.GetRequiredService<ISeatHoldRepository>();
+                var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
 
                 var expiredActiveSeatHolds =
                     await seatHoldRepository.GetExpiredActiveSeatHoldsAsync(stoppingToken);
@@ -43,6 +45,12 @@ public class SeatHoldExpirationBackgroundService: BackgroundService
 
                     await seatHoldRepository.UpdateRangeAsync(expiredActiveSeatHolds, stoppingToken);
                     await seatHoldRepository.SaveChangesAsync(stoppingToken);
+                    await cacheService.RemoveByPrefixAsync(SeatHoldCacheKeys.GetAllSeatHoldsPrefix);
+                    foreach (var seatHold in expiredActiveSeatHolds)
+                    {
+                        await cacheService.RemoveAsync($"{SeatHoldCacheKeys.GetSeatHoldByIdPrefix}{seatHold.Id}", stoppingToken);
+                        await cacheService.RemoveByPrefixAsync($"{SeatHoldCacheKeys.GetSeatHoldsByScreeningPrefix}{seatHold.ScreeningId}");
+                    }
 
                     _logger.LogInformation(
                         "Expired active seat holds updated successfully. Count: {Count}",

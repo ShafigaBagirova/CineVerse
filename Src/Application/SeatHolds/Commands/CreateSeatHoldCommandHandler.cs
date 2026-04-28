@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace Application.SeatHolds.Commands;
 
 
-public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHoldCommand, BaseResponse>
+public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHoldCommand, BaseResponse<GetSeatHoldByIdResponse>>
 {
     private readonly ISeatHoldRepository _seatHoldRepository;
     private readonly IScreeningRepository _screeningRepository;
@@ -39,7 +39,7 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
         _cacheService = cacheService;
     }
 
-    public async Task<BaseResponse> Handle(
+    public async Task<BaseResponse<GetSeatHoldByIdResponse>> Handle(
         CreateSeatHoldCommand request,
         CancellationToken cancellationToken)
     {
@@ -53,7 +53,7 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
             _logger.LogWarning(
                 "CreateSeatHoldCommand failed. Authenticated user not found.");
 
-            return BaseResponse.Fail("Authenticated user not found.");
+            return BaseResponse<GetSeatHoldByIdResponse>.Fail("Authenticated user not found.");
         }
         _logger.LogInformation(
             "CreateSeatHoldCommand started. ScreeningId: {ScreeningId}, SeatId: {SeatId}, UserId: {UserId}",
@@ -68,7 +68,7 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
                 "CreateSeatHoldCommand failed. Screening not found. ScreeningId: {ScreeningId}",
                 dto.ScreeningId);
 
-            return BaseResponse.Fail("Screening not found.");
+            return BaseResponse<GetSeatHoldByIdResponse>.Fail("Screening not found.");
         }
 
         var seat = await _seatRepository.GetByIdAsync(dto.SeatId, cancellationToken);
@@ -78,7 +78,7 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
                 "CreateSeatHoldCommand failed. Seat not found. SeatId: {SeatId}",
                 dto.SeatId);
 
-            return BaseResponse.Fail("Seat not found.");
+            return BaseResponse<GetSeatHoldByIdResponse>.Fail("Seat not found.");
         }
 
         if (seat.HallId != screening.HallId)
@@ -89,7 +89,7 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
                 seat.HallId,
                 screening.HallId);
 
-            return BaseResponse.Fail("Selected seat does not belong to the screening hall.");
+            return BaseResponse<GetSeatHoldByIdResponse>.Fail("Selected seat does not belong to the screening hall.");
         }
 
         var activeHold = await _seatHoldRepository.GetActiveHoldAsync(dto.ScreeningId, dto.SeatId, cancellationToken);
@@ -100,34 +100,50 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
             {
                 if (string.Equals(activeHold.UserId, userId, StringComparison.OrdinalIgnoreCase))
                 {
+                    var hasBlockingPayment = activeHold.Payments.Any(p =>
+                        p.Status == PaymentStatus.Pending || p.Status == PaymentStatus.Succeeded);
+                    if (hasBlockingPayment)
+                    {
+                        _logger.LogInformation(
+                            "CreateSeatHold: returning existing active hold for same user with blocking payment status. SeatHoldId: {SeatHoldId}",
+                            activeHold.Id);
+
+                        var existingResponse = _mapper.Map<GetSeatHoldByIdResponse>(activeHold);
+                        return BaseResponse<GetSeatHoldByIdResponse>.Ok(
+                            existingResponse,
+                            "Seat hold already active.");
+                    }
+
+                    // Terminal payment outcomes (Failed/Cancelled/Refunded) should not reuse old hold.
+                    activeHold.Status = SeatHoldStatus.Released;
+                    await _seatHoldRepository.UpdateAsync(activeHold, cancellationToken);
                     _logger.LogInformation(
-                        "CreateSeatHold: returning existing active hold for same user. SeatHoldId: {SeatHoldId}",
+                        "CreateSeatHold: existing active hold released due to non-blocking payment status; creating new hold. OldSeatHoldId: {SeatHoldId}",
                         activeHold.Id);
-
-                    return BaseResponse.Ok(
-                        "Seat hold already active.");
                 }
-
-                _logger.LogWarning(
-                    "CreateSeatHoldCommand failed. Active seat hold already exists. SeatHoldId: {SeatHoldId}, ScreeningId: {ScreeningId}, SeatId: {SeatId}, ExpiresAtUtc: {ExpiresAtUtc}",
-                    activeHold.Id,
-                    dto.ScreeningId,
-                    dto.SeatId,
-                    activeHold.ExpiresAtUtc);
-
-                return BaseResponse.Fail("This seat is currently on hold.");
+                else
+                {
+                    _logger.LogInformation(
+                        "CreateSeatHoldCommand failed. Active seat hold already exists. SeatHoldId: {SeatHoldId}, ScreeningId: {ScreeningId}, SeatId: {SeatId}, ExpiresAtUtc: {ExpiresAtUtc}",
+                        activeHold.Id);
+                    return BaseResponse<GetSeatHoldByIdResponse>.Fail("This seat is currently on hold.");
+                }
             }
 
-            activeHold.Status = SeatHoldStatus.Expired;
-            await _seatHoldRepository.UpdateAsync(activeHold, cancellationToken);
+            else
+            {
+                activeHold.Status = SeatHoldStatus.Expired;
+                await _seatHoldRepository.UpdateAsync(activeHold, cancellationToken);
 
-            _logger.LogInformation("Expired seat hold marked as expired. SeatHoldId: {SeatHoldId}",
-                activeHold.Id);}
+                _logger.LogInformation("Expired seat hold marked as expired. SeatHoldId: {SeatHoldId}",
+                    activeHold.Id);
+            }
+        }
 
         var seatHold = _mapper.Map<SeatHold>(dto);
         seatHold.UserId = userId;
         seatHold.Status = SeatHoldStatus.Active;
-        seatHold.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(1);
+        seatHold.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(10);
 
         await _seatHoldRepository.AddAsync(seatHold, cancellationToken);
         await _seatHoldRepository.SaveChangesAsync(cancellationToken);
@@ -140,9 +156,17 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
             seatHold.UserId,
             seatHold.ExpiresAtUtc);
 
-        await _cacheService.RemoveAsync(SeatHoldCacheKeys.GetAllSeatHolds, cancellationToken);
+        await _cacheService.RemoveByPrefixAsync(SeatHoldCacheKeys.GetAllSeatHoldsPrefix);
+        await _cacheService.RemoveByPrefixAsync(
+            $"{SeatHoldCacheKeys.GetSeatHoldsByScreeningPrefix}{dto.ScreeningId}");
         await _cacheService.RemoveAsync(
-            $"{SeatHoldCacheKeys.GetSeatHoldsByScreeningPrefix}{dto.ScreeningId}",
+            $"{SeatHoldCacheKeys.GetSeatHoldByIdPrefix}{seatHold.Id}",
+            cancellationToken);
+        await _cacheService.RemoveAsync(
+            $"{ScreeningSeatCacheKeys.GetOccupiedSeatsByScreeningPrefix}{dto.ScreeningId}",
+            cancellationToken);
+        await _cacheService.RemoveAsync(
+            $"{ScreeningSeatCacheKeys.GetAvailableSeatsByScreeningPrefix}{dto.ScreeningId}",
             cancellationToken);
 
         _logger.LogInformation(
@@ -150,7 +174,8 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
             SeatHoldCacheKeys.GetAllSeatHolds,
             $"{SeatHoldCacheKeys.GetSeatHoldsByScreeningPrefix}{dto.ScreeningId}");
 
-        return BaseResponse.Ok("Seat hold created successfully.");
+        var response = _mapper.Map<GetSeatHoldByIdResponse>(seatHold);
+        return BaseResponse<GetSeatHoldByIdResponse>.Ok(response, "Seat hold created successfully.");
     }
 
 }

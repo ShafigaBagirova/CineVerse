@@ -8,6 +8,8 @@ public class GetAllMoviesResponse
     public string Title { get; set; } = default!;
     public string Slug { get; set; } = default!;
     public string? Description { get; set; }
+    public string? Director { get; set; }
+    public string? Actors { get; set; }
 
     public string? PosterUrl { get; set; }
     public string? BackdropUrl { get; set; }

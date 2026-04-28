@@ -14,6 +14,23 @@ public class GenreRepository : GenericRepository<Genre,int>,IGenreRepository
         _context = context;
     }
 
+    public async Task<IReadOnlyDictionary<int, Genre>> GetByTmdbGenreIdsAsync(
+        IReadOnlyCollection<int> tmdbGenreIds,
+        CancellationToken cancellationToken)
+    {
+        if (tmdbGenreIds is null || tmdbGenreIds.Count == 0)
+            return new Dictionary<int, Genre>();
+
+        var distinct = tmdbGenreIds.Distinct().ToArray();
+        var rows = await _context.Genres
+            .Where(x => distinct.Contains(x.TmdbGenreId))
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .GroupBy(x => x.TmdbGenreId)
+            .ToDictionary(g => g.Key, g => g.First());
+    }
+
     public async Task<Genre?> GetByTmdbGenreIdAsync(int tmdbGenreId, CancellationToken cancellationToken)
     {
         return await _context.Genres

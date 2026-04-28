@@ -1,6 +1,7 @@
 ﻿using Application.Screenings.Dtos;
 using AutoMapper;
 using Domain.Entities;
+using Domain.Enums;
 
 namespace Application.Common.Mappings;
 
@@ -28,7 +29,26 @@ public class ScreeningMappingProfile : Profile
            .ForMember(dest => dest.HallName,opt => opt.MapFrom(src => src.Hall.Name));
       
         CreateMap<Screening, GetAllScreeningsResponse>()
-          .ForMember(dest => dest.MovieTitle,opt => opt.MapFrom(src => src.Movie.Title))
-             .ForMember(dest => dest.HallName,opt => opt.MapFrom(src => src.Hall.Name));
+            .ForMember(dest => dest.MovieTitle, opt => opt.MapFrom(src => src.Movie.Title))
+            .ForMember(dest => dest.HallName, opt => opt.MapFrom(src => src.Hall.Name))
+            .ForMember(dest => dest.Format, opt => opt.MapFrom(src => ScreeningEnums.SafeFormatString(src.Format)))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => ScreeningEnums.SafeStatusString(src.Status)));
+    }
+}
+
+file static class ScreeningEnums
+{
+    internal static string SafeFormatString(ScreeningFormat value)
+    {
+        if (!Enum.IsDefined(typeof(ScreeningFormat), value))
+            return ScreeningFormat.TwoD.ToString();
+        return value.ToString();
+    }
+
+    internal static string SafeStatusString(ScreeningStatus value)
+    {
+        if (!Enum.IsDefined(typeof(ScreeningStatus), value))
+            return ScreeningStatus.Scheduled.ToString();
+        return value.ToString();
     }
 }

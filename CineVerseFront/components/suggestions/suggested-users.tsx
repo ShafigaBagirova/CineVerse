@@ -1,22 +1,15 @@
 "use client"
 
 import { useEffect } from "react"
-import { UserCheck, UserPlus, Crown } from "lucide-react"
+import { Crown } from "lucide-react"
 import { useAuth } from "@/components/providers/auth-provider"
+import { FollowButton } from "@/components/follow/follow-button"
 import { useFollow } from "@/components/providers/follow-provider"
+import { suggestedUserTasteSimilarityPercent } from "@/lib/api/follow"
 
 export function SuggestedUsers() {
   const { status } = useAuth()
-  const {
-    suggestedUsers,
-    suggestedLoading,
-    suggestedError,
-    suggestedAuthRequired,
-    followingByUserId,
-    loadingByUserId,
-    ensureFollowStatus,
-    toggleFollow,
-  } = useFollow()
+  const { suggestedUsers, suggestedLoading, suggestedError, suggestedAuthRequired, ensureFollowStatus } = useFollow()
 
   useEffect(() => {
     suggestedUsers.forEach((item) => {
@@ -60,7 +53,7 @@ export function SuggestedUsers() {
                   {user.tasteScore > 0 && (
                     <div className="flex items-center gap-1 text-primary text-xs">
                       <Crown className="h-3 w-3" />
-                      Taste {Math.round(user.tasteScore)}%
+                      Taste {suggestedUserTasteSimilarityPercent(user)}%
                     </div>
                   )}
                 </div>
@@ -75,36 +68,16 @@ export function SuggestedUsers() {
                 <p className="text-muted-foreground">Movies</p>
               </div>
               <div>
-                <p className="font-semibold text-foreground">{Math.round(user.tasteScore)}%</p>
+                <p className="font-semibold text-foreground">{suggestedUserTasteSimilarityPercent(user)}%</p>
                 <p className="text-muted-foreground">Taste</p>
               </div>
             </div>
 
-            <button
-              onClick={() => void toggleFollow(user.userId)}
-              disabled={status !== "authenticated" || loadingByUserId[user.userId]}
-              className={`w-full flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                followingByUserId[user.userId]
-                  ? "bg-primary/20 text-primary border border-primary/30"
-                  : "bg-primary text-primary-foreground hover:bg-primary/90"
-              } disabled:opacity-60`}
-            >
-              {followingByUserId[user.userId] ? (
-                <>
-                  <UserCheck className="h-4 w-4" />
-                  {loadingByUserId[user.userId] ? "Updating..." : "Following"}
-                </>
-              ) : (
-                <>
-                  <UserPlus className="h-4 w-4" />
-                  {status !== "authenticated"
-                    ? "Sign in to follow"
-                    : loadingByUserId[user.userId]
-                      ? "Updating..."
-                      : "Follow"}
-                </>
-              )}
-            </button>
+            <FollowButton
+              userId={user.userId}
+              displayLabel={user.userName ? `@${user.userName}` : user.fullName ?? undefined}
+              variant="full"
+            />
           </div>
         ))}
       </div>

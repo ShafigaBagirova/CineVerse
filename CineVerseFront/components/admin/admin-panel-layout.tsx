@@ -4,13 +4,18 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
 import {
+  Armchair,
   BarChart3,
+  Building2,
   Calendar,
   Clapperboard,
   Film,
   LayoutDashboard,
   LogOut,
+  MessageSquare,
+  Tags,
   Ticket,
+  UtensilsCrossed,
   Users,
 } from "lucide-react"
 import { useAuth } from "@/components/providers/auth-provider"
@@ -26,6 +31,13 @@ const links = [
   { href: "/admin/showtimes", label: "Showtimes", icon: Calendar },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/bookings", label: "Bookings", icon: Ticket },
+  { href: "/admin/reviews", label: "Reviews", icon: MessageSquare },
+  { href: "/admin/genres", label: "Genres", icon: Tags },
+  { href: "/admin/cinemas", label: "Cinemas", icon: Building2 },
+  { href: "/admin/seats", label: "Seats", icon: Armchair },
+  { href: "/admin/food-categories", label: "Food Categories", icon: UtensilsCrossed },
+  { href: "/admin/food-items", label: "Food Items", icon: UtensilsCrossed },
+  { href: "/admin/food-orders", label: "Food Orders", icon: UtensilsCrossed },
 ]
 
 export function AdminPanelLayout({ children }: { children: React.ReactNode }) {

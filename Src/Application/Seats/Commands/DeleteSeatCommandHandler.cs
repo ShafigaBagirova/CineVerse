@@ -1,5 +1,6 @@
 ﻿using Application.Common.Interfaces;
 using Application.Common.Responses;
+using Application.Common.Helpers;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -57,9 +58,11 @@ public sealed class DeleteSeatCommandHandler : IRequestHandler<DeleteSeatCommand
             seat.Id,
             seat.HallId);
 
-        await _cacheService.RemoveAsync("seats_all");
+        await _cacheService.RemoveByPrefixAsync("seats_all_hall_");
         await _cacheService.RemoveAsync($"seat_{seat.Id}");
-        await _cacheService.RemoveAsync($"hall_{seat.HallId}_seats");
+        await _cacheService.RemoveByPrefixAsync("screening_");
+        await _cacheService.RemoveByPrefixAsync(ScreeningSeatCacheKeys.GetOccupiedSeatsByScreeningPrefix);
+        await _cacheService.RemoveByPrefixAsync(ScreeningSeatCacheKeys.GetAvailableSeatsByScreeningPrefix);
 
         _logger.LogInformation(
             "Seat cache invalidated. SeatId: {SeatId}, HallId: {HallId}",

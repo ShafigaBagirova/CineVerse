@@ -93,7 +93,8 @@ public sealed class CreateMovieCommandHandler
         await _movieRepository.AddAsync(movie, cancellationToken);
         await _movieRepository.SaveChangesAsync(cancellationToken);
         await _publisher.Publish(new MovieCreatedEvent(movie.Id, movie.Title),cancellationToken);
-        await _cacheService.RemoveAsync("movies:all", cancellationToken);
+        await _cacheService.RemoveByPrefixAsync(CacheKeys.MoviesPagedPrefix);
+        await _cacheService.RemoveByPrefixAsync(CacheKeys.MovieBySlugPrefix);
 
         _logger.LogInformation(
             "Movie {Title} created successfully with slug {Slug}. Movies list cache invalidated.",

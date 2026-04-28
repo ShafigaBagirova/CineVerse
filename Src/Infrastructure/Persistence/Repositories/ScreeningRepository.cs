@@ -44,6 +44,7 @@ public class ScreeningRepository:GenericRepository<Screening,int>, IScreeningRep
         return await _context.Screenings
             .Include(x => x.Movie)
             .Include(x => x.Hall)
+            .ThenInclude(h => h.Cinema)
             .FirstOrDefaultAsync(x => x.Id == id && x.IsActive, cancellationToken);
     }
     public async Task<(List<Screening> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize,int? movieId,

@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Star, Film, Heart, Crown, Bookmark, Eye, Users, UserCheck, UserPlus } from "lucide-react"
+import { Star, Film, Heart, Crown, Bookmark, Eye, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { isVipUser } from "@/lib/roles"
 import { useAuth } from "@/components/providers/auth-provider"
+import { Button } from "@/components/ui/button"
+import { VipUpgradeDialog } from "@/components/profile/vip-upgrade-dialog"
 import {
   getUserProfile,
   getUserRatings,
@@ -22,12 +25,14 @@ import {
 } from "@/lib/api/watch"
 import { resolveMoviePosterUrl } from "@/lib/movie-poster"
 import {
+  followInsightsTastePercent,
   getFollowers,
   getFollowings,
   getFollowInsights,
   getFollowStats,
   type FollowUserItemDto,
 } from "@/lib/api/follow"
+import { FollowButton } from "@/components/follow/follow-button"
 import { useFollow } from "@/components/providers/follow-provider"
 
 const allTabs = ["Watchlist", "Watched", "Reviews", "Following"] as const
@@ -51,7 +56,7 @@ const userProfile = {
 export type ProfilePageClientProps = { routeUserId?: string }
 
 export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
-  const { user, status } = useAuth()
+  const { user, status, refreshUser } = useAuth()
   const profileUserId = routeUserId ?? user?.userId ?? null
   const isOwnProfile = !!(user?.userId && profileUserId && user.userId === profileUserId)
   const [profileInfo, setProfileInfo] = useState<UserPublicProfileDto | null | undefined>(undefined)
@@ -81,9 +86,10 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
   const [followSearch, setFollowSearch] = useState("")
   const [followLoading, setFollowLoading] = useState(false)
   const [followError, setFollowError] = useState<string | null>(null)
+  const [vipDialogOpen, setVipDialogOpen] = useState(false)
   const [tasteCompatibility, setTasteCompatibility] = useState<number | null>(null)
-  const { followingByUserId, loadingByUserId, ensureFollowStatus, toggleFollow } = useFollow()
-  const isVip = !!user?.roles?.some((role) => role.toLowerCase() === "vip")
+  const { ensureFollowStatus } = useFollow()
+  const isVip = isVipUser(user)
 
   useEffect(() => {
     if (routeUserId) setActiveTab("Reviews")
@@ -211,16 +217,15 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
     void ensureFollowStatus(profileUserId)
   }, [profileUserId, status, isOwnProfile, ensureFollowStatus])
 
-  const handleProfileFollow = useCallback(async () => {
+  const refreshProfileFollowStats = useCallback(async () => {
     if (!profileUserId) return
-    await toggleFollow(profileUserId)
     try {
       const stats = await getFollowStats(profileUserId)
       setFollowStats(stats)
     } catch {
       /* ignore */
     }
-  }, [profileUserId, toggleFollow])
+  }, [profileUserId])
 
   useEffect(() => {
     const loadFollowList = async () => {
@@ -251,7 +256,7 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
       }
       try {
         const data = await getFollowInsights(profileUserId)
-        setTasteCompatibility(Math.round((data.tasteSimilarityScore ?? 0) * 100))
+        setTasteCompatibility(followInsightsTastePercent(data.tasteSimilarityScore))
       } catch {
         setTasteCompatibility(null)
       }
@@ -276,6 +281,16 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
       return tokens.every((token) => combined.includes(token))
     })
   }, [followItems, followSearch])
+
+  const tabCounts: Record<(typeof allTabs)[number], number> = useMemo(
+    () => ({
+      Watchlist: watchlistMovies.length,
+      Watched: watchedMovies.length,
+      Reviews: userReviews.length,
+      Following: followStats.followingsCount,
+    }),
+    [watchlistMovies.length, watchedMovies.length, userReviews.length, followStats.followingsCount]
+  )
 
   const moveToWatched = async (movieId: number) => {
     // This action will be fully implemented in Movie detail/module flow.
@@ -325,7 +340,7 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 lg:px-8">
       {/* Profile Header */}
-      <div className="flex flex-col items-center gap-6 rounded-2xl border border-border/50 bg-card p-8 text-center md:flex-row md:text-left">
+      <div className="flex flex-col items-center gap-6 rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm md:flex-row md:text-left">
         <div className="relative">
           <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-primary">
             {initialsSource.slice(0, 2).toUpperCase()}
@@ -338,12 +353,12 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
         </div>
         <div className="flex-1">
           <div className="flex items-center justify-center gap-3 md:justify-start">
-            <h1 className="font-serif text-2xl font-bold text-foreground">{displayName}</h1>
+            <h1 className="font-serif text-2xl font-bold text-gray-900">{displayName}</h1>
             {isOwnProfile && isVip && (
               <span className="rounded-full bg-primary/10 px-3 py-0.5 text-xs font-bold text-primary">VIP</span>
             )}
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-2 text-sm leading-relaxed text-gray-600">
             {isOwnProfile ? userProfile.bio : `@${profileInfo.userName}`}
           </p>
           <div className="mt-4 flex justify-center gap-6 md:justify-start">
@@ -352,28 +367,28 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
                 <Film className="h-4 w-4 text-primary" />
                 <span className="text-lg font-bold text-foreground">{watchedDisplay}</span>
               </div>
-              <p className="text-xs text-muted-foreground">Watched</p>
+              <p className="text-xs text-gray-500">Watched</p>
             </div>
             <div className="text-center">
               <div className="flex items-center gap-1.5">
                 <Star className="h-4 w-4 fill-primary text-primary" />
                 <span className="text-lg font-bold text-foreground">{avgDisplay}</span>
               </div>
-              <p className="text-xs text-muted-foreground">Avg Rating</p>
+              <p className="text-xs text-gray-500">Avg Rating</p>
             </div>
             <div className="text-center">
               <div className="flex items-center gap-1.5">
                 <Users className="h-4 w-4 text-primary" />
                 <span className="text-lg font-bold text-foreground">{followStats.followersCount}</span>
               </div>
-              <p className="text-xs text-muted-foreground">Followers</p>
+              <p className="text-xs text-gray-500">Followers</p>
             </div>
             <div className="text-center">
               <div className="flex items-center gap-1.5">
                 <Heart className="h-4 w-4 text-primary" />
                 <span className="text-lg font-bold text-foreground">{followStats.followingsCount}</span>
               </div>
-              <p className="text-xs text-muted-foreground">Following</p>
+              <p className="text-xs text-gray-500">Following</p>
             </div>
           </div>
           {isOwnProfile && (
@@ -400,28 +415,63 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
             Sign in to follow
           </Link>
         ) : (
-          <button
-            type="button"
-            onClick={() => void handleProfileFollow()}
-            disabled={!!profileUserId && !!loadingByUserId[profileUserId]}
-            className="shrink-0 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-70"
-          >
-            {profileUserId && loadingByUserId[profileUserId]
-              ? "Updating…"
-              : profileUserId && followingByUserId[profileUserId]
-                ? "Following"
-                : "Follow"}
-          </button>
+          profileUserId && (
+            <FollowButton
+              userId={profileUserId}
+              displayLabel={
+                profileInfo?.userName
+                  ? `@${profileInfo.userName}`
+                  : profileInfo?.fullName?.trim() || undefined
+              }
+              onRelationshipChange={refreshProfileFollowStats}
+            />
+          )
         )}
       </div>
 
+      {isOwnProfile && (
+        <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-primary">CineVerse VIP</p>
+              <h2 className="mt-1 font-serif text-lg font-semibold text-gray-900">
+                {isVip ? "You're a VIP member" : "Upgrade to VIP"}
+              </h2>
+              <ul className="mt-2 space-y-1 text-sm text-gray-600">
+                <li>Discounted tickets and early booking access</li>
+                <li>Special offers and priority experience</li>
+              </ul>
+            </div>
+            <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+              {isVip ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-4 py-1.5 text-sm font-semibold text-primary">
+                  <Crown className="h-4 w-4" />
+                  VIP Member
+                </span>
+              ) : (
+                <Button type="button" onClick={() => setVipDialogOpen(true)}>
+                  Become VIP
+                </Button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <VipUpgradeDialog
+        open={vipDialogOpen}
+        onOpenChange={setVipDialogOpen}
+        user={user}
+        onRefreshUser={refreshUser}
+      />
+
       {/* VIP Taste Compatibility */}
       {isOwnProfile && isVip && (
-        <div className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-6">
+        <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-primary">Taste Compatibility</p>
-              <p className="mt-1 text-sm text-muted-foreground">How closely your movie taste aligns</p>
+              <p className="mt-1 text-sm text-gray-600">How closely your movie taste aligns</p>
             </div>
             <div className="relative flex h-20 w-20 items-center justify-center">
               <svg className="h-20 w-20 -rotate-90" viewBox="0 0 100 100">
@@ -443,7 +493,7 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
       )}
 
       {/* Tabs */}
-      <div className="mt-8 flex gap-1 rounded-xl border border-border/50 bg-card p-1">
+      <div className="mt-8 flex gap-1 rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
         {tabs.map((tab) => (
           <button
             key={tab}
@@ -455,7 +505,10 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            {tab}
+            <span className="inline-flex items-center gap-1.5">
+              <span>{tab}</span>
+              <span className="text-[11px] opacity-80">({tabCounts[tab] ?? 0})</span>
+            </span>
           </button>
         ))}
       </div>
@@ -523,24 +576,24 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
         {activeTab === "Reviews" && (
           <div className="flex flex-col gap-4">
             {reviewsLoading && (
-              <div className="rounded-2xl border border-border/50 bg-card p-5">
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <p className="text-sm text-muted-foreground">Loading reviews...</p>
               </div>
             )}
             {reviewsError && (
-              <div className="rounded-2xl border border-border/50 bg-card p-5">
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <p className="text-sm text-muted-foreground">{reviewsError}</p>
               </div>
             )}
             {!reviewsLoading && !reviewsError && userReviews.length === 0 && (
-              <div className="rounded-2xl border border-border/50 bg-card p-5">
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <p className="text-sm text-muted-foreground">No reviews yet.</p>
               </div>
             )}
             {!reviewsLoading && !reviewsError && userReviews.map((review) => (
               <div
                 key={review.id}
-                className="flex gap-4 rounded-2xl border border-border/50 bg-card p-4 sm:p-5"
+                className="flex gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5"
               >
                 <Link
                   href={review.movieId ? `/movies/${review.movieId}` : "#"}
@@ -579,7 +632,7 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
 
         {activeTab === "Following" && (
           <div>
-            <div className="mb-4 inline-flex rounded-lg border border-border/40 bg-card p-1">
+            <div className="mb-4 inline-flex rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
               <button
                 onClick={() => setFollowListMode("following")}
                 className={cn(
@@ -605,7 +658,7 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
                 value={followSearch}
                 onChange={(e) => setFollowSearch(e.target.value)}
                 placeholder="Search users by first name, last name, full name, or username"
-                className="w-full rounded-lg border border-border/50 bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+                className="w-full rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500"
               />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
@@ -615,12 +668,11 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
                 <p className="text-sm text-muted-foreground md:col-span-2">No users yet.</p>
               )}
               {!followLoading && !followError && filteredFollowItems.map((item) => {
-                const isFollowing = followingByUserId[item.userId] ?? false
                 const isMe = item.userId === user?.userId
                 return (
                   <div
                     key={item.userId}
-                    className="rounded-lg border border-border/20 bg-card p-4 hover:bg-surface transition-colors"
+                    className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -628,33 +680,23 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
                           {(item.fullName || item.userName).slice(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <h4 className="font-semibold text-foreground text-sm">{item.fullName || item.userName}</h4>
-                          <p className="text-xs text-muted-foreground">@{item.userName}</p>
+                          <h4 className="text-sm font-semibold text-gray-900">{item.fullName || item.userName}</h4>
+                          <p className="text-xs text-gray-500">@{item.userName}</p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => void toggleFollow(item.userId)}
-                        disabled={isMe || status !== "authenticated" || loadingByUserId[item.userId]}
-                        className={cn(
-                          "rounded-lg px-2 py-1 text-xs font-medium transition-colors border",
-                          isFollowing
-                            ? "bg-primary/20 text-primary border-primary/30 hover:bg-primary/30"
-                            : "bg-primary text-primary-foreground border-primary hover:bg-primary/90",
-                          "disabled:opacity-60"
-                        )}
-                      >
-                        {isMe ? (
-                          "You"
-                        ) : status !== "authenticated" ? (
-                          "Sign in"
-                        ) : loadingByUserId[item.userId] ? (
-                          "Updating..."
-                        ) : isFollowing ? (
-                          <span className="inline-flex items-center gap-1"><UserCheck className="h-3 w-3" />Following</span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1"><UserPlus className="h-3 w-3" />Follow</span>
-                        )}
-                      </button>
+                      {isMe ? (
+                        <span className="rounded-lg border border-border/50 bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                          You
+                        </span>
+                      ) : (
+                        <FollowButton
+                          userId={item.userId}
+                          displayLabel={item.userName ? `@${item.userName}` : item.fullName ?? undefined}
+                          variant="compact"
+                          onRelationshipChange={refreshProfileFollowStats}
+                          className="shrink-0 border-border"
+                        />
+                      )}
                     </div>
                   </div>
                 )

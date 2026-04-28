@@ -3,11 +3,8 @@ using Application.Common.Interfaces;
 using Application.Common.Responses;
 using Application.Movies.Dtos;
 using AutoMapper;
-using Domain.Enums;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Application.Movies.Queries;
 
@@ -52,19 +49,22 @@ public class GetAllMoviesQueryHandler
             request.Request.Desc);
 
         var cacheKey = CacheKeys.MoviesPaged(
-            request.Request.PageNumber,
-            request.Request.PageSize,
-            request.Request.Search,
-            request.Request.GenreId,
-            request.Request.Language,
-            request.Request.Status,
-            request.Request.Year,
-            request.Request.MinTmdbRating,
-            request.Request.MaxTmdbRating,
-            request.Request.MinUserRating,
-            request.Request.MaxUserRating,
-            request.Request.SortBy,
-            request.Request.Desc);
+          request.Request.PageNumber,
+          request.Request.PageSize,
+          request.Request.Search,
+          request.Request.ActorName,
+          request.Request.DirectorName,
+          request.Request.GenreId,
+          request.Request.Language,
+          request.Request.Status,
+          request.Request.Year,
+          request.Request.MinTmdbRating,
+          request.Request.MaxTmdbRating,
+          request.Request.MinUserRating,
+          request.Request.MaxUserRating,
+          request.Request.SortBy,
+          request.Request.Desc
+      );
 
         var cachedResponse =
             await _cacheService.GetAsync<PaginatedResponse<GetAllMoviesResponse>>(cacheKey);
@@ -81,6 +81,8 @@ public class GetAllMoviesQueryHandler
             request.Request.PageNumber,
             request.Request.PageSize,
             request.Request.Search,
+            request.Request.ActorName,
+            request.Request.DirectorName,
             request.Request.GenreId,
             request.Request.Language,
             request.Request.Status,

@@ -140,7 +140,7 @@ public sealed class TmdbMovieProvider : IMovieProvider
       new AuthenticationHeaderValue("Bearer", _options.ReadAccessToken);
 
         var response = await _httpClient.GetAsync(
-            $"movie/{id}?language={_options.Language}",
+            $"movie/{id}?language={_options.Language}&append_to_response=credits",
             cancellationToken);
 
         if (!response.IsSuccessStatusCode)

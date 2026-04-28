@@ -208,6 +208,20 @@ public class UserController : ControllerBase
 
         return Ok(result);
     }
+    [HttpPost("vip/subscribe")]
+    [Authorize(Policy = Policies.Authenticated)]
+    public async Task<ActionResult<BaseResponse>> SubscribeVip(CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized(BaseResponse.Fail("User is not authorized."));
+
+        var result = await _mediator.Send(new SubscribeVipCommand(userId), ct);
+
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+
     [Authorize]
     [HttpGet("me")]
     public async Task<ActionResult<BaseResponse>> GetMyProfile(CancellationToken cancellationToken)

@@ -41,6 +41,56 @@ export interface GetAllFoodItemsRequest {
   pageSize?: number
 }
 
+export interface CreateFoodItemRequest {
+  name: string
+  description?: string
+  price: number
+  image?: File | null
+  isAvailable: boolean
+  foodCategoryId: number
+}
+
+export interface UpdateFoodItemRequest {
+  name?: string
+  description?: string
+  price?: number
+  isAvailable?: boolean
+  isActive?: boolean
+  foodCategoryId?: number
+}
+
+export interface FoodCategoryResponse {
+  id: number
+  name: string
+  description?: string | null
+  cinemaId: number
+  isActive: boolean
+}
+
+export interface GetAllFoodCategoriesRequest {
+  cinemaId?: number
+  isActive?: boolean
+  search?: string
+  pageNumber?: number
+  pageSize?: number
+}
+
+export interface CreateFoodCategoryRequest {
+  name: string
+  description?: string
+  isActive?: boolean
+  displayOrder: number
+  cinemaId: number
+}
+
+export interface UpdateFoodCategoryRequest {
+  name?: string
+  description?: string
+  displayOrder?: number
+  isActive?: boolean
+  cinemaId?: number
+}
+
 export interface FoodOrderItemRequest {
   foodItemId: number
   quantity: number
@@ -63,6 +113,20 @@ export interface FoodOrderResponse {
   status: FoodOrderStatus
   createdAt: string
   items: FoodOrderItemResponse[]
+}
+
+export interface GetAllFoodOrdersRequest {
+  userId?: string
+  seatHoldId?: number
+  screeningId?: number
+  seatId?: number
+  cinemaId?: number
+  status?: FoodOrderStatus
+  deliveryType?: DeliveryType
+  createdFrom?: string
+  createdTo?: string
+  pageNumber?: number
+  pageSize?: number
 }
 
 /** Exact JSON shape for POST /api/foodorder/draft (matches CreateFoodOrderDraftRequest, no note). */
@@ -90,12 +154,26 @@ function buildQuery(query: Record<string, string | number | boolean | undefined>
 
 /** Backend GetAllFoodItems validator: pageSize must be 1–50. */
 const FOOD_ITEMS_PAGE_SIZE_MAX = 50
-const FOOD_ITEMS_PAGE_SIZE_DEFAULT = 50
+const FOOD_ITEMS_PAGE_SIZE_DEFAULT = 10
 
 function clampFoodItemsPagination(pageNumber: number | undefined, pageSize: number | undefined) {
   const pn = Math.max(1, Math.trunc(Number(pageNumber ?? 1)) || 1)
   const raw = pageSize ?? FOOD_ITEMS_PAGE_SIZE_DEFAULT
   const ps = Math.min(FOOD_ITEMS_PAGE_SIZE_MAX, Math.max(1, Math.trunc(Number(raw)) || FOOD_ITEMS_PAGE_SIZE_DEFAULT))
+  return { pageNumber: pn, pageSize: ps }
+}
+
+function clampFoodCategoriesPagination(pageNumber: number | undefined, pageSize: number | undefined) {
+  const pn = Math.max(1, Math.trunc(Number(pageNumber ?? 1)) || 1)
+  const raw = pageSize ?? 10
+  const ps = Math.min(50, Math.max(1, Math.trunc(Number(raw)) || 10))
+  return { pageNumber: pn, pageSize: ps }
+}
+
+function clampFoodOrdersPagination(pageNumber: number | undefined, pageSize: number | undefined) {
+  const pn = Math.max(1, Math.trunc(Number(pageNumber ?? 1)) || 1)
+  const raw = pageSize ?? 10
+  const ps = Math.min(50, Math.max(1, Math.trunc(Number(raw)) || 10))
   return { pageNumber: pn, pageSize: ps }
 }
 
@@ -184,6 +262,79 @@ export async function getAllFoodItems(query: GetAllFoodItemsRequest = {}) {
   })
 }
 
+export async function createFoodItem(body: CreateFoodItemRequest) {
+  const form = new FormData()
+  form.set("name", body.name)
+  if (body.description != null && body.description.trim() !== "") {
+    form.set("description", body.description.trim())
+  }
+  form.set("price", String(body.price))
+  form.set("isAvailable", body.isAvailable ? "true" : "false")
+  form.set("foodCategoryId", String(body.foodCategoryId))
+  if (body.image) {
+    form.set("image", body.image)
+  }
+  return apiRequest<unknown>("/api/fooditem", {
+    method: "POST",
+    auth: true,
+    body: form,
+    headers: {},
+  })
+}
+
+export async function updateFoodItem(id: number, body: UpdateFoodItemRequest) {
+  return apiRequest<unknown>(`/api/fooditem/${id}`, {
+    method: "PUT",
+    auth: true,
+    body,
+  })
+}
+
+export async function deleteFoodItem(id: number) {
+  return apiRequest<unknown>(`/api/fooditem/${id}`, {
+    method: "DELETE",
+    auth: true,
+  })
+}
+
+export async function getAllFoodCategories(query: GetAllFoodCategoriesRequest = {}) {
+  const { pageNumber, pageSize } = clampFoodCategoriesPagination(query.pageNumber, query.pageSize)
+  const qs = buildQuery({
+    cinemaId: query.cinemaId,
+    isActive: query.isActive,
+    search: query.search,
+    pageNumber,
+    pageSize,
+  })
+  return apiRequest<FoodCategoryResponse[]>(`/api/foodcategory${qs}`, {
+    method: "GET",
+    auth: true,
+  })
+}
+
+export async function createFoodCategory(body: CreateFoodCategoryRequest) {
+  return apiRequest<unknown>("/api/foodcategory", {
+    method: "POST",
+    auth: true,
+    body,
+  })
+}
+
+export async function updateFoodCategory(id: number, body: UpdateFoodCategoryRequest) {
+  return apiRequest<unknown>(`/api/foodcategory/${id}`, {
+    method: "PUT",
+    auth: true,
+    body,
+  })
+}
+
+export async function deleteFoodCategory(id: number) {
+  return apiRequest<unknown>(`/api/foodcategory/${id}`, {
+    method: "DELETE",
+    auth: true,
+  })
+}
+
 export async function getMyFoodOrders(seatHoldId?: number) {
   const qs = buildQuery({
     ...(typeof seatHoldId === "number" && Number.isFinite(seatHoldId) && seatHoldId > 0
@@ -193,6 +344,27 @@ export async function getMyFoodOrders(seatHoldId?: number) {
     pageSize: 20,
   })
   return apiRequest<FoodOrderResponse[]>(`/api/foodorder/my-orders${qs}`, {
+    method: "GET",
+    auth: true,
+  })
+}
+
+export async function getAllFoodOrders(query: GetAllFoodOrdersRequest = {}) {
+  const { pageNumber, pageSize } = clampFoodOrdersPagination(query.pageNumber, query.pageSize)
+  const qs = buildQuery({
+    userId: query.userId,
+    seatHoldId: query.seatHoldId,
+    screeningId: query.screeningId,
+    seatId: query.seatId,
+    cinemaId: query.cinemaId,
+    status: query.status,
+    deliveryType: query.deliveryType,
+    createdFrom: query.createdFrom,
+    createdTo: query.createdTo,
+    pageNumber,
+    pageSize,
+  })
+  return apiRequest<FoodOrderResponse[]>(`/api/foodorder${qs}`, {
     method: "GET",
     auth: true,
   })

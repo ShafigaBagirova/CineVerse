@@ -20,7 +20,8 @@ interface FollowContextValue {
   suggestedAuthRequired: boolean
   suggestedVipRequired: boolean
   ensureFollowStatus: (userId: string) => Promise<void>
-  toggleFollow: (userId: string) => Promise<void>
+  followUser: (userId: string) => Promise<void>
+  unfollowUser: (userId: string) => Promise<void>
   refreshSuggestedUsers: () => Promise<void>
 }
 
@@ -53,20 +54,33 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
     [followingByUserId, status, user?.userId]
   )
 
-  const toggleFollow = useCallback(
+  const followUser = useCallback(
     async (userId: string) => {
       if (!userId || status !== "authenticated" || user?.userId === userId) return
+      if (followingByUserId[userId]) return
 
-      const currentState = followingByUserId[userId] ?? false
       setLoadingByUserId((prev) => ({ ...prev, [userId]: true }))
       try {
-        if (currentState) {
-          await unfollowUserRequest(userId)
-          setFollowingByUserId((prev) => ({ ...prev, [userId]: false }))
-        } else {
-          await followUserRequest(userId)
-          setFollowingByUserId((prev) => ({ ...prev, [userId]: true }))
-        }
+        await followUserRequest(userId)
+        setFollowingByUserId((prev) => ({ ...prev, [userId]: true }))
+      } catch {
+        // Preserve previous state when backend update fails.
+      } finally {
+        setLoadingByUserId((prev) => ({ ...prev, [userId]: false }))
+      }
+    },
+    [followingByUserId, status, user?.userId]
+  )
+
+  const unfollowUser = useCallback(
+    async (userId: string) => {
+      if (!userId || status !== "authenticated" || user?.userId === userId) return
+      if (!followingByUserId[userId]) return
+
+      setLoadingByUserId((prev) => ({ ...prev, [userId]: true }))
+      try {
+        await unfollowUserRequest(userId)
+        setFollowingByUserId((prev) => ({ ...prev, [userId]: false }))
       } catch {
         // Preserve previous state when backend update fails.
       } finally {
@@ -132,11 +146,13 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
       suggestedAuthRequired,
       suggestedVipRequired,
       ensureFollowStatus,
-      toggleFollow,
+      followUser,
+      unfollowUser,
       refreshSuggestedUsers,
     }),
     [
       ensureFollowStatus,
+      followUser,
       followingByUserId,
       loadingByUserId,
       refreshSuggestedUsers,
@@ -145,7 +161,7 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
       suggestedError,
       suggestedLoading,
       suggestedUsers,
-      toggleFollow,
+      unfollowUser,
     ]
   )
 

@@ -54,6 +54,52 @@ public sealed class StripeService : IStripeService
             throw new Exception($"Stripe error: {ex.Message}", ex);
         }
     }
+
+    public async Task<StripePaymentIntentResult> CreateVipPaymentIntentAsync(
+        decimal amount,
+        string currency,
+        string userId,
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var service = new PaymentIntentService();
+            var amountInSmallestUnit = (long)(amount * 100);
+            var options = new PaymentIntentCreateOptions
+            {
+                Amount = amountInSmallestUnit,
+                Currency = currency,
+                PaymentMethodTypes = new List<string> { "card" },
+                Metadata = new Dictionary<string, string>
+                {
+                    ["cineverse_kind"] = "vip",
+                    ["user_id"] = userId
+                }
+            };
+
+            var requestOptions = new RequestOptions
+            {
+                IdempotencyKey = idempotencyKey
+            };
+
+            var intent = await service.CreateAsync(
+                options,
+                requestOptions,
+                cancellationToken);
+
+            return new StripePaymentIntentResult
+            {
+                PaymentIntentId = intent.Id,
+                ClientSecret = intent.ClientSecret
+            };
+        }
+        catch (StripeException ex)
+        {
+            throw new Exception($"Stripe error: {ex.Message}", ex);
+        }
+    }
+
     public async Task CreateRefundAsync(
         string providerPaymentIntentId,
         string idempotencyKey,

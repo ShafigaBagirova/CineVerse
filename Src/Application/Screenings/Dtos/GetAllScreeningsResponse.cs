@@ -1,6 +1,4 @@
-﻿using Domain.Enums;
-
-namespace Application.Screenings.Dtos;
+﻿namespace Application.Screenings.Dtos;
 
 public class GetAllScreeningsResponse
 {
@@ -20,7 +18,8 @@ public class GetAllScreeningsResponse
     public string Language { get; set; } = default!;
     public string? SubtitleLanguage { get; set; }
 
-    public ScreeningFormat Format { get; set; }
-    public ScreeningStatus Status { get; set; }
+    public string Format { get; set; } = default!;
+
+    public string Status { get; set; } = default!;
     public bool IsActive { get; set; }
 }

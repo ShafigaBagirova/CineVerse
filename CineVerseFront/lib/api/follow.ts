@@ -39,7 +39,24 @@ export interface FollowInsightsDto {
   mutualFollowersCount: number
   mutualFollowingsCount: number
   suggestedUsersCount: number
+  /** Backend: 0–100 (see GetFollowInsightsQueryHandler: mutual followings heuristic). */
   tasteSimilarityScore: number
+}
+
+/** Insights card: score is already a percentage 0–100; do not multiply by 100 again. */
+export function followInsightsTastePercent(score: number | null | undefined): number {
+  return Math.min(100, Math.max(0, Math.round(score ?? 0)))
+}
+
+/**
+ * Suggested-user rows: `tasteScore` is summed per-movie points (up to 3 per movie when ratings match).
+ * Map to 0–100% for display vs the theoretical max for that overlap size.
+ */
+export function suggestedUserTasteSimilarityPercent(item: Pick<SuggestedUserItemDto, "tasteScore" | "commonMoviesCount">): number {
+  const n = item.commonMoviesCount
+  if (n <= 0) return 0
+  const maxPoints = n * 3
+  return Math.min(100, Math.round((item.tasteScore / maxPoints) * 100))
 }
 
 export async function followUser(userId: string) {

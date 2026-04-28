@@ -22,6 +22,7 @@ public sealed class PaymentMappingProfile : Profile
             .ForMember(dest => dest.ScreeningId, opt => opt.MapFrom(src => src.SeatHold.ScreeningId))
             .ForMember(dest => dest.SeatId, opt => opt.MapFrom(src => src.SeatHold.SeatId));
         CreateMap<Payment, GetAllPaymentsResponse>()
+            .ForMember(dest => dest.Amount, opt => opt.MapFrom(src => src.TotalAmount))
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
             .ForMember(dest => dest.Provider, opt => opt.MapFrom(src => src.Provider.ToString()))
             .ForMember(dest => dest.Currency, opt => opt.MapFrom(src => src.Currency.ToString()));

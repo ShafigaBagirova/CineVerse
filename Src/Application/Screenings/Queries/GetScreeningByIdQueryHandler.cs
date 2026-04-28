@@ -32,6 +32,7 @@ public sealed class GetScreeningByIdQueryHandler
         CancellationToken cancellationToken)
     {
         var cacheKey = $"screening_{request.Id}";
+        _logger.LogInformation("Screening-by-id cache key used: {CacheKey}", cacheKey);
 
         _logger.LogInformation(
             "GetScreeningByIdQuery started. ScreeningId: {ScreeningId}",
@@ -62,6 +63,7 @@ public sealed class GetScreeningByIdQueryHandler
         var response = _mapper.Map<GetScreeningByIdResponse>(screening);
 
         await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromMinutes(10));
+        _logger.LogInformation("Screening-by-id cache set: {CacheKey}", cacheKey);
 
         _logger.LogInformation(
             "GetScreeningByIdQuery completed successfully. ScreeningId: {ScreeningId}",

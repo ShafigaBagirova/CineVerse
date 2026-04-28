@@ -21,6 +21,7 @@ public sealed class SyncMoviesFromTmdbCommandHandler
     private readonly IGenreRepository _genreRepository;
     private readonly IMovieGenreRepository _movieGenreRepository;
     private readonly IPublisher _publisher;
+    private readonly ICacheService _cacheService;
 
 
     public SyncMoviesFromTmdbCommandHandler(
@@ -31,7 +32,8 @@ public sealed class SyncMoviesFromTmdbCommandHandler
         ILogger<SyncMoviesFromTmdbCommandHandler> logger,
         IGenreRepository genreRepository,
         IMovieGenreRepository movieGenreRepository,
-        IPublisher publisher)
+        IPublisher publisher,
+        ICacheService cacheService)
     {
         _movieProvider = movieProvider;
         _movieRepository = movieRepository;
@@ -41,6 +43,7 @@ public sealed class SyncMoviesFromTmdbCommandHandler
         _genreRepository = genreRepository;
         _movieGenreRepository = movieGenreRepository;
         _publisher = publisher;
+        _cacheService = cacheService;
     }
 
     public async Task<BaseResponse> Handle(
@@ -56,8 +59,21 @@ public sealed class SyncMoviesFromTmdbCommandHandler
         foreach (var externalMovie in externalMovies)
         {
             var details = await _movieProvider.GetMovieDetailsAsync( externalMovie.ExternalId,cancellationToken);
+            _logger.LogInformation(
+                "TMDB details fetched for {TmdbId}. HasDetails={HasDetails}, Director={Director}, CastCount={CastCount}",
+                externalMovie.ExternalId,
+                details is not null,
+                details?.Director,
+                details?.Cast?.Count ?? 0);
 
-            externalMovie.DurationMinutes = details?.Runtime;
+            externalMovie.DurationMinutes =details?.Runtime is > 0
+             ? details.Runtime: null;
+            externalMovie.Director = string.IsNullOrWhiteSpace(details?.Director)
+                ? externalMovie.Director
+                : details!.Director!.Trim();
+            externalMovie.Actors = details?.Cast is { Count: > 0 }
+                ? string.Join(", ", details.Cast)
+                : externalMovie.Actors;
             var existingMovie = await _movieRepository
                 .GetByTmdbIdAsync(externalMovie.ExternalId, cancellationToken);
 
@@ -89,6 +105,17 @@ public sealed class SyncMoviesFromTmdbCommandHandler
 
                 _mapper.Map(externalMovie, existingMovie);
 
+                if (!string.IsNullOrWhiteSpace(externalMovie.Actors))
+                    existingMovie.Actors = externalMovie.Actors;
+
+                if (!string.IsNullOrWhiteSpace(externalMovie.Director))
+                    existingMovie.Director = externalMovie.Director;
+
+                _logger.LogInformation(
+                    "Mapped existing movie {MovieId} with director '{Director}'",
+                    existingMovie.Id,
+                    existingMovie.Director);
+
                 existingMovie.Slug = await GenerateUniqueSlugForUpdateAsync(
                     existingMovie.Id,
                     string.IsNullOrWhiteSpace(externalMovie.Slug)
@@ -118,6 +145,9 @@ public sealed class SyncMoviesFromTmdbCommandHandler
         _logger.LogInformation(
             "TMDB movie sync completed successfully. CreatedCount: {CreatedCount}",
             createdCount);
+        await _cacheService.RemoveByPrefixAsync(CacheKeys.MoviesPagedPrefix);
+        await _cacheService.RemoveByPrefixAsync(CacheKeys.MovieByIdPrefix);
+        await _cacheService.RemoveByPrefixAsync(CacheKeys.MovieBySlugPrefix);
 
         return new BaseResponse
         {
@@ -143,12 +173,13 @@ public sealed class SyncMoviesFromTmdbCommandHandler
 
         var newGenreIds = new HashSet<int>();
 
+        var genresByTmdbId = await _genreRepository.GetByTmdbGenreIdsAsync(
+            externalMovie.GenreIds,
+            cancellationToken);
+
         foreach (var tmdbGenreId in externalMovie.GenreIds)
         {
-            var genre = await _genreRepository
-                .GetByTmdbGenreIdAsync(tmdbGenreId, cancellationToken);
-
-            if (genre is null)
+            if (!genresByTmdbId.TryGetValue(tmdbGenreId, out var genre))
             {
                 _logger.LogWarning(
                     "Genre with TMDB GenreId {TmdbGenreId} not found while syncing movie {MovieId}",

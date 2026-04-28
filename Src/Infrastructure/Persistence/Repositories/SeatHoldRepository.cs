@@ -17,6 +17,7 @@ public class SeatHoldRepository:GenericRepository<SeatHold,int>, ISeatHoldReposi
     public async Task<SeatHold?> GetActiveHoldAsync(int screeningId, int seatId, CancellationToken cancellationToken)
     {
         return await _context.SeatHolds
+            .Include(x => x.Payments)
             .Where(x =>
                 x.ScreeningId == screeningId &&
                 x.SeatId == seatId &&
@@ -105,7 +106,8 @@ public class SeatHoldRepository:GenericRepository<SeatHold,int>, ISeatHoldReposi
             .Where(x =>
                 x.ScreeningId == screeningId &&
                 x.Status == SeatHoldStatus.Active &&
-                x.ExpiresAtUtc > DateTime.UtcNow)
+                x.ExpiresAtUtc > DateTime.UtcNow &&
+                x.Payments.Any(p => p.Status == PaymentStatus.Pending))
             .Select(x => x.SeatId)
             .Distinct()
             .ToListAsync(cancellationToken);

@@ -72,13 +72,6 @@ public sealed class LoginHandler
             "Login successful for UserId: {UserId}",
             userId);
 
-        var jwtUser = new JwtUserInfoDto(
-            userInfo.UserId,
-            userInfo.UserName,
-            userInfo.Email,
-            userInfo.Roles
-        );
-
-        return await _mediator.Send(new IssueTokenPairCommand(jwtUser), ct);
+        return await _mediator.Send(new IssueTokenPairCommand(userInfo), ct);
     }
 }

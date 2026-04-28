@@ -4,14 +4,28 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Star } from "lucide-react"
+import { useAuth } from "@/components/providers/auth-provider"
 import { getAllMovies, getSuggestedMovies, type GetAllMoviesResponse, type GetSuggestedMoviesResponse } from "@/lib/api/movies"
+import { resolveMoviePosterUrl } from "@/lib/movie-poster"
 
 interface SuggestedMoviesProps {
   excludeIds?: number[]
   title?: string
 }
 
+function getSuggestedPosterValue(movie: GetSuggestedMoviesResponse): string | null | undefined {
+  const candidate = movie as GetSuggestedMoviesResponse & {
+    posterPath?: string | null
+    imageUrl?: string | null
+    poster?: string | null
+    backdropUrl?: string | null
+  }
+  return candidate.posterUrl ?? candidate.posterPath ?? candidate.imageUrl ?? candidate.poster ?? candidate.backdropUrl
+}
+
 export function SuggestedMovies({ excludeIds = [], title = "Recommended For You" }: SuggestedMoviesProps) {
+  const { status, user } = useAuth()
+  const isVip = Boolean(user?.roles?.includes("VIP"))
   const [suggested, setSuggested] = useState<GetSuggestedMoviesResponse[]>([])
   const [fallback, setFallback] = useState<GetAllMoviesResponse[]>([])
   const [loading, setLoading] = useState(true)
@@ -23,7 +37,9 @@ export function SuggestedMovies({ excludeIds = [], title = "Recommended For You"
         setLoading(true)
         const response = await getSuggestedMovies(1, 10)
         if (mounted) {
-          setSuggested(response.items.filter((m) => !excludeIds.includes(m.id)).slice(0, 6))
+          const list = (response.items ?? []).filter((m) => !excludeIds.includes(m.id)).slice(0, 6)
+          setSuggested(list)
+          setFallback([])
         }
       } catch {
         try {
@@ -45,13 +61,13 @@ export function SuggestedMovies({ excludeIds = [], title = "Recommended For You"
     return () => {
       mounted = false
     }
-  }, [excludeIds])
+  }, [excludeIds, isVip, status])
 
   const items = suggested.length > 0
     ? suggested.map((m) => ({
         id: m.id,
         title: m.title,
-        poster: m.posterUrl || "/images/movie-1.jpg",
+        poster: resolveMoviePosterUrl(getSuggestedPosterValue(m)),
         rating: m.imdbRating,
         year: m.releaseDate,
         genres: m.genres,
@@ -59,7 +75,7 @@ export function SuggestedMovies({ excludeIds = [], title = "Recommended For You"
     : fallback.map((m) => ({
         id: m.id,
         title: m.title,
-        poster: m.posterUrl || "/images/movie-1.jpg",
+        poster: resolveMoviePosterUrl(m.posterUrl),
         rating: Number(m.userAverageRating ?? m.tmdbRating ?? 0),
         year: m.releaseYear ?? 0,
         genres: [] as string[],
@@ -77,6 +93,10 @@ export function SuggestedMovies({ excludeIds = [], title = "Recommended For You"
       {loading ? (
         <div className="rounded-lg border border-border/20 bg-surface p-4 text-sm text-muted-foreground">
           Loading suggestions...
+        </div>
+      ) : items.length === 0 ? (
+        <div className="rounded-lg border border-border/20 bg-surface p-4 text-sm text-muted-foreground">
+          No recommendations yet. Watch and rate more movies to improve suggestions.
         </div>
       ) : (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

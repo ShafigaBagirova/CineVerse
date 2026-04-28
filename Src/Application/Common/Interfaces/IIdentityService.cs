@@ -45,5 +45,6 @@ public interface IIdentityService
     Task<PaginatedResponse<UserProfileDto>> GetUsersAsync(GetUsersRequest request,CancellationToken cancellationToken);
     Task<int> CountUsersAsync(CancellationToken cancellationToken);
     Task<int> CountVipUsersAsync(CancellationToken cancellationToken);
+    Task<BaseResponse> SubscribeVipAsync(string userId, CancellationToken cancellationToken = default);
 
 }

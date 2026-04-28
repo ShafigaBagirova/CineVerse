@@ -32,6 +32,9 @@ public class MovieConfiguration : IEntityTypeConfiguration<Movie>
         builder.Property(x => x.Director)
             .HasMaxLength(150);
 
+        builder.Property(x => x.Actors)
+            .HasMaxLength(2000);
+
         builder.ToTable("Movies", t =>
         {
             t.HasCheckConstraint("CK_Movies_DurationMinutes", "[DurationMinutes] > 0");

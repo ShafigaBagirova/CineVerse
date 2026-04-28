@@ -12,6 +12,7 @@ public sealed class GetMovieByIdQueryHandler
     private readonly IMovieRepository _movieRepository;
     private readonly IMovieRatingRepository _movieRatingRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IMovieProvider _movieProvider;
     private readonly IMapper _mapper;
     private readonly ILogger<GetMovieByIdQueryHandler> _logger;
     private readonly ICacheService _cacheService;
@@ -20,6 +21,7 @@ public sealed class GetMovieByIdQueryHandler
         IMovieRepository movieRepository,
         IMovieRatingRepository movieRatingRepository,
         ICurrentUserService currentUserService,
+        IMovieProvider movieProvider,
         IMapper mapper,
         ILogger<GetMovieByIdQueryHandler> logger,
         ICacheService cacheService)
@@ -27,6 +29,7 @@ public sealed class GetMovieByIdQueryHandler
         _movieRepository = movieRepository;
         _movieRatingRepository = movieRatingRepository;
         _currentUserService = currentUserService;
+        _movieProvider = movieProvider;
         _mapper = mapper;
         _logger = logger;
         _cacheService = cacheService;
@@ -55,6 +58,15 @@ public sealed class GetMovieByIdQueryHandler
             }
 
             response = _mapper.Map<GetMovieByIdResponse>(movie);
+            response.Director = movie.Director;
+            if (!string.IsNullOrWhiteSpace(movie.Actors))
+            {
+                response.Cast = movie.Actors
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
 
             response.UserAverageRating = await _movieRatingRepository
                 .GetAverageRatingAsync(request.Id, cancellationToken);
@@ -63,6 +75,36 @@ public sealed class GetMovieByIdQueryHandler
                 .GetRatingsCountAsync(request.Id, cancellationToken);
 
             response.MyRating = null;
+
+            if (movie.TmdbId is > 0)
+            {
+                var details = await _movieProvider.GetMovieDetailsAsync(movie.TmdbId.Value, cancellationToken);
+                _logger.LogInformation(
+                    "Movie detail TMDB enrichment for MovieId {MovieId}, TmdbId {TmdbId}. HasDetails={HasDetails}, Director={Director}, CastCount={CastCount}",
+                    movie.Id,
+                    movie.TmdbId.Value,
+                    details is not null,
+                    details?.Director,
+                    details?.Cast?.Count ?? 0);
+                if (details is not null)
+                {
+                    if (string.IsNullOrWhiteSpace(response.Director) && !string.IsNullOrWhiteSpace(details.Director))
+                    {
+                        response.Director = details.Director;
+                    }
+
+                    if (details.Cast.Count > 0)
+                    {
+                        response.Cast = details.Cast;
+                    }
+                }
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Skipping TMDB enrichment for MovieId {MovieId} because TmdbId is empty.",
+                    movie.Id);
+            }
 
             await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromMinutes(10), cancellationToken);
 

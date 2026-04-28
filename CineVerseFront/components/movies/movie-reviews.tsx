@@ -1,7 +1,7 @@
 "use client"
 
 import { type FormEvent, useEffect, useMemo, useState } from "react"
-import { Star, Heart, MessageCircle, Share2, UserPlus, UserCheck } from "lucide-react"
+import { Star, Heart, MessageCircle, Share2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   createReview,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/reviews"
 import { createMovieRating, getMovieRatingSummary } from "@/lib/api/ratings"
 import { useAuth } from "@/components/providers/auth-provider"
+import { FollowButton } from "@/components/follow/follow-button"
 import { useFollow } from "@/components/providers/follow-provider"
 import { isOptionalAbsenceError } from "@/lib/api/optional-absence"
 
@@ -37,7 +38,7 @@ export function MovieReviews({ movieId }: { movieId: number }) {
   const [success, setSuccess] = useState<string | null>(null)
   const [form, setForm] = useState({ content: "", isSpoiler: false, rating: "8" })
   const [hasMyReview, setHasMyReview] = useState(false)
-  const { followingByUserId, loadingByUserId, ensureFollowStatus, toggleFollow } = useFollow()
+  const { ensureFollowStatus } = useFollow()
 
   const normalizedReviews: ReviewViewModel[] = useMemo(
     () =>
@@ -276,7 +277,6 @@ export function MovieReviews({ movieId }: { movieId: number }) {
         <div className="flex flex-col gap-4">
           {normalizedReviews.map((review, i) => {
             const isLiked = likedReviews.has(i)
-            const isFollowing = followingByUserId[review.userId] ?? false
             return (
               <div
                 key={i}
@@ -299,26 +299,11 @@ export function MovieReviews({ movieId }: { movieId: number }) {
                         <span className="text-xs font-bold text-primary">{review.rating}/10</span>
                       </div>
                     )}
-                    <button
-                      onClick={() => void toggleFollow(review.userId)}
-                      disabled={status !== "authenticated" || loadingByUserId[review.userId]}
-                      className={cn(
-                        "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-                        isFollowing
-                          ? "bg-primary/20 text-primary border border-primary/30"
-                          : "bg-secondary/50 text-muted-foreground hover:bg-secondary",
-                        "disabled:opacity-60"
-                      )}
-                    >
-                      {isFollowing ? <UserCheck className="h-3 w-3" /> : <UserPlus className="h-3 w-3" />}
-                      {status !== "authenticated"
-                        ? "Sign in"
-                        : loadingByUserId[review.userId]
-                          ? "Updating..."
-                          : isFollowing
-                            ? "Following"
-                            : "Follow"}
-                    </button>
+                    <FollowButton
+                      userId={review.userId}
+                      displayLabel={review.user}
+                      variant="compact"
+                    />
                   </div>
                 </div>
                 <p className="text-sm leading-relaxed text-muted-foreground">{review.text}</p>

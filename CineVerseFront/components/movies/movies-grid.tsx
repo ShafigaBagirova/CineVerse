@@ -3,8 +3,9 @@
 import { useState, useMemo, useRef, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Star, SlidersHorizontal, X, ChevronDown, Search } from "lucide-react"
+import { Star, SlidersHorizontal, X, ChevronDown, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { getAllGenres } from "@/lib/api/genres"
 import {
   getAllMovies,
@@ -21,7 +22,16 @@ const sortOptions = [
 const releaseYears = Array.from({ length: 30 }, (_, i) => new Date().getFullYear() - i)
 const languages = ["All", "English", "Spanish", "French", "German", "Japanese", "Korean", "Russian", "Mandarin", "Arabic"]
 
-export function MoviesGrid({ initialSearch = "" }: { initialSearch?: string }) {
+export function MoviesGrid({
+  initialSearch = "",
+  initialActor = "",
+  initialDirector = "",
+}: {
+  initialSearch?: string
+  initialActor?: string
+  initialDirector?: string
+}) {
+  const PAGE_SIZE = 32
   const [genreOptions, setGenreOptions] = useState<{ id: number; name: string }[]>([])
   const [selectedGenreId, setSelectedGenreId] = useState<number | null>(null)
   const [sortBy, setSortBy] = useState("rating")
@@ -33,9 +43,16 @@ export function MoviesGrid({ initialSearch = "" }: { initialSearch?: string }) {
   const [languageSearch, setLanguageSearch] = useState("")
   const languageDropdownRef = useRef<HTMLDivElement>(null)
   const [movies, setMovies] = useState<GetAllMoviesResponse[]>([])
+  const [pageNumber, setPageNumber] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [search, setSearch] = useState(initialSearch.trim())
+  const actorFromQuery = initialActor.trim()
+  const directorFromQuery = initialDirector.trim()
+  const [search, setSearch] = useState((actorFromQuery || directorFromQuery || initialSearch).trim())
+  const [activeActorFilter, setActiveActorFilter] = useState(actorFromQuery)
+  const [activeDirectorFilter, setActiveDirectorFilter] = useState(directorFromQuery)
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -67,6 +84,9 @@ export function MoviesGrid({ initialSearch = "" }: { initialSearch?: string }) {
       movies.map((movie) => ({
         id: movie.id,
         title: movie.title,
+        director: String(movie.director ?? "").trim(),
+        actors: String(movie.actors ?? "").trim(),
+        cast: movie.cast,
         poster: movie.posterUrl || "/images/movie-1.jpg",
         year: getMovieReleaseYear(movie),
         runtime: movie.durationMinutes > 0 ? `${Math.floor(movie.durationMinutes / 60)}h ${movie.durationMinutes % 60}m` : "N/A",
@@ -115,6 +135,10 @@ export function MoviesGrid({ initialSearch = "" }: { initialSearch?: string }) {
   }, [])
 
   useEffect(() => {
+    setPageNumber(1)
+  }, [sortBy, selectedLanguages, yearFrom, yearTo, selectedGenreId, search])
+
+  useEffect(() => {
     const controller = new AbortController()
     const loadMovies = async () => {
       try {
@@ -128,9 +152,11 @@ export function MoviesGrid({ initialSearch = "" }: { initialSearch?: string }) {
           yearFrom === yearTo ? Math.trunc(Number(yearFrom)) : undefined
 
         const response = await getAllMovies({
-          pageNumber: 1,
-          pageSize: 100,
-        search: search.trim() !== "" ? search.trim() : undefined,
+          pageNumber,
+          pageSize: PAGE_SIZE,
+          search: search.trim() !== "" ? search.trim() : undefined,
+          actorName: activeActorFilter || undefined,
+          directorName: activeDirectorFilter || undefined,
           genreId: selectedGenreId != null && selectedGenreId > 0 ? selectedGenreId : undefined,
           language:
             selectedLanguages.length === 1 ? mapMoviesGridLanguageToApi(primaryLanguage) : undefined,
@@ -141,11 +167,15 @@ export function MoviesGrid({ initialSearch = "" }: { initialSearch?: string }) {
 
         if (!controller.signal.aborted) {
           setMovies(response.items)
+          setTotalPages(Math.max(1, Number(response.totalPages ?? 1) || 1))
+          setTotalCount(Math.max(0, Number(response.totalCount ?? 0) || 0))
         }
       } catch (err) {
         if (!controller.signal.aborted) {
           setError(err instanceof Error ? err.message : "Failed to load movies.")
           setMovies([])
+          setTotalPages(1)
+          setTotalCount(0)
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -156,10 +186,11 @@ export function MoviesGrid({ initialSearch = "" }: { initialSearch?: string }) {
 
     void loadMovies()
     return () => controller.abort()
-  }, [sortBy, selectedLanguages, yearFrom, yearTo, selectedGenreId, search])
+  }, [sortBy, selectedLanguages, yearFrom, yearTo, selectedGenreId, search, activeActorFilter, activeDirectorFilter, pageNumber])
 
   const filtered = useMemo(() => {
     let result = [...normalizedMovies]
+
     // Genre is filtered server-side via genreId on GET /api/movie (local rows had empty genres: []).
     // Unknown/missing release year must not hide rows (using 0 made every such movie fail the default year range).
     result = result.filter((m) => {
@@ -172,11 +203,27 @@ export function MoviesGrid({ initialSearch = "" }: { initialSearch?: string }) {
     return result
   }, [normalizedMovies, yearFrom, yearTo, selectedLanguageCodes])
 
+  const paginationItems = useMemo(() => {
+    if (totalPages <= 1) return [1]
+    const pages: Array<number | string> = []
+    const start = Math.max(1, pageNumber - 1)
+    const end = Math.min(totalPages, pageNumber + 1)
+
+    pages.push(1)
+    if (start > 2) pages.push("left-ellipsis")
+    for (let p = Math.max(2, start); p <= Math.min(totalPages - 1, end); p++) {
+      pages.push(p)
+    }
+    if (end < totalPages - 1) pages.push("right-ellipsis")
+    if (totalPages > 1) pages.push(totalPages)
+    return pages
+  }, [pageNumber, totalPages])
+
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
       {/* Desktop Sidebar */}
       <aside className="hidden w-56 shrink-0 lg:block">
-        <div className="sticky top-24 rounded-2xl border border-border/50 bg-card p-5">
+        <div className="sticky top-24 max-h-[calc(100vh-180px)] overflow-y-auto rounded-2xl border border-border/50 bg-card p-5 pr-3">
           <h3 className="mb-4 text-sm font-semibold text-foreground">Filters</h3>
 
           <div className="mb-6">
@@ -484,11 +531,30 @@ export function MoviesGrid({ initialSearch = "" }: { initialSearch?: string }) {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search movies by title..."
+              onChange={(e) => {
+                const next = e.target.value
+                setSearch(next)
+                if (activeActorFilter && next.trim() !== activeActorFilter) {
+                  setActiveActorFilter("")
+                }
+                if (activeDirectorFilter && next.trim() !== activeDirectorFilter) {
+                  setActiveDirectorFilter("")
+                }
+              }}
+              placeholder="Search movies by title, director, or actor..."
               className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
           </div>
+          {activeActorFilter && (
+            <p className="mt-2 text-xs font-medium text-[#2C7A7B]">
+              Results for actor: {activeActorFilter}
+            </p>
+          )}
+          {activeDirectorFilter && (
+            <p className="mt-2 text-xs font-medium text-[#2C7A7B]">
+              Results for director: {activeDirectorFilter}
+            </p>
+          )}
         </div>
         {loading && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -540,6 +606,67 @@ export function MoviesGrid({ initialSearch = "" }: { initialSearch?: string }) {
             </Link>
           ))}
         </div>
+        )}
+        {!loading && !error && filtered.length > 0 && (
+          <div className="mt-8 space-y-2">
+            <p className="text-center text-sm text-muted-foreground">
+              Page {pageNumber} of {totalPages}
+              {totalCount > 0 ? ` • ${totalCount} movies` : ""}
+            </p>
+            <div className="flex items-center justify-center gap-5">
+              <button
+                type="button"
+                aria-label="Previous page"
+                disabled={pageNumber <= 1}
+                onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
+                className={cn(
+                  "inline-flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors duration-200",
+                  pageNumber <= 1 ? "cursor-not-allowed text-muted-foreground/40" : "hover:text-primary"
+                )}
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <div className="flex items-center justify-center gap-3 sm:gap-4">
+              {paginationItems.map((item, idx) => {
+                if (typeof item !== "number") {
+                  return (
+                    <span key={`${item}-${idx}`} className="text-sm text-muted-foreground">
+                      ...
+                    </span>
+                  )
+                }
+                const active = item === pageNumber
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    className={cn(
+                      "text-sm font-medium transition-all duration-200",
+                      active
+                        ? "text-primary underline underline-offset-4"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={() => setPageNumber(item)}
+                  >
+                    {item}
+                  </button>
+                )
+              })}
+              </div>
+              <button
+                type="button"
+                aria-label="Next page"
+                disabled={pageNumber >= totalPages}
+                onClick={() => setPageNumber((p) => Math.min(totalPages, p + 1))}
+                className={cn(
+                  "inline-flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors duration-200",
+                  pageNumber >= totalPages ? "cursor-not-allowed text-muted-foreground/40" : "hover:text-primary"
+                )}
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
         )}
         {!loading && !error && filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">

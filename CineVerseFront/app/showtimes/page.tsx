@@ -1,9 +1,12 @@
-import { getAllMovies } from "@/lib/api/movies"
-import { getAllScreenings } from "@/lib/api/screenings"
+import { getAllMoviesAllPages } from "@/lib/api/movies"
+import { getAllScreeningsAllPages } from "@/lib/api/screenings"
 import { getAllHalls } from "@/lib/api/halls"
 import { getAllCinemas } from "@/lib/api/cinemas"
 import { ShowtimesClient } from "@/components/showtimes/showtimes-client"
 import type { ShowtimesMovieData, ShowtimesRow } from "@/components/showtimes/showtimes-client"
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 export default async function ShowtimesPage() {
   const loadWithContext = async <T,>(label: string, loader: () => Promise<T>) => {
@@ -14,27 +17,27 @@ export default async function ShowtimesPage() {
     }
   }
 
-  const moviesResponse = await loadWithContext("movies", () =>
-    getAllMovies({ pageNumber: 1, pageSize: 100, sortBy: "title", desc: true })
+  const movies = await loadWithContext("movies", () =>
+    getAllMoviesAllPages({ sortBy: "title", desc: false }, { quiet: true })
   )
-  const screeningsResponse = await loadWithContext("screenings", () =>
-    getAllScreenings({
-      pageNumber: 1,
-      pageSize: 100,
-      isActive: true,
-      status: "Scheduled",
-    })
+  const screeningsRows = await loadWithContext("screenings", () =>
+    getAllScreeningsAllPages(
+      {
+        isActive: true,
+        status: "Scheduled",
+      },
+      { noCache: true, cacheBust: true }
+    )
   )
   const hallsResponse = await loadWithContext("halls", () => getAllHalls(1, 100))
   const cinemasResponse = await loadWithContext("cinemas", () => getAllCinemas(1, 100))
 
-  const movies = moviesResponse.items
   const hallsById = new Map(hallsResponse.items.map((hall) => [hall.id, hall]))
   const cinemasById = new Map(cinemasResponse.items.map((cinema) => [cinema.id, cinema]))
   const moviesById = new Map(movies.map((m) => [m.id, m]))
 
   const rows: ShowtimesRow[] = []
-  screeningsResponse.items.forEach((screening) => {
+  screeningsRows.forEach((screening) => {
     const hall = hallsById.get(screening.hallId)
     if (!hall) return
     const cinema = cinemasById.get(hall.cinemaId)
@@ -47,6 +50,10 @@ export default async function ShowtimesPage() {
       price: Number(screening.price),
       screeningId: screening.id,
       startTimeIso: screening.startTime,
+      movieLanguage: moviesById.get(screening.movieId)?.language ?? null,
+      screeningLanguage: screening.language ?? null,
+      subtitleLanguage: screening.subtitleLanguage ?? null,
+      format: screening.format ?? null,
     })
   })
 
@@ -56,6 +63,7 @@ export default async function ShowtimesPage() {
     posterUrl: m.posterUrl ?? null,
     durationMinutes: m.durationMinutes,
     releaseYear: m.releaseYear ?? null,
+    language: m.language ?? null,
   }))
 
   return <ShowtimesClient movies={moviesData} rows={rows} />

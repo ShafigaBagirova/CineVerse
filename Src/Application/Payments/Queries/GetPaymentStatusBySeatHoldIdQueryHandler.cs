@@ -57,27 +57,22 @@ public sealed class GetPaymentStatusBySeatHoldIdQueryHandler
                 "No payment found for SeatHoldId: {SeatHoldId}",
                 request.SeatHoldId);
 
-            response = new GetPaymentStatusBySeatHoldIdResponse
-            {
-                SeatHoldId = request.SeatHoldId,
-                HasPayment = false,
-                Status = PaymentStatus.Pending,
-                Amount = null,
-                Currency = null,
-                PaymentIntentId = null,
-                PaidAtUtc = null
-            };
+            return BaseResponse<GetPaymentStatusBySeatHoldIdResponse>.Ok(
+                new GetPaymentStatusBySeatHoldIdResponse
+                {
+                    SeatHoldId = request.SeatHoldId,
+                    HasPayment = false,
+                    Status = null,
+                },
+                "No payment found"
+            );
         }
-        else
-        {
-            response = _mapper.Map<GetPaymentStatusBySeatHoldIdResponse>(payment);
-        }
+        
+        response = _mapper.Map<GetPaymentStatusBySeatHoldIdResponse>(payment);
 
         _logger.LogInformation(
-            "GetPaymentStatusBySeatHoldIdQuery completed successfully. SeatHoldId: {SeatHoldId}, HasPayment: {HasPayment}, Status: {Status}",
-            request.SeatHoldId,
-            response.HasPayment,
-            response.Status);
+      "FINAL payment status response. SeatHoldId: {SeatHoldId}, HasPayment: {HasPayment}, Status: {Status}", response.SeatHoldId,
+      response.HasPayment,response.Status);
 
         return BaseResponse<GetPaymentStatusBySeatHoldIdResponse>.Ok(
             response,

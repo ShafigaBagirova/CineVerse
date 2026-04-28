@@ -101,8 +101,9 @@ public sealed class UpdateMovieCommandHandler : IRequestHandler<UpdateMovieComma
         await _movieRepository.UpdateAsync(movie, cancellationToken);
         await _movieRepository.SaveChangesAsync(cancellationToken);
 
-        await _cacheService.RemoveAsync($"movies:id:{movie.Id}", cancellationToken);
-        await _cacheService.RemoveAsync("movies:all", cancellationToken);
+        await _cacheService.RemoveAsync($"{CacheKeys.MovieByIdPrefix}{movie.Id}", cancellationToken);
+        await _cacheService.RemoveByPrefixAsync(CacheKeys.MoviesPagedPrefix);
+        await _cacheService.RemoveByPrefixAsync(CacheKeys.MovieBySlugPrefix);
 
         _logger.LogInformation(
             "Movie with Id {MovieId} updated successfully. Movie detail and movies list caches invalidated.",

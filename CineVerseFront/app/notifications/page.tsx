@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import { Bell } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { formatNotificationType } from "@/lib/api/notifications"
 import { useNotifications } from "@/components/providers/notification-provider"
 
 export default function NotificationsPage() {
@@ -59,9 +60,10 @@ export default function NotificationsPage() {
                       {!item.isRead && <span className="h-2 w-2 rounded-full bg-primary" />}
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">{item.message}</p>
-                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{item.type}</span>
-                      <span>-</span>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span className="rounded-md bg-secondary/80 px-2 py-0.5 font-medium text-foreground/90">
+                        {formatNotificationType(item.type)}
+                      </span>
                       <span>{new Date(item.createdAt).toLocaleString()}</span>
                     </div>
                   </div>

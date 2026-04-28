@@ -1,6 +1,7 @@
 "use client"
 
 import { FormEvent, useCallback, useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -26,7 +27,19 @@ import {
   type MovieStatus,
   type UpdateMovieBody,
 } from "@/lib/api/movies"
-import { ApiError } from "@/lib/api/types"
+import { getAllGenres, type GetAllGenresResponse } from "@/lib/api/genres"
+import { ApiError, userFacingApiErrorMessage } from "@/lib/api/types"
+
+function adminDeleteErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    const primary = err.message.trim()
+    const fromErrors = err.errors?.filter((s) => s.trim()).join(" · ") ?? ""
+    const combined = [primary, fromErrors].filter(Boolean).join(" · ").trim()
+    if (combined) return combined
+    return `Request failed (HTTP ${err.status}).`
+  }
+  return userFacingApiErrorMessage(err, "Delete failed.")
+}
 
 const emptyCreate = {
   title: "",
@@ -42,39 +55,70 @@ const emptyCreate = {
 }
 
 export default function AdminMoviesPage() {
+  const router = useRouter()
   const [rows, setRows] = useState<GetAllMoviesResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [search, setSearch] = useState("")
   const [createOpen, setCreateOpen] = useState(false)
   const [createForm, setCreateForm] = useState(emptyCreate)
+  const [genreOptions, setGenreOptions] = useState<GetAllGenresResponse[]>([])
+  const [selectedGenreIds, setSelectedGenreIds] = useState<number[]>([])
   const [editRow, setEditRow] = useState<GetAllMoviesResponse | null>(null)
   const [editForm, setEditForm] = useState<UpdateMovieBody>({})
   const [syncPage, setSyncPage] = useState(1)
+  const [syncing, setSyncing] = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const loadMovies = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setLoading(true)
+    }
     setError(null)
     try {
-      const data = await getAllMovies({
-        pageNumber: 1,
-        pageSize: 100,
-        search: search.trim() || undefined,
-        sortBy: "createdAt",
-        desc: true,
-      })
-      setRows(data.items)
+      const data = await getAllMovies(
+        {
+          pageNumber: 1,
+          pageSize: 100,
+          search: search.trim() || undefined,
+          sortBy: "createdAt",
+          desc: true,
+        },
+        { quiet: opts?.silent, auth: true },
+      )
+      setRows([...data.items])
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Failed to load movies.")
     } finally {
-      setLoading(false)
+      if (!opts?.silent) {
+        setLoading(false)
+      }
     }
   }, [search])
 
+  function scheduleRouterRefresh() {
+    setTimeout(() => {
+      router.refresh()
+    }, 0)
+  }
+
   useEffect(() => {
-    void load()
-  }, [load])
+    void loadMovies()
+  }, [loadMovies])
+
+  useEffect(() => {
+    async function loadGenres() {
+      try {
+        const data = await getAllGenres()
+        setGenreOptions(Array.isArray(data) ? data : [])
+      } catch {
+        setGenreOptions([])
+      }
+    }
+    void loadGenres()
+  }, [])
 
   async function onCreate(e: FormEvent) {
     e.preventDefault()
@@ -85,10 +129,13 @@ export default function AdminMoviesPage() {
         ...createForm,
         tmdbId: Number(createForm.tmdbId) || 0,
         durationMinutes: Math.max(1, Math.trunc(Number(createForm.durationMinutes)) || 120),
+        genreIds: selectedGenreIds,
       })
       setCreateOpen(false)
       setCreateForm(emptyCreate)
-      await load()
+      setSelectedGenreIds([])
+      await loadMovies({ silent: true })
+      scheduleRouterRefresh()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Create failed.")
     } finally {
@@ -104,7 +151,8 @@ export default function AdminMoviesPage() {
     try {
       await updateMovie(editRow.id, editForm)
       setEditRow(null)
-      await load()
+      await loadMovies({ silent: true })
+      scheduleRouterRefresh()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Update failed.")
     } finally {
@@ -112,30 +160,50 @@ export default function AdminMoviesPage() {
     }
   }
 
-  async function onDelete(id: number) {
+  async function onDelete(id: number | string) {
+    const movieId = Math.trunc(Number(id))
+    if (!Number.isFinite(movieId) || movieId <= 0) {
+      setError("Invalid movie id. Refresh the page and try again.")
+      return
+    }
     if (!window.confirm("Delete this movie?")) return
     setBusy(true)
+    setDeletingId(movieId)
     setError(null)
+    setSuccessMessage(null)
     try {
-      await deleteMovie(id)
-      await load()
+      await deleteMovie(movieId)
+      setSuccessMessage("Movie deleted.")
+      setRows((prev) => prev.filter((movie) => movie.id !== movieId))
+      await loadMovies()
+      scheduleRouterRefresh()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Delete failed.")
+      if (err instanceof ApiError && err.status === 404) {
+        setError(adminDeleteErrorMessage(err))
+        await loadMovies({ silent: true })
+        scheduleRouterRefresh()
+      } else {
+        setError(adminDeleteErrorMessage(err))
+      }
     } finally {
+      setDeletingId(null)
       setBusy(false)
     }
   }
 
   async function onSync() {
-    setBusy(true)
+    setSyncing(true)
     setError(null)
+    setSuccessMessage(null)
     try {
       await syncMoviesFromTmdb(Math.max(1, syncPage))
-      await load()
+      setSuccessMessage("Movies synced from TMDB.")
+      await loadMovies({ silent: true })
+      scheduleRouterRefresh()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Sync failed.")
     } finally {
-      setBusy(false)
+      setSyncing(false)
     }
   }
 
@@ -152,6 +220,12 @@ export default function AdminMoviesPage() {
     })
   }
 
+  function toggleCreateGenre(genreId: number) {
+    setSelectedGenreIds((prev) =>
+      prev.includes(genreId) ? prev.filter((id) => id !== genreId) : [...prev, genreId],
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -166,7 +240,7 @@ export default function AdminMoviesPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="w-48"
           />
-          <Button type="button" variant="secondary" disabled={busy} onClick={() => void load()}>
+          <Button type="button" variant="secondary" disabled={busy} onClick={() => void loadMovies()}>
             Search
           </Button>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -281,6 +355,26 @@ export default function AdminMoviesPage() {
                       onChange={(e) => setCreateForm((p) => ({ ...p, director: e.target.value }))}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label>Genres</Label>
+                    <div className="max-h-32 space-y-2 overflow-y-auto rounded-md border border-input p-2">
+                      {genreOptions.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No genres available.</p>
+                      ) : (
+                        genreOptions.map((g) => (
+                          <label key={g.id} className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={selectedGenreIds.includes(g.id)}
+                              onChange={() => toggleCreateGenre(g.id)}
+                              disabled={busy}
+                            />
+                            <span>{g.name}</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button type="submit" disabled={busy}>
@@ -302,16 +396,18 @@ export default function AdminMoviesPage() {
               min={1}
               className="w-20"
               value={syncPage}
+              disabled={syncing}
               onChange={(e) => setSyncPage(Math.max(1, Number(e.target.value) || 1))}
             />
-            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void onSync()}>
-              Sync page
+            <Button type="button" size="sm" variant="outline" disabled={syncing} onClick={() => void onSync()}>
+              {syncing ? "Syncing..." : "Sync page"}
             </Button>
           </div>
         </CardHeader>
       </Card>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
+      {successMessage && <p className="text-sm text-green-600 dark:text-green-500">{successMessage}</p>}
 
       <Card className="border-border/60 bg-card/50">
         <CardContent className="p-0">
@@ -345,7 +441,7 @@ export default function AdminMoviesPage() {
                         type="button"
                         size="sm"
                         variant="destructive"
-                        disabled={busy}
+                        disabled={busy || deletingId === m.id}
                         onClick={() => void onDelete(m.id)}
                       >
                         Delete

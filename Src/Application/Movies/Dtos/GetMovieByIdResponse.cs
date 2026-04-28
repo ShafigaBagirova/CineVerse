@@ -7,6 +7,8 @@ public class GetMovieByIdResponse
     public int Id { get; set; }
     public string Title { get; set; } = null!;
     public string Description { get; set; }=null!;
+    public string? Director { get; set; }
+    public List<string> Cast { get; set; } = new();
     public string? PosterUrl { get; set; }
     public string? BackdropUrl { get; set; }
     public decimal? UserAverageRating { get; set; }
