@@ -47,7 +47,8 @@ public class UpdateCinemaCommandHandler : IRequestHandler<UpdateCinemaCommand, B
         _mapper.Map(request.Request, cinema);
 
         await _repository.SaveChangesAsync(cancellationToken);
-        await _cacheService.RemoveAsync(CinemaCacheKey.CinemaById(request.Id));
+        await _cacheService.RemoveAsync(CinemaCacheKey.CinemaById(request.Id), cancellationToken);
+        await _cacheService.RemoveByPrefixAsync(CinemaCacheKey.CinemasPagedPrefix);
         _logger.LogInformation("Cinema updated successfully. Id: {CinemaId}", request.Id);
 
         return BaseResponse.Ok("Cinema updated successfully.");

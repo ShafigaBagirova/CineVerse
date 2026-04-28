@@ -47,6 +47,7 @@ public class GetAllScreeningsQueryHandler
 
         var cacheKey =
             $"screenings_all_movie_{dto.MovieId}_hall_{dto.HallId}_status_{dto.Status}_format_{dto.Format}_active_{dto.IsActive}_from_{dto.DateFrom:yyyyMMddHHmmss}_to_{dto.DateTo:yyyyMMddHHmmss}_page_{dto.PageNumber}_size_{dto.PageSize}";
+        _logger.LogInformation("Screenings cache key used: {CacheKey}", cacheKey);
 
         var cachedResponse =
             await _cacheService.GetAsync<PaginatedResponse<GetAllScreeningsResponse>>(cacheKey);
@@ -87,6 +88,7 @@ public class GetAllScreeningsQueryHandler
         };
 
         await _cacheService.SetAsync(cacheKey, paginatedResponse, TimeSpan.FromMinutes(10));
+        _logger.LogInformation("Screenings cache set: {CacheKey}", cacheKey);
 
         _logger.LogInformation(
             "GetAllScreeningsQuery completed successfully. ReturnedCount: {ReturnedCount}, TotalCount: {TotalCount}",

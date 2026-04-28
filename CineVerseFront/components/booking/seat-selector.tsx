@@ -22,10 +22,13 @@ interface SeatRow {
   id: number
   row: string
   number: number
+  type?: string
+  seatType?: string
+  isCouple?: boolean
 }
 
 function formatSeatLabel(row: string, number: number): string {
-  return `${row}${number}`
+  return `${row}-${number}`
 }
 
 /**
@@ -46,7 +49,6 @@ function computeSeatStatus(
 ): SeatVisualStatus {
   if (soldIds.has(seatId)) return "busy"
   if (heldIds.has(seatId) && !myHoldSeatIds.has(seatId)) return "held"
-  if (myHoldSeatIds.has(seatId)) return "selected"
   if (selectedSeatIds.has(seatId)) return "selected"
   return "available"
 }
@@ -59,6 +61,7 @@ export function SeatSelector() {
   const screeningId = Number(searchParams.get("screeningId")) || 0
   const cinemaParam = searchParams.get("cinema") || ""
   const timeParam = searchParams.get("time") || ""
+  const resetCheckout = searchParams.get("resetCheckout") === "1"
 
   const [movieTitle, setMovieTitle] = useState("Movie")
   const [price, setPrice] = useState(0)
@@ -76,28 +79,23 @@ export function SeatSelector() {
   const lastScreeningIdRef = useRef(screeningId)
   const [loading, setLoading] = useState(false)
   const [checkoutBusy, setCheckoutBusy] = useState(false)
+  const [holdOpsInFlight, setHoldOpsInFlight] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  const [timeLeft, setTimeLeft] = useState(600)
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null)
   const seatMetaById = useMemo(() => {
-    const map = new Map<number, { row: string; number: number }>()
-    for (const seat of seatRows) map.set(seat.id, { row: seat.row, number: seat.number })
+    const map = new Map<number, { row: string; number: number; type?: string; seatType?: string; isCouple?: boolean }>()
+    for (const seat of seatRows) {
+      map.set(seat.id, {
+        row: seat.row,
+        number: seat.number,
+        type: seat.type,
+        seatType: seat.seatType,
+        isCouple: seat.isCouple,
+      })
+    }
     return map
   }, [seatRows])
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      setTimeLeft((prev) => (prev <= 0 ? 0 : prev - 1))
-    }, 1000)
-    return () => clearInterval(t)
-  }, [])
-
-  useEffect(() => {
-    if (lastScreeningIdRef.current === screeningId) return
-    lastScreeningIdRef.current = screeningId
-    setSelectedSeatIds(new Set())
-    setMyHoldSeatIds(new Set())
-    holdIdBySeatIdRef.current.clear()
-  }, [screeningId])
+  const holdSyncBusy = holdOpsInFlight > 0
 
   const loadSeats = useCallback(async () => {
     if (!screeningId) {
@@ -135,12 +133,21 @@ export function SeatSelector() {
         setPrice(0)
       }
 
-      if (settled[2].status === "rejected" || screeningSeats.length === 0) {
+      if (settled[2].status === "rejected") {
         setSeatRows([])
         setSoldIds(new Set())
         setHeldIds(new Set())
         setMyHoldSeatIds(new Set())
         setError("Could not load seats for this screening.")
+        return
+      }
+
+      if (screeningSeats.length === 0) {
+        setSeatRows([])
+        setSoldIds(new Set())
+        setHeldIds(new Set())
+        setMyHoldSeatIds(new Set())
+        setError("This hall has no seats configured. Please contact admin.")
         return
       }
 
@@ -153,12 +160,36 @@ export function SeatSelector() {
       })
 
       const rows: SeatRow[] = screeningSeats
-        .filter((s) => s.isActive)
+        .filter((s) => Boolean(s.isActive ?? s.IsActive ?? false))
         .map((s) => {
           const id = normalizeSeatId(s.seatId ?? s.SeatId) ?? s.seatId
-          return { id, row: s.row, number: s.number }
+          return {
+            id,
+            row: String(s.row ?? s.Row ?? ""),
+            number: Number(s.number ?? s.Number ?? 0),
+            type: String(s.type ?? s.Type ?? "Standard"),
+            seatType: typeof (s as { seatType?: unknown; SeatType?: unknown }).seatType === "string"
+              ? String((s as { seatType?: string }).seatType)
+              : typeof (s as { SeatType?: unknown }).SeatType === "string"
+                ? String((s as { SeatType?: string }).SeatType)
+                : undefined,
+            isCouple: Boolean(
+              (s as { isCouple?: unknown; IsCouple?: unknown }).isCouple ??
+              (s as { IsCouple?: unknown }).IsCouple ??
+              false
+            ),
+          }
         })
-        .filter((s) => Number.isFinite(s.id))
+        .filter((s) => Number.isFinite(s.id) && s.row !== "" && Number.isFinite(s.number))
+
+      if (rows.length === 0) {
+        setSeatRows([])
+        setSoldIds(new Set())
+        setHeldIds(new Set())
+        setMyHoldSeatIds(new Set())
+        setError("This hall has no seats configured. Please contact admin.")
+        return
+      }
 
       setSoldIds(sold)
       setHeldIds(held)
@@ -186,13 +217,27 @@ export function SeatSelector() {
           const items = holdsData.items ?? []
           const uid = user.userId
           fromApi = new Set<number>()
+          const heldByOthersFromApi = new Set<number>()
           const holdMapFromApi = new Map<number, number>()
           for (const h of items) {
-            if (h.status !== "Active") continue
+            const status = String(h.status ?? "").trim().toLowerCase()
+            // Backend can surface active seat holds in different casing.
+            if (status !== "active") continue
             if (h.userId === uid || String(h.userId).toLowerCase() === uid.toLowerCase()) {
               fromApi.add(h.seatId)
               if (h.id > 0) holdMapFromApi.set(h.seatId, h.id)
+            } else {
+              heldByOthersFromApi.add(h.seatId)
             }
+          }
+          if (heldByOthersFromApi.size > 0) {
+            setHeldIds((prev) => {
+              const next = new Set(prev)
+              heldByOthersFromApi.forEach((id) => {
+                if (!sold.has(id)) next.add(id)
+              })
+              return next
+            })
           }
           if (holdMapFromApi.size > 0) {
             holdMapFromApi.forEach((holdId, seatId) => {
@@ -213,13 +258,10 @@ export function SeatSelector() {
           })
           setSelectedSeatIds((prev) => {
             const next = new Set<number>()
-            for (const id of fromApi!) {
-              if (rowIds.has(id) && !sold.has(id)) next.add(id)
-            }
             for (const id of prev) {
               if (!rowIds.has(id)) continue
               if (sold.has(id)) continue
-              if (held.has(id) && !fromApi!.has(id)) continue
+              if (!fromApi!.has(id)) continue
               next.add(id)
             }
             return next
@@ -267,6 +309,61 @@ export function SeatSelector() {
   }, [movieId, screeningId, authStatus, user?.userId])
 
   useEffect(() => {
+    if (remainingSeconds == null) return
+    const t = setInterval(() => {
+      setRemainingSeconds((prev) => {
+        if (prev == null) return null
+        if (prev > 1) return prev - 1
+        holdIdBySeatIdRef.current.clear()
+        setSelectedSeatIds(new Set())
+        setMyHoldSeatIds(new Set())
+        setError("Seat hold expired. Please reselect.")
+        void loadSeats()
+        return null
+      })
+    }, 1000)
+    return () => clearInterval(t)
+  }, [remainingSeconds, loadSeats])
+
+  useEffect(() => {
+    if (!resetCheckout) return
+    if (typeof window === "undefined") return
+    const oldLocalSeatHoldId = localStorage.getItem("seatHoldId")
+    const oldSessionSeatHoldId = sessionStorage.getItem("seatHoldId")
+    console.log("[seat-reset] cleared old seatHoldId", {
+      localStorageSeatHoldId: oldLocalSeatHoldId,
+      sessionStorageSeatHoldId: oldSessionSeatHoldId,
+    })
+    const keys = [
+      "seatHoldId",
+      "seatHoldIds",
+      "selectedSeats",
+      "checkoutState",
+      "bookingCheckout",
+      "bookingState",
+      "paymentState",
+      "paymentStatus",
+    ]
+    keys.forEach((k) => {
+      localStorage.removeItem(k)
+      sessionStorage.removeItem(k)
+    })
+  }, [resetCheckout])
+
+  useEffect(() => {
+    if (lastScreeningIdRef.current === screeningId) return
+    lastScreeningIdRef.current = screeningId
+    setSeatRows([])
+    setSoldIds(new Set())
+    setHeldIds(new Set())
+    setSelectedSeatIds(new Set())
+    setMyHoldSeatIds(new Set())
+    setRemainingSeconds(null)
+    setError(null)
+    holdIdBySeatIdRef.current.clear()
+  }, [screeningId])
+
+  useEffect(() => {
     void loadSeats()
   }, [loadSeats])
 
@@ -276,31 +373,42 @@ export function SeatSelector() {
   const payableSeatIdsArray = Array.from(selectedSeatIds).filter(
     (id) => !soldIds.has(id) && !(heldIds.has(id) && !myHoldSeatIds.has(id))
   )
+  const isVipSeatMeta = (meta: { row: string; number: number; type?: string; seatType?: string; isCouple?: boolean }) => {
+    const seatType = String(meta.type ?? "").trim().toLowerCase()
+    if (seatType === "vip") return true
+    const rowNumber = Number(String(meta.row ?? "").trim())
+    return Number.isFinite(rowNumber) && rowNumber === 2
+  }
+
+  const isCoupleSeatMeta = (meta: { row: string; number: number; type?: string; seatType?: string; isCouple?: boolean }) => {
+    if (meta.isCouple === true) return true
+    const type = String(meta.type ?? "").trim().toLowerCase()
+    const seatType = String(meta.seatType ?? "").trim().toLowerCase()
+    return type === "couple" || seatType === "couple"
+  }
+
+  const getSeatUnitPrice = (meta: { row: string; number: number; type?: string; seatType?: string; isCouple?: boolean } | undefined) => {
+    if (!meta) return price
+    if (isCoupleSeatMeta(meta)) return price * 2
+    if (isVipSeatMeta(meta)) return price * 1.5
+    return price
+  }
+
   const selectedSeatLabels = payableSeatIdsArray
     .map((id) => seatMetaById.get(id))
-    .filter((s): s is { row: string; number: number } => s != null)
+    .filter((s): s is { row: string; number: number; type?: string; seatType?: string; isCouple?: boolean } => s != null)
     .map((s) => formatSeatLabel(s.row, s.number))
-  const total = payableSeatIdsArray.length > 0 ? price * payableSeatIdsArray.length : 0
-
-  /** Load active holds for an explicit seat-id snapshot (avoids stale selectedSeatIds closures). */
-  const fetchActiveHoldsForSeatIds = useCallback(
-    async (seatIds: readonly number[]) => {
-      if (!screeningId || !user?.userId) return []
-      const holdsData = await getSeatHoldsByScreening(screeningId, 1, 200)
-      const uid = user.userId
-      const want = new Set(seatIds)
-      return (holdsData.items ?? []).filter(
-        (h) =>
-          h.status === "Active" &&
-          want.has(h.seatId) &&
-          (h.userId === uid || String(h.userId).toLowerCase() === uid.toLowerCase())
-      )
-    },
-    [screeningId, user?.userId]
-  )
-
+  const selectedSeatUnitPrices = payableSeatIdsArray.map((id) => getSeatUnitPrice(seatMetaById.get(id)))
+  const total = selectedSeatUnitPrices.reduce((sum, seatPrice) => sum + seatPrice, 0)
+  const uniqueSeatUnitPrices = Array.from(new Set(selectedSeatUnitPrices.map((v) => Number(v.toFixed(2)))))
+  const pricePerSeatLabel =
+    payableSeatIdsArray.length === 0
+      ? `${price} AZN`
+      : uniqueSeatUnitPrices.length === 1
+        ? `${uniqueSeatUnitPrices[0]} AZN`
+        : "Mixed"
   const handleContinueToCheckout = async () => {
-    if (checkoutBusy) return
+    if (checkoutBusy || holdSyncBusy) return
     if (!screeningId) return
     if (authStatus !== "authenticated" || !user?.userId) {
       setError("Sign in to continue to checkout.")
@@ -318,12 +426,14 @@ export function SeatSelector() {
       const meta = seatMetaById.get(seatId)
       return meta ? formatSeatLabel(meta.row, meta.number) : "Unknown seat"
     }
-    const checkoutTotal = price * snapshotSeatIds.length
+    const checkoutTotal = snapshotSeatIds.reduce((sum, seatId) => {
+      return sum + getSeatUnitPrice(seatMetaById.get(seatId))
+    }, 0)
 
     setCheckoutBusy(true)
     setError(null)
     try {
-      console.info("[checkout-resolution] before-create-seat-holds", {
+      console.info("[checkout-resolution] before-checkout-hold-resolution", {
         screeningId,
         selectedSeatIds: snapshotSeatIds,
         holdMapping: Object.fromEntries(holdIdBySeatIdRef.current.entries()),
@@ -338,74 +448,41 @@ export function SeatSelector() {
         }),
       })
 
-      const settled = await Promise.allSettled(
-        snapshotSeatIds.map((seatId) => createSeatHold({ screeningId, seatId }))
-      )
-
-      const failed: { seatId: number; label: string; message: string }[] = []
-      settled.forEach((result, i) => {
-        const seatId = snapshotSeatIds[i]!
-        if (result.status === "rejected") {
-          const message =
-            result.reason instanceof Error ? result.reason.message : String(result.reason)
-          console.error("[seat-hold] rejected", { screeningId, seatId, label: labelForSeatId(seatId), message })
-          failed.push({ seatId, label: labelForSeatId(seatId), message })
-        } else {
-          const holdResponse = result.value
-          setMyHoldSeatIds((prev) => new Set(prev).add(seatId))
-          if (holdResponse.id > 0) {
-            holdIdBySeatIdRef.current.set(seatId, holdResponse.id)
-          }
-          console.info("[seat-hold] fulfilled", {
-            screeningId,
-            seatId,
-            label: labelForSeatId(seatId),
-            holdIdFromResponse: holdResponse.id > 0 ? holdResponse.id : "(use GET merge or 0)",
-            selectedSeatIds: snapshotSeatIds,
-            holdMapping: Object.fromEntries(holdIdBySeatIdRef.current.entries()),
-          })
-        }
-      })
-
-      if (failed.length > 0) {
-        setError(
-          `Could not hold: ${failed.map((f) => `${f.label} — ${f.message}`).join("; ")}`
-        )
-        return
-      }
-
-      void loadSeats()
-
       const holdIdBySeat = new Map<number, number>()
-      snapshotSeatIds.forEach((seatId) => {
-        const cached = holdIdBySeatIdRef.current.get(seatId)
-        if (cached && cached > 0) holdIdBySeat.set(seatId, cached)
-      })
-      settled.forEach((r, i) => {
-        if (r.status !== "fulfilled") return
-        const seatId = snapshotSeatIds[i]!
-        if (r.value.id > 0) {
-          holdIdBySeat.set(seatId, r.value.id)
-          holdIdBySeatIdRef.current.set(seatId, r.value.id)
-        }
-      })
-
-      try {
-        const merged = await fetchActiveHoldsForSeatIds(snapshotSeatIds)
-        merged.forEach((h) => {
-          if (h.id > 0 && (!holdIdBySeat.has(h.seatId) || holdIdBySeat.get(h.seatId) === 0)) {
-            holdIdBySeat.set(h.seatId, h.id)
-            holdIdBySeatIdRef.current.set(h.seatId, h.id)
+      const unresolvedSeatIds: number[] = []
+      let soonestExpiry: number | null = null
+      const holdResponses: Array<{ seatId: number; holdId: number; expiresAtUtc: string }> = []
+      for (const seatId of snapshotSeatIds) {
+        holdIdBySeatIdRef.current.delete(seatId)
+      }
+      for (const seatId of snapshotSeatIds) {
+        try {
+          const fresh = await createSeatHold({ screeningId, seatId })
+          if (fresh?.id && fresh.id > 0) {
+            console.log("[seat-hold] newly created/returned seatHoldId", {
+              seatId,
+              seatHoldId: fresh.id,
+              screeningId,
+            })
+            holdIdBySeatIdRef.current.set(seatId, fresh.id)
+            holdIdBySeat.set(seatId, fresh.id)
+            setMyHoldSeatIds((prev) => new Set(prev).add(seatId))
+            holdResponses.push({ seatId, holdId: fresh.id, expiresAtUtc: fresh.expiresAtUtc })
+            const expiresAt = new Date(fresh.expiresAtUtc).getTime()
+            if (Number.isFinite(expiresAt) && expiresAt > Date.now()) {
+              soonestExpiry = soonestExpiry == null ? expiresAt : Math.min(soonestExpiry, expiresAt)
+            }
+          } else {
+            unresolvedSeatIds.push(seatId)
           }
-        })
-      } catch (e) {
-        console.warn("[seat-hold] optional GET merge skipped (checkout still proceeds)", e)
+        } catch {
+          unresolvedSeatIds.push(seatId)
+        }
       }
 
       const orderedHoldIds = snapshotSeatIds
         .map((sid) => holdIdBySeat.get(sid))
         .filter((id): id is number => id !== undefined && id > 0)
-      const unresolvedSeatIds = snapshotSeatIds.filter((sid) => !holdIdBySeat.get(sid))
 
       console.info("[checkout-resolution] after-hold-resolution", {
         screeningId,
@@ -423,18 +500,55 @@ export function SeatSelector() {
         }),
       })
 
-      if (orderedHoldIds.length === 0) {
-        setError("Could not resolve seat hold ids for checkout. Please tap Continue again.")
+      if (unresolvedSeatIds.length > 0 || orderedHoldIds.length !== snapshotSeatIds.length) {
+        unresolvedSeatIds.forEach((id) => holdIdBySeatIdRef.current.delete(id))
+        setMyHoldSeatIds((prev) => {
+          const next = new Set(prev)
+          unresolvedSeatIds.forEach((id) => next.delete(id))
+          return next
+        })
+        setSelectedSeatIds((prev) => {
+          const next = new Set(prev)
+          unresolvedSeatIds.forEach((id) => next.delete(id))
+          return next
+        })
+        await loadSeats()
+        setError("Some seat holds could not be created. Please try selecting seats again.")
+        setRemainingSeconds(null)
         return
       }
 
       const firstId = orderedHoldIds[0]!
+      setError(null)
+      if (soonestExpiry != null) {
+        const nextSeconds = Math.max(1, Math.floor((soonestExpiry - Date.now()) / 1000))
+        setRemainingSeconds(nextSeconds)
+      } else {
+        setRemainingSeconds(600)
+      }
       const seatsParam = snapshotSeatIds.map((id) => labelForSeatId(id)).join(", ")
       const holdIdsParam = orderedHoldIds.join(",")
+      if (typeof window !== "undefined") {
+        // Persist only the latest, fresh checkout hold state.
+        localStorage.removeItem("paymentState")
+        localStorage.removeItem("paymentStatus")
+        sessionStorage.removeItem("paymentState")
+        sessionStorage.removeItem("paymentStatus")
+        localStorage.setItem("seatHoldId", String(firstId))
+        localStorage.setItem("seatHoldIds", holdIdsParam)
+        sessionStorage.setItem("seatHoldId", String(firstId))
+        sessionStorage.setItem("seatHoldIds", holdIdsParam)
+      }
+      const checkoutUrl = `/checkout?movie=${movieId}&cinema=${encodeURIComponent(cinemaParam)}&time=${encodeURIComponent(timeParam)}&screeningId=${screeningId}&seats=${encodeURIComponent(seatsParam)}&seatHoldId=${firstId}&seatHoldIds=${encodeURIComponent(holdIdsParam)}&total=${checkoutTotal}`
 
-      router.push(
-        `/checkout?movie=${movieId}&cinema=${encodeURIComponent(cinemaParam)}&time=${encodeURIComponent(timeParam)}&screeningId=${screeningId}&seats=${encodeURIComponent(seatsParam)}&seatHoldId=${firstId}&seatHoldIds=${encodeURIComponent(holdIdsParam)}&total=${checkoutTotal}`
-      )
+      console.log("CHECKOUT_NAVIGATION_DATA", {
+        selectedSeatIds: snapshotSeatIds,
+        holdResponse: holdResponses,
+        seatHoldIds: orderedHoldIds,
+        checkoutUrl,
+      })
+
+      router.push(checkoutUrl)
     } catch (e: unknown) {
       const msg =
         e instanceof ApiError ? e.message : e instanceof Error ? e.message : "Could not continue to checkout."
@@ -445,6 +559,7 @@ export function SeatSelector() {
   }
 
   const tryReleaseSeat = async (seatId: number) => {
+    setHoldOpsInFlight((v) => v + 1)
     const label = (() => {
       const seat = seatMetaById.get(seatId)
       return seat ? formatSeatLabel(seat.row, seat.number) : "Unknown seat"
@@ -489,6 +604,7 @@ export function SeatSelector() {
       setSelectedSeatIds((prev) => {
         const next = new Set(prev)
         next.delete(seatId)
+        if (next.size === 0) setRemainingSeconds(null)
         return next
       })
       setMyHoldSeatIds((prev) => {
@@ -513,6 +629,7 @@ export function SeatSelector() {
       setSelectedSeatIds((prev) => {
         const next = new Set(prev)
         next.delete(seatId)
+        if (next.size === 0) setRemainingSeconds(null)
         return next
       })
       setMyHoldSeatIds((prev) => {
@@ -544,6 +661,8 @@ export function SeatSelector() {
       })
       setError("Could not release selected seat. Please try again.")
       return false
+    } finally {
+      setHoldOpsInFlight((v) => Math.max(0, v - 1))
     }
   }
 
@@ -593,10 +712,19 @@ export function SeatSelector() {
                     .map((seat) => {
                       const seatStatus = computeSeatStatus(seat.id, selectedSeatIds, soldIds, heldIds, myHoldSeatIds)
                       const seatLabel = formatSeatLabel(seat.row, seat.number)
-                      const isBusy = seatStatus === "busy"
-                      const isHeld = seatStatus === "held"
                       const isSelected = seatStatus === "selected"
-                      const isAvailable = seatStatus === "available"
+                      const isHeld = !isSelected && seatStatus === "held"
+                      const isBusy = !isSelected && !isHeld && seatStatus === "busy"
+                      const isAvailable = !isSelected && !isHeld && !isBusy
+                      const seatMeta = {
+                        row: seat.row,
+                        number: seat.number,
+                        type: seat.type,
+                        seatType: seat.seatType,
+                        isCouple: seat.isCouple,
+                      }
+                      const isCoupleSeat = isCoupleSeatMeta(seatMeta)
+                      const isVipSeat = isVipSeatMeta(seatMeta)
 
                       return (
                         <button
@@ -605,7 +733,6 @@ export function SeatSelector() {
                           onClick={() => {
                             if (isBusy) return
                             if (isHeld && !myHoldSeatIds.has(seat.id)) return
-                            if (myHoldSeatIds.has(seat.id) && !selectedSeatIds.has(seat.id)) return
                             setError(null)
 
                             if (selectedSeatIds.has(seat.id)) {
@@ -623,6 +750,7 @@ export function SeatSelector() {
                                 setSelectedSeatIds((prev) => {
                                   const next = new Set(prev)
                                   next.delete(seat.id)
+                                  if (next.size === 0) setRemainingSeconds(null)
                                   return next
                                 })
                               }
@@ -644,19 +772,47 @@ export function SeatSelector() {
                               selectedSeatIds: Array.from(selectedSeatIds).sort((a, b) => a - b),
                               holdMapping: Object.fromEntries(holdIdBySeatIdRef.current.entries()),
                             })
-                            setSelectedSeatIds((prev) => new Set(prev).add(seat.id))
+                            setHoldOpsInFlight((v) => v + 1)
+                            void (async () => {
+                              try {
+                                holdIdBySeatIdRef.current.delete(seat.id)
+                                setError(null)
+                                setError(null)
+                                setSelectedSeatIds((prev) => {
+                                  const next = new Set(prev).add(seat.id)
+                                  if (prev.size === 0) setRemainingSeconds(600)
+                                  return next
+                                })
+                              } catch (e) {
+                                setError(e instanceof Error ? e.message : "Could not hold this seat.")
+                              } finally {
+                                setHoldOpsInFlight((v) => Math.max(0, v - 1))
+                              }
+                            })()
                           }}
-                          disabled={isBusy || (isHeld && !myHoldSeatIds.has(seat.id)) || checkoutBusy}
+                          disabled={isBusy || (isHeld && !myHoldSeatIds.has(seat.id)) || checkoutBusy || holdSyncBusy}
                           aria-label={`Seat ${seatLabel}${
-                            isBusy ? " (busy)" : isHeld ? " (held)" : isSelected ? " (selected)" : " (available)"
+                            isBusy
+                              ? " (busy)"
+                              : isHeld
+                                ? " (held)"
+                                : isSelected
+                                  ? " (selected)"
+                                  : " (available)"
                           }`}
                           className={cn(
                             "flex h-7 w-7 items-center justify-center rounded-md text-[10px] font-medium transition-all sm:h-8 sm:w-8",
-                            isBusy && "cursor-not-allowed bg-secondary/50 text-muted-foreground/30",
-                            isHeld && "cursor-not-allowed bg-warning/20 text-warning",
-                            isAvailable &&
-                              "bg-secondary text-muted-foreground hover:bg-primary/20 hover:text-primary",
-                            isSelected && "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                            isSelected
+                              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                              : isBusy
+                                  ? "bg-gray-600 border border-gray-700 text-white cursor-not-allowed opacity-100"
+                                  : isHeld
+                                    ? "bg-blue-600 border border-blue-700 text-white opacity-100 cursor-not-allowed"
+                                    : isCoupleSeat
+                                      ? "bg-red-500 border border-red-600 text-white hover:bg-red-400"
+                                      : isVipSeat
+                                        ? "bg-yellow-400 border border-yellow-500 text-yellow-900 hover:bg-yellow-300"
+                                        : "bg-secondary text-muted-foreground hover:bg-primary/20 hover:text-primary"
                           )}
                         >
                           {seat.number}
@@ -679,12 +835,20 @@ export function SeatSelector() {
               <span className="text-xs text-muted-foreground">Selected</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="h-4 w-4 rounded bg-secondary/50" />
+              <div className="h-4 w-4 rounded border border-gray-700 bg-gray-600" />
               <span className="text-xs text-muted-foreground">Busy</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="h-4 w-4 rounded bg-warning/20" />
+              <div className="h-4 w-4 rounded border border-blue-700 bg-blue-600" />
               <span className="text-xs text-muted-foreground">Held</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 rounded border border-red-600 bg-red-500" />
+              <span className="text-xs text-muted-foreground">Couple</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 rounded border border-yellow-500 bg-yellow-400" />
+              <span className="text-xs text-muted-foreground">VIP</span>
             </div>
           </div>
         </div>
@@ -693,12 +857,16 @@ export function SeatSelector() {
           <div className="sticky top-24 rounded-2xl border border-border/50 bg-card p-6">
             <h3 className="mb-4 font-serif text-lg font-bold text-foreground">Order Summary</h3>
 
-            <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-center">
-              <p className="text-xs font-medium text-destructive">Seats held for</p>
-              <p className="text-lg font-bold text-destructive">
-                {String(Math.floor(timeLeft / 60)).padStart(2, "0")}:{String(timeLeft % 60).padStart(2, "0")}
-              </p>
-            </div>
+            {selectedSeatIds.size > 0 && (
+              <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-center">
+                <p className="text-xs font-medium text-destructive">Seats held for</p>
+                <p className="text-lg font-bold text-destructive">
+                  {remainingSeconds == null
+                    ? "10:00"
+                    : `${String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:${String(remainingSeconds % 60).padStart(2, "0")}`}
+                </p>
+              </div>
+            )}
 
             <div className="mb-4 flex flex-col gap-2 text-sm">
               <div className="flex justify-between">
@@ -713,7 +881,7 @@ export function SeatSelector() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Price per seat</span>
-                <span className="font-medium text-foreground">{price} AZN</span>
+                <span className="font-medium text-foreground">{pricePerSeatLabel}</span>
               </div>
             </div>
 
@@ -726,7 +894,11 @@ export function SeatSelector() {
 
             <button
               type="button"
-              disabled={payableSeatIdsArray.length === 0 || checkoutBusy}
+              disabled={
+                payableSeatIdsArray.length === 0 ||
+                checkoutBusy ||
+                holdSyncBusy
+              }
               onClick={() => void handleContinueToCheckout()}
               className={cn(
                 "w-full rounded-lg py-3 text-center text-sm font-semibold transition-colors",
@@ -735,10 +907,10 @@ export function SeatSelector() {
                   : "cursor-not-allowed bg-secondary text-muted-foreground"
               )}
             >
-              {checkoutBusy ? (
+              {checkoutBusy || holdSyncBusy ? (
                 <span className="inline-flex items-center justify-center gap-2">
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
-                  Holding all seats…
+                  Holding seats…
                 </span>
               ) : payableSeatIdsArray.length > 0 ? (
                 "Continue to Checkout"

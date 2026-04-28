@@ -123,6 +123,7 @@ public static class DependencyInjection
         services.AddScoped<IScreeningRepository, ScreeningRepository>();
         services.AddScoped<ISeatHoldRepository, SeatHoldRepository>();
         services.Configure<StripeSettings>(config.GetSection("Stripe"));
+        services.Configure<VipPaymentOptions>(config.GetSection(VipPaymentOptions.SectionName));
 
         services.AddScoped<IStripeService, StripeService>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();

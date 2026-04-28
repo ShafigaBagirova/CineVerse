@@ -6,7 +6,7 @@ public sealed class GetPaymentStatusBySeatHoldIdResponse
 {
     public int SeatHoldId { get; set; }
     public bool HasPayment { get; set; }
-    public PaymentStatus Status { get; set; } = default!;
+    public PaymentStatus? Status { get; set; }
     public decimal? Amount { get; set; }
     public string? Currency { get; set; }
     public string? PaymentIntentId { get; set; }

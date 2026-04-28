@@ -24,9 +24,12 @@ export function CinemaAvailability({ movieId, showtimes }: CinemaAvailabilityPro
         </div>
       ) : (
         <div className="space-y-3">
-          {showtimes.map((cinema) => {
+          {showtimes.map((cinema, index) => {
             return (
-              <div key={cinema.cinemaId} className="rounded-lg border border-border/20 bg-surface p-4 space-y-3">
+              <div
+                key={cinema.screenings[0]?.screeningId ?? `${cinema.cinemaId}-${cinema.screenings[0]?.time ?? "na"}-${index}`}
+                className="rounded-lg border border-border/20 bg-surface p-4 space-y-3"
+              >
                 <div className="flex items-start justify-between">
                   <div>
                     <h4 className="font-medium text-foreground flex items-center gap-2">

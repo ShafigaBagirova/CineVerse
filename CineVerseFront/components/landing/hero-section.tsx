@@ -26,7 +26,7 @@ export function HeroSection() {
         <h1 className="font-serif text-5xl font-bold leading-tight tracking-tight text-foreground md:text-7xl lg:text-8xl">
           <span className="text-balance">Discover. Watch. Experience.</span>
         </h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl">
+        <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#2C4A48]/80 md:text-xl">
           Track your favorite films, book cinema tickets, connect with fellow movie
           lovers, and unlock a premium cinematic experience.
         </p>

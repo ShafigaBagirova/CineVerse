@@ -1,4 +1,5 @@
 ﻿using Application.Common.Interfaces;
+using Application.Common.Dtos;
 
 namespace Infrastructure.Email;
 
@@ -23,23 +24,50 @@ public class UserNotificationService:IUserNotificationService
 
     public async Task SendPaymentSucceededEmailAsync(
         string userId,
-        int screeningId,
+        PaymentSuccessNotificationDto notification,
         CancellationToken cancellationToken)
     {
         var email = await GetUserEmailAsync(userId, cancellationToken);
         if (email is null) return;
 
         var subject = "Payment Successful 🎉";
+        var timeText = FormatScreeningTimeForDisplay(notification.StartTime);
 
         var body = $"""
-            Your payment was completed successfully.
+            Your ticket is confirmed!
 
-            Screening ID: {screeningId}
+            Movie: {notification.MovieTitle}
+            Cinema: {notification.CinemaName}
+            Hall: {notification.HallName}
+            Time: {timeText}
+            Seat: Row {notification.SeatRow}, Seat {notification.SeatNumber}
 
             Enjoy your movie!
             """;
 
         await _emailSender.SendAsync(email, subject, body);
+    }
+
+    private static string FormatScreeningTimeForDisplay(DateTime startTime)
+    {
+        // If already local/unspecified cinema time, do not convert again.
+        if (startTime.Kind != DateTimeKind.Utc)
+        {
+            return startTime.ToString("hh:mm tt");
+        }
+
+        TimeZoneInfo bakuTimeZone;
+        try
+        {
+            bakuTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Azerbaijan Standard Time");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            bakuTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Baku");
+        }
+
+        var localStartTime = TimeZoneInfo.ConvertTimeFromUtc(startTime, bakuTimeZone);
+        return localStartTime.ToString("hh:mm tt");
     }
 
     public async Task SendPaymentFailedEmailAsync(

@@ -49,7 +49,7 @@ function clampScreeningPagination(pageNumber: number | undefined, pageSize: numb
   return { pageNumber: pn, pageSize: ps }
 }
 
-export type GetAllScreeningsOptions = { quiet?: boolean }
+export type GetAllScreeningsOptions = { quiet?: boolean; noCache?: boolean; cacheBust?: boolean }
 
 export async function getAllScreenings(query: GetAllScreeningsRequest = {}, options?: GetAllScreeningsOptions) {
   const { pageNumber: pn, pageSize: ps } = clampScreeningPagination(query.pageNumber, query.pageSize)
@@ -63,12 +63,47 @@ export async function getAllScreenings(query: GetAllScreeningsRequest = {}, opti
     dateTo: query.dateTo,
     pageNumber: pn,
     pageSize: ps,
+    _t: options?.cacheBust ? Date.now() : undefined,
   })
   return apiRequest<PaginatedResponse<GetAllScreeningsResponse>>(`/api/screening${qs}`, {
     method: "GET",
     auth: false,
     quiet: options?.quiet,
+    cache: options?.noCache ? "no-store" : undefined,
+    headers: options?.noCache ? { "Cache-Control": "no-cache" } : undefined,
   })
+}
+
+/** Backend allows page size 1–100 (see GetAllScreeningsQueryValidator). */
+export const GET_ALL_SCREENINGS_MAX_PAGE_SIZE = 100
+
+/**
+ * Walks every page of `GET /api/screening` (same filters as {@link getAllScreenings}) so the admin
+ * list is not stuck showing only the first page (backend orders by start time ascending).
+ */
+export async function getAllScreeningsAllPages(
+  query: Omit<GetAllScreeningsRequest, "pageNumber" | "pageSize"> = {},
+  options?: GetAllScreeningsOptions
+): Promise<GetAllScreeningsResponse[]> {
+  const pageSize = GET_ALL_SCREENINGS_MAX_PAGE_SIZE
+  const byId = new Map<number, GetAllScreeningsResponse>()
+  let pageNumber = 1
+  const maxPages = 100
+
+  while (pageNumber <= maxPages) {
+    const page = await getAllScreenings({ ...query, pageNumber, pageSize }, options)
+    const items = page.items ?? (page as unknown as { Items?: GetAllScreeningsResponse[] }).Items ?? []
+    for (const row of items) {
+      const id = Number(row.id)
+      if (Number.isFinite(id)) byId.set(id, row)
+    }
+    if (items.length === 0 || !page.hasNextPage) break
+    pageNumber++
+  }
+
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+  )
 }
 
 export type CreateScreeningBody = {
@@ -115,6 +150,7 @@ export async function deleteScreening(id: number) {
   return apiRequest<unknown>(`/api/screening/${id}`, {
     method: "DELETE",
     auth: true,
+    quiet: true,
   })
 }
 

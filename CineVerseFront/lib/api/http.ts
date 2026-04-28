@@ -1,5 +1,29 @@
 import { ApiError, type BaseResponse } from "@/lib/api/types"
 
+/** Normalize refresh/login token DTOs whether JSON used camelCase or PascalCase property names. */
+export function normalizeTokenPayload(data: unknown): {
+  accessToken: string
+  refreshToken: string
+  expiresAtUtc: string
+} | null {
+  if (data === null || typeof data !== "object" || Array.isArray(data)) return null
+  const o = data as Record<string, unknown>
+  const accessToken = o.accessToken ?? o.AccessToken
+  const refreshToken = o.refreshToken ?? o.RefreshToken
+  const expiresRaw = o.expiresAtUtc ?? o.ExpiresAtUtc ?? o.accessTokenExpiresAtUtc ?? o.AccessTokenExpiresAtUtc
+  if (typeof accessToken !== "string" || !accessToken.trim()) return null
+  if (typeof refreshToken !== "string" || !refreshToken.trim()) return null
+  let expiresAtUtc: string
+  if (typeof expiresRaw === "string" && expiresRaw.trim()) {
+    expiresAtUtc = expiresRaw.trim()
+  } else if (typeof expiresRaw === "number" && Number.isFinite(expiresRaw)) {
+    expiresAtUtc = new Date(expiresRaw).toISOString()
+  } else {
+    return null
+  }
+  return { accessToken, refreshToken, expiresAtUtc }
+}
+
 const ACCESS_TOKEN_KEY = "cineverse.accessToken"
 const REFRESH_TOKEN_KEY = "cineverse.refreshToken"
 const ACCESS_EXPIRES_AT_KEY = "cineverse.accessExpiresAtUtc"
@@ -224,10 +248,21 @@ export function clearTokens() {
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
   localStorage.removeItem(ACCESS_EXPIRES_AT_KEY)
+  sessionStorage.removeItem(ACCESS_TOKEN_KEY)
+  sessionStorage.removeItem(REFRESH_TOKEN_KEY)
+  sessionStorage.removeItem(ACCESS_EXPIRES_AT_KEY)
 }
 
 export function getAccessToken() {
   return readTokens()?.accessToken ?? null
+}
+
+function isSuccessEnvelope(payload: unknown): boolean {
+  if (payload === null || typeof payload !== "object") return false
+  const p = payload as Record<string, unknown>
+  if (typeof p.success === "boolean") return p.success
+  if (typeof p.Success === "boolean") return p.Success
+  return false
 }
 
 async function refreshAccessToken() {
@@ -243,22 +278,84 @@ async function refreshAccessToken() {
   const rawText = await response.text()
   const parsed = parseHttpResponseBody(rawText)
 
-  let payload: BaseResponse<{ accessToken: string; refreshToken: string; expiresAtUtc: string }> | null = null
+  let payload: unknown = null
   if (parsed.kind === "json" && parsed.value !== null && typeof parsed.value === "object") {
-    payload = parsed.value as BaseResponse<{
-      accessToken: string
-      refreshToken: string
-      expiresAtUtc: string
-    }>
+    payload = parsed.value
   }
 
-  if (!response.ok || !payload?.success || !payload.data) {
+  const pObj = payload as Record<string, unknown> | null
+  const rawData = pObj?.data !== undefined ? pObj.data : pObj?.Data
+  const normalized = normalizeTokenPayload(rawData)
+
+  if (!response.ok || !isSuccessEnvelope(payload) || !normalized) {
     clearTokens()
     return false
   }
 
-  writeTokens(payload.data)
+  writeTokens(normalized)
   return true
+}
+
+/**
+ * Explicit session refresh (same contract as internal 401 retry): POST /api/auth/refresh with body `{ refreshToken }`.
+ * Persists normalized tokens on success.
+ */
+export async function refreshSession(options?: { quiet?: boolean }): Promise<{
+  accessToken: string
+  refreshToken: string
+  expiresAtUtc: string
+}> {
+  const refreshToken = readTokens()?.refreshToken
+  if (!refreshToken?.trim()) {
+    throw new ApiError("No refresh token", 401)
+  }
+
+  const response = await fetch(buildUrl("/api/auth/refresh"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refreshToken }),
+  })
+
+  const rawText = await response.text()
+  const parsed = parseHttpResponseBody(rawText)
+
+  let structuredPayload: unknown = null
+  if (parsed.kind === "json") {
+    structuredPayload = parsed.value
+  }
+
+  let payload: unknown = null
+  if (parsed.kind === "json" && parsed.value !== null && typeof parsed.value === "object") {
+    payload = parsed.value
+  }
+
+  const pObj = payload as Record<string, unknown> | null
+  const rawData = pObj?.data !== undefined ? pObj.data : pObj?.Data
+  const normalized = normalizeTokenPayload(rawData)
+
+  const quiet = options?.quiet ?? false
+  const ok = response.ok && isSuccessEnvelope(payload) && normalized !== null
+
+  if (!ok) {
+    if (response.status === 401 || response.status === 400) {
+      clearTokens()
+    }
+    const msg = buildApiErrorMessage(parsed, response.status)
+    logApiFailure(quiet, response.status, msg, parsed, structuredPayload, rawText, {
+      path: "/api/auth/refresh",
+      method: "POST",
+      requestBody: { refreshToken: "[redacted]" },
+    })
+    throw new ApiError(msg, response.status, extractBackendErrorsArray(structuredPayload), {
+      path: "/api/auth/refresh",
+      method: "POST",
+      rawText,
+      parsedJson: structuredPayload ?? undefined,
+    })
+  }
+
+  writeTokens(normalized)
+  return normalized
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -275,14 +372,24 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     console.info("[payment-flow] request", { path, method, requestBody: body })
   }
 
+  const upperMethod = method.toUpperCase()
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData
+  // DELETE with no body: omit Content-Type — some stacks mishandle `application/json` with an empty body.
+  const jsonContentType =
+    isFormData
+      ? {}
+      : body !== undefined || upperMethod !== "DELETE"
+      ? { "Content-Type": "application/json" }
+      : {}
+
   const response = await fetch(buildUrl(path), {
     ...rest,
     headers: {
-      "Content-Type": "application/json",
+      ...jsonContentType,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(headers ?? {}),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
   })
 
   const rawText = await response.text()
@@ -375,6 +482,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   return p as T
 }
 
-export function persistTokens(tokens: { accessToken: string; refreshToken: string; expiresAtUtc: string }) {
-  writeTokens(tokens)
+export function persistTokens(tokens: unknown) {
+  const normalized = normalizeTokenPayload(tokens)
+  if (!normalized) {
+    throw new Error("Invalid token payload")
+  }
+  writeTokens(normalized)
 }

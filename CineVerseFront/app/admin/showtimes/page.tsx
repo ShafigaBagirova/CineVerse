@@ -15,22 +15,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { getAllMovies, type GetAllMoviesResponse } from "@/lib/api/movies"
+import { getAllMoviesAllPages } from "@/lib/api/movies"
 import { getAllHalls, type GetAllHallsResponse } from "@/lib/api/halls"
 import {
   createScreening,
   deleteScreening,
-  getAllScreenings,
+  getAllScreeningsAllPages,
   updateScreening,
   type GetAllScreeningsResponse,
   type ScreeningFormat,
   type ScreeningStatus,
   type UpdateScreeningBody,
 } from "@/lib/api/screenings"
-import { ApiError } from "@/lib/api/types"
-
-/** Same pagination shape as admin halls: pageNumber=1, pageSize=10 via query string. */
-const ADMIN_PAGE = { pageNumber: 1, pageSize: 10 } as const
+import { ApiError, userFacingApiErrorMessage } from "@/lib/api/types"
 
 const FORMAT_FROM_NUM: Record<number, ScreeningFormat> = {
   1: "TwoD",
@@ -66,7 +63,8 @@ function pickPaginatedItems<T>(data: unknown): T[] {
 
 function normalizeScreeningRow(raw: unknown): GetAllScreeningsResponse {
   const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {}
-  const id = Number(o.id ?? o.Id ?? 0)
+  const rawId = o.id ?? o.Id ?? o.screeningId ?? o.ScreeningId
+  const id = Math.trunc(Number(rawId ?? 0)) || 0
   const movieId = Number(o.movieId ?? o.MovieId ?? 0)
   const hallId = Number(o.hallId ?? o.HallId ?? 0)
   const movieTitle = String(o.movieTitle ?? o.MovieTitle ?? "")
@@ -116,10 +114,6 @@ function normalizeScreeningRow(raw: unknown): GetAllScreeningsResponse {
   }
 }
 
-function screeningRowsFromListPayload(data: unknown): GetAllScreeningsResponse[] {
-  return pickPaginatedItems<unknown>(data).map(normalizeScreeningRow)
-}
-
 function formatScreeningStart(iso: string): string {
   if (!iso) return "—"
   const d = new Date(iso)
@@ -128,16 +122,23 @@ function formatScreeningStart(iso: string): string {
 }
 
 function getErrorMessage(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message
-  if (e instanceof Error && e.message.trim()) return e.message
-  if (typeof e === "string" && e.trim()) return e
-  return fallback
+  return userFacingApiErrorMessage(e, fallback)
 }
 
-function toIsoLocal(value: string) {
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return value
-  return d.toISOString()
+function toApiDateTime(value: string) {
+  const v = value.trim()
+  if (!v) return v
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) return `${v}:00`
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(v)) return v
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return v
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, "0")
+  const dd = String(d.getDate()).padStart(2, "0")
+  const hh = String(d.getHours()).padStart(2, "0")
+  const mi = String(d.getMinutes()).padStart(2, "0")
+  const ss = String(d.getSeconds()).padStart(2, "0")
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}`
 }
 
 export default function AdminShowtimesPage() {
@@ -146,6 +147,7 @@ export default function AdminShowtimesPage() {
   const [halls, setHalls] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [createForm, setCreateForm] = useState({
@@ -161,24 +163,27 @@ export default function AdminShowtimesPage() {
   const [editRow, setEditRow] = useState<GetAllScreeningsResponse | null>(null)
   const [editForm, setEditForm] = useState<UpdateScreeningBody>({})
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setLoading(true)
+    }
     setError(null)
     try {
-      const [s, m, h] = await Promise.all([
-        getAllScreenings({ ...ADMIN_PAGE }, { quiet: true }),
-        getAllMovies({ ...ADMIN_PAGE, sortBy: "title", desc: false }, { quiet: true }),
-        getAllHalls(ADMIN_PAGE.pageNumber, ADMIN_PAGE.pageSize, { quiet: true }),
+      const [screeningList, movieList, h] = await Promise.all([
+        getAllScreeningsAllPages({}, { quiet: true }),
+        getAllMoviesAllPages({ sortBy: "title", desc: false }, { quiet: true }),
+        getAllHalls(1, 100, { sortBy: "name", desc: false, quiet: true }),
       ])
-      setRows(screeningRowsFromListPayload(s))
-      const movieRows = pickPaginatedItems<GetAllMoviesResponse>(m)
+      const normalized = screeningList.map((raw) => normalizeScreeningRow(raw))
+      // Backend delete is soft (isActive=false); hide cancelled/inactive rows here.
+      setRows(normalized.filter((r) => r.isActive))
       setMovies(
-        movieRows.map((x) => ({
-          id: Number(x.id ?? (x as { Id?: number }).Id ?? 0),
-          title: String(x.title ?? (x as { Title?: string }).Title ?? ""),
+        movieList.map((x) => ({
+          id: Number(x.id),
+          title: String(x.title ?? ""),
         })),
       )
-      const hallRows = pickPaginatedItems<GetAllHallsResponse>(h)
+      const hallRows = pickPaginatedItems<GetAllHallsResponse>(h).filter((x) => x.isActive)
       setHalls(
         hallRows.map((x) => ({
           id: Number(x.id ?? (x as { Id?: number }).Id ?? 0),
@@ -188,7 +193,9 @@ export default function AdminShowtimesPage() {
     } catch (e) {
       setError(getErrorMessage(e, "Failed to load showtimes."))
     } finally {
-      setLoading(false)
+      if (!opts?.silent) {
+        setLoading(false)
+      }
     }
   }, [])
 
@@ -209,19 +216,33 @@ export default function AdminShowtimesPage() {
     e.preventDefault()
     setBusy(true)
     setError(null)
+    setSuccessMessage(null)
     try {
-      await createScreening({
+      const payload = {
         movieId: createForm.movieId,
         hallId: createForm.hallId,
-        startTime: toIsoLocal(createForm.startLocal),
-        endTime: toIsoLocal(createForm.endLocal),
+        startTime: toApiDateTime(createForm.startLocal),
+        endTime: toApiDateTime(createForm.endLocal),
         price: Number(createForm.price),
         language: createForm.language.trim(),
         subtitleLanguage: createForm.subtitleLanguage.trim() || undefined,
         format: createForm.format,
-      })
+      }
+      console.info("[admin-showtimes] createScreening payload", payload)
+      await createScreening(payload)
+      await load({ silent: true })
+      setSuccessMessage("Screening created.")
       setCreateOpen(false)
-      await load()
+      setCreateForm({
+        movieId: 0,
+        hallId: 0,
+        startLocal: "",
+        endLocal: "",
+        price: 12.5,
+        language: "en",
+        subtitleLanguage: "",
+        format: "TwoD" as ScreeningFormat,
+      })
     } catch (err) {
       setError(getErrorMessage(err, "Create failed."))
     } finally {
@@ -234,13 +255,16 @@ export default function AdminShowtimesPage() {
     if (!editRow) return
     setBusy(true)
     setError(null)
+    setSuccessMessage(null)
     try {
       const payload: UpdateScreeningBody = { ...editForm }
-      if (editForm.startTime) payload.startTime = toIsoLocal(editForm.startTime as string)
-      if (editForm.endTime) payload.endTime = toIsoLocal(editForm.endTime as string)
+      if (editForm.startTime) payload.startTime = toApiDateTime(editForm.startTime as string)
+      if (editForm.endTime) payload.endTime = toApiDateTime(editForm.endTime as string)
+      console.info("[admin-showtimes] updateScreening payload", { id: editRow.id, ...payload })
       await updateScreening(editRow.id, payload)
       setEditRow(null)
-      await load()
+      setSuccessMessage("Screening updated.")
+      await load({ silent: true })
     } catch (err) {
       setError(getErrorMessage(err, "Update failed."))
     } finally {
@@ -249,13 +273,27 @@ export default function AdminShowtimesPage() {
   }
 
   async function onDelete(id: number) {
+    if (!Number.isFinite(id) || id <= 0) {
+      setError("Invalid screening id. Refresh the page and try again.")
+      return
+    }
     if (!window.confirm("Delete this screening?")) return
     setBusy(true)
+    setError(null)
+    setSuccessMessage(null)
     try {
       await deleteScreening(id)
-      await load()
+      setRows((prev) => prev.filter((r) => r.id !== id))
+      setSuccessMessage("Screening removed.")
+      await load({ silent: true })
     } catch (err) {
-      setError(getErrorMessage(err, "Delete failed."))
+      if (err instanceof ApiError && err.status === 404) {
+        setError("This screening was already removed. Refreshing the list.")
+        setRows((prev) => prev.filter((r) => r.id !== id))
+        await load({ silent: true })
+      } else {
+        setError(getErrorMessage(err, "Delete failed."))
+      }
     } finally {
       setBusy(false)
     }
@@ -413,6 +451,7 @@ export default function AdminShowtimesPage() {
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
+      {successMessage && <p className="text-sm text-green-600 dark:text-green-500">{successMessage}</p>}
 
       <Card className="border-border/60 bg-card/50">
         <CardContent className="p-0">

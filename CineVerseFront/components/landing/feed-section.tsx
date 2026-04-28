@@ -3,23 +3,16 @@
 import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Star, Crown, UserPlus, UserCheck } from "lucide-react"
+import { Star, Crown } from "lucide-react"
 import { getAllMovies, type GetAllMoviesResponse } from "@/lib/api/movies"
+import { FollowButton } from "@/components/follow/follow-button"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useFollow } from "@/components/providers/follow-provider"
+import { suggestedUserTasteSimilarityPercent } from "@/lib/api/follow"
 
 export function FeedSection() {
   const { status } = useAuth()
-  const {
-    suggestedUsers,
-    suggestedLoading,
-    suggestedError,
-    suggestedAuthRequired,
-    followingByUserId,
-    loadingByUserId,
-    ensureFollowStatus,
-    toggleFollow,
-  } = useFollow()
+  const { suggestedUsers, suggestedLoading, suggestedError, suggestedAuthRequired, ensureFollowStatus } = useFollow()
   const [movies, setMovies] = useState<GetAllMoviesResponse[]>([])
 
   useEffect(() => {
@@ -190,23 +183,15 @@ export function FeedSection() {
                 </div>
 
                 <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
-                  Common movies: {user.commonMoviesCount} - Taste: {Math.round(user.tasteScore)}%
+                  Common movies: {user.commonMoviesCount} - Taste: {suggestedUserTasteSimilarityPercent(user)}%
                 </p>
 
-                <button
-                  onClick={() => void toggleFollow(user.userId)}
-                  disabled={status !== "authenticated" || loadingByUserId[user.userId]}
-                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-60"
-                >
-                  {followingByUserId[user.userId] ? <UserCheck className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
-                  {status !== "authenticated"
-                    ? "Sign in to follow"
-                    : loadingByUserId[user.userId]
-                      ? "Updating..."
-                      : followingByUserId[user.userId]
-                        ? "Following"
-                        : "Follow"}
-                </button>
+                <FollowButton
+                  userId={user.userId}
+                  displayLabel={user.userName ? `@${user.userName}` : user.fullName ?? undefined}
+                  variant="full"
+                  className="text-xs"
+                />
               </div>
             ))}
           </div>

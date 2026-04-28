@@ -47,6 +47,8 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
        int pageNumber,
        int pageSize,
        string? search,
+       string? actorName,
+       string? directorName,
        int? genreId,
        string? language,
        MovieStatus? Status,
@@ -69,7 +71,20 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
 
             query = query.Where(x =>
                 x.Title.ToLower().Contains(normalizedSearch) ||
-                (x.Description != null && x.Description.ToLower().Contains(normalizedSearch)));
+                (x.Actors != null && x.Actors.ToLower().Contains(normalizedSearch)) ||
+                (x.Director != null && x.Director.ToLower().Contains(normalizedSearch)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(actorName))
+        {
+            var actor = actorName.Trim().ToLower();
+            query = query.Where(x => x.Actors != null && x.Actors.ToLower().Contains(actor));
+        }
+
+        if (!string.IsNullOrWhiteSpace(directorName))
+        {
+            var director = directorName.Trim().ToLower();
+            query = query.Where(x => x.Director != null && x.Director.ToLower().Contains(director));
         }
 
         if (genreId.HasValue)
@@ -113,7 +128,7 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
             query = query.Where(x => x.UserAverageRating.HasValue && x.UserAverageRating.Value <= maxUserRating.Value);
         }
 
-        // Query sortBy is normalized like the validator (camelCase API values lowercased: userrating, tmdbrating, createdat).
+    
         query = sortBy?.Trim().ToLowerInvariant() switch
         {
             "title" => desc
@@ -167,5 +182,7 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
         return await _context.Movies
             .AnyAsync(x => x.Id == id, cancellationToken);
     }
+
+
 
 }

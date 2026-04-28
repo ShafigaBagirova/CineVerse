@@ -111,7 +111,7 @@ public class TicketRepository:GenericRepository<Ticket,int>, ITicketRepository
     {
         return await _context.Tickets
             .AsNoTracking()
-            .Where(x => x.ScreeningId == screeningId)
+            .Where(x => x.ScreeningId == screeningId && x.Status == TicketStatus.Paid)
             .Select(x => x.SeatId)
             .Distinct()
             .ToListAsync(cancellationToken);

@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/api/http"
+import { ApiError } from "@/lib/api/types"
 
 export interface PaginatedResponse<T> {
   items: T[]
@@ -16,6 +17,9 @@ export interface GetAllMoviesResponse {
   title: string
   slug: string
   description?: string | null
+  director?: string | null
+  actors?: string | null
+  cast?: string[] | string | null
   posterUrl?: string | null
   backdropUrl?: string | null
   language?: string | null
@@ -77,6 +81,8 @@ export interface GetMovieByIdResponse {
   id: number
   title: string
   description: string
+  director?: string | null
+  cast?: string[] | null
   posterUrl?: string | null
   backdropUrl?: string | null
   userAverageRating?: number | null
@@ -101,6 +107,8 @@ export interface GetAllMoviesQuery {
   pageNumber?: number
   pageSize?: number
   search?: string
+  actorName?: string
+  directorName?: string
   /** MovieGenre / Genre PK — GET /api/movie?genreId= */
   genreId?: number
   language?: string
@@ -156,6 +164,12 @@ function appendMovieListQueryParams(
 
   if (query.search != null && String(query.search).trim() !== "") {
     params.set("search", String(query.search).trim())
+  }
+  if (query.actorName != null && String(query.actorName).trim() !== "") {
+    params.set("actorName", String(query.actorName).trim())
+  }
+  if (query.directorName != null && String(query.directorName).trim() !== "") {
+    params.set("directorName", String(query.directorName).trim())
   }
 
   if (query.language != null && String(query.language).trim() !== "") {
@@ -247,17 +261,81 @@ export function getMovieReleaseYear(movie: GetAllMoviesResponse): number | null 
   return Number.isFinite(y) && !Number.isNaN(y) ? y : null
 }
 
-export type GetAllMoviesOptions = { quiet?: boolean }
+export type GetAllMoviesOptions = {
+  quiet?: boolean
+  /** Send bearer token when true (e.g. admin list after authenticated mutations). */
+  auth?: boolean
+}
+
+/** Matches backend list validation: page size 1–100. */
+export const GET_ALL_MOVIES_MAX_PAGE_SIZE = 100
+
+/**
+ * Loads every movie from `GET /api/movie` by requesting successive pages (max page size).
+ * De-duplicates by `id`, then sorts by `title` (case-insensitive) for dropdowns.
+ */
+export async function getAllMoviesAllPages(
+  query: Omit<GetAllMoviesQuery, "pageNumber" | "pageSize"> = {},
+  options?: GetAllMoviesOptions
+): Promise<GetAllMoviesResponse[]> {
+  const pageSize = GET_ALL_MOVIES_MAX_PAGE_SIZE
+  const byId = new Map<number, GetAllMoviesResponse>()
+  let pageNumber = 1
+  const maxPages = 100
+
+  while (pageNumber <= maxPages) {
+    const page = await getAllMovies({ ...query, pageNumber, pageSize }, options)
+    for (const m of page.items) {
+      const id = Number(m.id)
+      if (Number.isFinite(id)) byId.set(id, m)
+    }
+    if (page.items.length === 0 || !page.hasNextPage) break
+    pageNumber++
+  }
+
+  return Array.from(byId.values()).sort((a, b) =>
+    String(a.title ?? "").localeCompare(String(b.title ?? ""), undefined, { sensitivity: "base" }),
+  )
+}
+
+function normalizeMovieListItem(m: GetAllMoviesResponse): GetAllMoviesResponse {
+  const raw = m as unknown as Record<string, unknown>
+  const id = Math.trunc(Number(raw.id ?? raw.Id ?? m.id ?? 0))
+  const normalizedDirector = (() => {
+    const v = raw.director ?? raw.Director ?? m.director
+    return typeof v === "string" ? v : m.director
+  })()
+  const normalizedActors = (() => {
+    const v = raw.actors ?? raw.Actors ?? m.actors
+    return typeof v === "string" ? v : m.actors
+  })()
+  const normalizedCast = (raw.cast ?? raw.Cast ?? m.cast) as GetAllMoviesResponse["cast"]
+  return {
+    ...m,
+    ...(Number.isFinite(id) && id > 0 ? { id } : {}),
+    director: normalizedDirector ?? null,
+    actors: normalizedActors ?? null,
+    cast: normalizedCast ?? null,
+  }
+}
 
 export async function getAllMovies(query: GetAllMoviesQuery = {}, options?: GetAllMoviesOptions) {
   const params = new URLSearchParams()
   appendMovieListQueryParams(params, query)
+  // Unique URL every request so browser / Next rewrite proxy cannot reuse a stale GET (same path+query was cached).
+  params.set("_cb", String(Date.now()))
+
   const qs = params.toString() ? `?${params.toString()}` : ""
 
   const data = await apiRequest<PaginatedResponse<GetAllMoviesResponse>>(`/api/movie${qs}`, {
     method: "GET",
-    auth: false,
+    auth: options?.auth ?? false,
     quiet: options?.quiet,
+    cache: "no-store",
+    headers: {
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
   })
 
   // Defensive: always return an array (handles null items or PascalCase from non-camel JSON)
@@ -265,9 +343,10 @@ export async function getAllMovies(query: GetAllMoviesQuery = {}, options?: GetA
     data.items ??
     (data as unknown as { Items?: GetAllMoviesResponse[] | null }).Items ??
     []
+  const list = Array.isArray(items) ? items.map((row) => normalizeMovieListItem(row as GetAllMoviesResponse)) : []
   return {
     ...data,
-    items: Array.isArray(items) ? items : [],
+    items: list,
   }
 }
 
@@ -281,10 +360,18 @@ export async function getMovieById(id: number) {
 
 export async function getSuggestedMovies(pageNumber = 1, pageSize = 6) {
   const qs = buildQuery({ pageNumber, pageSize })
-  return apiRequest<PaginatedResponse<GetSuggestedMoviesResponse>>(`/api/movie/suggested${qs}`, {
+  const data = await apiRequest<PaginatedResponse<GetSuggestedMoviesResponse>>(`/api/movie/suggested${qs}`, {
     method: "GET",
     auth: true,
   })
+  const items =
+    data.items ??
+    (data as unknown as { Items?: GetSuggestedMoviesResponse[] | null }).Items ??
+    []
+  return {
+    ...data,
+    items: Array.isArray(items) ? items : [],
+  }
 }
 
 /** POST /api/movie — body matches `CreateMovieCommand` / nested `createMovieRequest`. */
@@ -299,6 +386,7 @@ export type CreateMovieBody = {
   durationMinutes: number
   language: string
   tmdbId: number
+  genreIds?: number[]
 }
 
 export type MovieStatus = "Released" | "Upcoming" | "Cancelled" | "PostProduction"
@@ -332,10 +420,17 @@ export async function updateMovie(id: number, body: UpdateMovieBody) {
   })
 }
 
-export async function deleteMovie(id: number) {
-  return apiRequest<unknown>(`/api/movie/${id}`, {
+export async function deleteMovie(id: number | string) {
+  const n = Math.trunc(Number(id))
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new ApiError("Invalid movie id.", 400)
+  }
+  return apiRequest<unknown>(`/api/movie/${n}`, {
     method: "DELETE",
     auth: true,
+    headers: {
+      Accept: "application/json",
+    },
   })
 }
 

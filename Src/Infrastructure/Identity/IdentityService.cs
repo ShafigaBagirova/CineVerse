@@ -85,8 +85,7 @@ public sealed class IdentityService : IIdentityService
             user.Id,
             user.UserName ?? string.Empty,
             user.Email ?? string.Empty,
-            roles
-        );
+            roles);
     }
     public async Task<bool> ConfirmEmailAsync(string userId)
     {
@@ -136,8 +135,7 @@ public sealed class IdentityService : IIdentityService
             user.Id,
             user.UserName!,
             user.Email!,
-            roles
-        );
+            roles);
     }
     public async Task<string?> GeneratePasswordResetTokenAsync(string email)
     {
@@ -530,5 +528,38 @@ public sealed class IdentityService : IIdentityService
     public async Task<int> CountVipUsersAsync(CancellationToken cancellationToken)
     {
         return await _userManager.Users.CountAsync(x => x.IsVip, cancellationToken);
+    }
+
+    public async Task<BaseResponse> SubscribeVipAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null)
+            return BaseResponse.Fail("User not found.");
+
+        var now = DateTime.UtcNow;
+        var inRole = await _userManager.IsInRoleAsync(user, RoleNames.Vip);
+
+        if (inRole && user.VipExpiresAt.HasValue && user.VipExpiresAt.Value > now)
+            return BaseResponse.Fail("You already have an active VIP membership.");
+
+        var baseDate = user.VipExpiresAt.HasValue && user.VipExpiresAt.Value > now
+            ? user.VipExpiresAt.Value
+            : now;
+
+        user.IsVip = true;
+        user.VipExpiresAt = baseDate.AddMonths(12);
+
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+            return BaseResponse.Fail(string.Join(" ", updateResult.Errors.Select(e => e.Description)));
+
+        if (!inRole)
+        {
+            var addRole = await _userManager.AddToRoleAsync(user, RoleNames.Vip);
+            if (!addRole.Succeeded)
+                return BaseResponse.Fail(string.Join(" ", addRole.Errors.Select(e => e.Description)));
+        }
+
+        return BaseResponse.Ok("VIP membership activated for 12 months.");
     }
 }

@@ -98,15 +98,14 @@ export default function TicketsPage() {
             <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-primary">Booking Confirmed</p>
               <p className="mt-1 text-sm text-foreground">
-                Ticket #{focusedTicket.id} - {focusedTicket.movieTitle} - Seat {focusedTicket.seatRow}
-                {focusedTicket.seatNumber}
+                Ticket #{focusedTicket.id} - {focusedTicket.movieTitle} - Row {focusedTicket.seatRow}, Seat {focusedTicket.seatNumber}
               </p>
             </div>
           )}
           {groupedTickets.map((group) => {
             const ticket = group[0]
             const seatLabels = group
-              .map((item) => `${item.seatRow}${item.seatNumber}`)
+              .map((item) => `${item.seatRow}-${item.seatNumber}`)
               .sort((a, b) => a.localeCompare(b))
             return (
             <div

@@ -12,6 +12,7 @@ public sealed class ExternalMovieDto
     public string? Tagline { get; set; }
     public DateOnly? ReleaseDate { get; set; }
     public string? Director { get; set; }
+    public string? Actors { get; set; }
     public int? DurationMinutes { get; set; }
     public string? Language { get; set; }
     public string Slug { get; set; } = null!;

@@ -33,6 +33,18 @@ public class PaymentController : ControllerBase
 
         return Ok(result);
     }
+
+    [Authorize(Policy = Policies.Authenticated)]
+    [HttpPost("vip/create-intent")]
+    public async Task<ActionResult<BaseResponse<CreateVipPaymentIntentResponse>>> CreateVipIntent(CancellationToken ct)
+    {
+        var result = await _mediator.Send(new CreateVipPaymentIntentCommand(), ct);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
     [AllowAnonymous]
     [HttpPost("webhook")]
     public async Task<IActionResult> Webhook()

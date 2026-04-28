@@ -16,6 +16,7 @@ public sealed class CreatePaymentIntentCommandHandler
 {
     private readonly IPaymentRepository _paymentRepository;
     private readonly ISeatHoldRepository _seatHoldRepository;
+    private readonly ISeatRepository _seatRepository;
     private readonly IScreeningRepository _screeningRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IStripeService _stripeService;
@@ -27,6 +28,7 @@ public sealed class CreatePaymentIntentCommandHandler
     public CreatePaymentIntentCommandHandler(
         IPaymentRepository paymentRepository,
         ISeatHoldRepository seatHoldRepository,
+        ISeatRepository seatRepository,
         IScreeningRepository screeningRepository,
         ICurrentUserService currentUserService,
         IStripeService stripeService,
@@ -37,6 +39,7 @@ public sealed class CreatePaymentIntentCommandHandler
     {
         _paymentRepository = paymentRepository;
         _seatHoldRepository = seatHoldRepository;
+        _seatRepository = seatRepository;
         _screeningRepository = screeningRepository;
         _currentUserService = currentUserService;
         _stripeService = stripeService;
@@ -102,6 +105,8 @@ public sealed class CreatePaymentIntentCommandHandler
 
             await _seatHoldRepository.UpdateAsync(seatHold, cancellationToken);
             await _seatHoldRepository.SaveChangesAsync(cancellationToken);
+            await _cacheService.RemoveAsync($"{SeatHoldCacheKeys.GetSeatHoldByIdPrefix}{seatHold.Id}", cancellationToken);
+            await _cacheService.RemoveByPrefixAsync($"{SeatHoldCacheKeys.GetSeatHoldsByScreeningPrefix}{seatHold.ScreeningId}");
 
             _logger.LogWarning(
                 "CreatePaymentIntentCommand failed. Seat hold expired during payment creation. SeatHoldId: {SeatHoldId}",
@@ -147,12 +152,23 @@ public sealed class CreatePaymentIntentCommandHandler
 
             return BaseResponse<CreatePaymentIntentResponse>.Fail("Screening not found.");
         }
+        var seat = await _seatRepository.GetByIdAsync(seatHold.SeatId, cancellationToken);
+        if (seat is null)
+        {
+            _logger.LogWarning(
+                "CreatePaymentIntentCommand failed. Seat not found for seat hold. SeatHoldId: {SeatHoldId}, SeatId: {SeatId}",
+                seatHold.Id,
+                seatHold.SeatId);
+
+            return BaseResponse<CreatePaymentIntentResponse>.Fail("Seat not found.");
+        }
 
         var foodOrder = await _foodOrderRepository.GetActiveBySeatHoldIdAsync(
             seatHold.Id,
             cancellationToken);
 
-        var ticketAmount = screening.Price;
+        var isVipSeat = int.TryParse((seat.Row ?? string.Empty).Trim(), out var rowNumber) && rowNumber == 2;
+        var ticketAmount = isVipSeat ? screening.Price * 1.5m : screening.Price;
         var foodAmount = foodOrder?.TotalAmount ?? 0m;
         var amount = ticketAmount + foodAmount;
 

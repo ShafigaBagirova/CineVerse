@@ -4,4 +4,4 @@ using MediatR;
 
 namespace Application.SeatHolds.Commands;
 
-public sealed record CreateSeatHoldCommand(CreateSeatHoldRequest Request) : IRequest<BaseResponse>;
+public sealed record CreateSeatHoldCommand(CreateSeatHoldRequest Request) : IRequest<BaseResponse<GetSeatHoldByIdResponse>>;

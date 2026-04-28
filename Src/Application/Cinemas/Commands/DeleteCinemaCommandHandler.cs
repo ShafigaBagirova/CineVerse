@@ -43,7 +43,8 @@ public class DeleteCinemaCommandHandler : IRequestHandler<DeleteCinemaCommand, B
         cinema.IsActive = false;
 
         await _repository.SaveChangesAsync(cancellationToken);
-        await _cacheService.RemoveAsync(CinemaCacheKey.CinemaById(request.Id));
+        await _cacheService.RemoveAsync(CinemaCacheKey.CinemaById(request.Id), cancellationToken);
+        await _cacheService.RemoveByPrefixAsync(CinemaCacheKey.CinemasPagedPrefix);
 
         _logger.LogInformation("Cinema deleted successfully. Id: {CinemaId}", request.Id);
 

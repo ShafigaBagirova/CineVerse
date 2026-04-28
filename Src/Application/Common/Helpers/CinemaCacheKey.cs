@@ -2,6 +2,8 @@
 
 public static class CinemaCacheKey
 {
+    public const string CinemasPagedPrefix = "cinemas:page:";
+
     public static string CinemasPaged(int pageNumber,int pageSize,string? country,string? city, string? search,
      string? sortBy,
      bool desc)

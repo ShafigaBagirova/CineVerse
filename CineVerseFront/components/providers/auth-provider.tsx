@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react"
 import * as authApi from "@/lib/api/auth"
 import { getAccessToken } from "@/lib/api/http"
+import { ApiError } from "@/lib/api/types"
 
 type AuthStatus = "loading" | "authenticated" | "guest"
 
@@ -33,10 +34,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const me = await authApi.getCurrentUser()
       setUser(me)
       setStatus("authenticated")
-    } catch {
-      authApi.logout()
-      setUser(null)
-      setStatus("guest")
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        authApi.logout()
+        setUser(null)
+        setStatus("guest")
+        return
+      }
+      // Transient /me failures should not wipe the session (e.g. VIP webhook delay, network blips).
     }
   }
 

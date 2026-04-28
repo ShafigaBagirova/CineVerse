@@ -31,7 +31,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [authRequired, setAuthRequired] = useState(false)
 
   const refreshNotifications = useCallback(
-    async (pageSize = 20) => {
+    async (pageSize = 50) => {
       if (status !== "authenticated") {
         setNotifications([])
         setUnreadCount(0)

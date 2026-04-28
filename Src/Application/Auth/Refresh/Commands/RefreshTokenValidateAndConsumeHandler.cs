@@ -65,11 +65,6 @@ public sealed class RefreshTokenValidateAndConsumeHandler(
             "User info retrieved successfully for refresh flow. UserId: {UserId}",
             userInfo.UserId);
 
-        return new JwtUserInfoDto(
-            userInfo.UserId,
-            userInfo.UserName,
-            userInfo.Email,
-            userInfo.Roles
-        );
+        return userInfo;
     }
 }

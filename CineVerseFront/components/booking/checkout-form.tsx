@@ -34,6 +34,7 @@ function normalizePaymentStatus(raw: unknown): PaymentStatus | "none" {
   const map: Record<string, PaymentStatus> = {
     pending: "Pending",
     succeeded: "Succeeded",
+    confirmed: "Succeeded",
     failed: "Failed",
     cancelled: "Cancelled",
     canceled: "Cancelled",
@@ -56,7 +57,14 @@ export function CheckoutForm() {
       ?.split(",")
       .map((seat) => seat.trim())
       .filter(Boolean) || []
+  const displaySeats = seats.map((seat) => {
+    const compact = seat.trim()
+    const parts = compact.split("-").map((p) => p.trim()).filter(Boolean)
+    if (parts.length === 2) return `Row ${parts[0]}, Seat ${parts[1]}`
+    return compact
+  })
   const baseTotal = Number(searchParams.get("total")) || 0
+  const screeningIdParam = Number(searchParams.get("screeningId")) || 0
 
   /** One payment intent per seat hold (backend); food draft uses the first hold only. */
   const seatHoldIds = useMemo(() => {
@@ -78,6 +86,7 @@ export function CheckoutForm() {
     title: "Movie",
     posterUrl: null,
   })
+  const [movieLoaded, setMovieLoaded] = useState(false)
   const [foodItems, setFoodItems] = useState<FoodItemResponse[]>([])
   const [foodOrders, setFoodOrders] = useState<Record<number, number>>({})
   const [foodLoading, setFoodLoading] = useState(false)
@@ -105,11 +114,14 @@ export function CheckoutForm() {
 
   useEffect(() => {
     const loadMovie = async () => {
+      setMovieLoaded(false)
       try {
         const data = await getMovieById(movieId)
         setMovie({ title: data.title, posterUrl: data.posterUrl })
       } catch {
         setMovie({ title: "Movie", posterUrl: null })
+      } finally {
+        setMovieLoaded(true)
       }
     }
     void loadMovie()
@@ -124,7 +136,7 @@ export function CheckoutForm() {
         setFoodItems(items)
       } catch (err) {
         setFoodItems([])
-        setFoodError(err instanceof Error ? err.message : "Failed to load food items.")
+          setFoodError(err instanceof Error ? err.message : "Failed to load food items.")
       } finally {
         setFoodLoading(false)
       }
@@ -270,16 +282,22 @@ export function CheckoutForm() {
     try {
       setCheckingStatus(true)
       setCheckoutError(null)
+      console.log("[checkout-status] checking seatHoldId", holdId)
       const statusResponse = await getPaymentStatusBySeatHoldId(holdId)
+      if (!statusResponse.hasPayment) {
+        setPaymentState("none")
+        setPaymentMessage(null)
+        return
+      }
       const normalized = normalizePaymentStatus(statusResponse.status)
       setPaymentState(normalized)
       if (normalized === "Succeeded") {
-        setPaymentMessage("Payment succeeded.")
+        setPaymentMessage("Payment confirmed.")
         await resolveTicketForSeatHold()
       } else if (normalized === "Failed") {
         setPaymentMessage("Payment failed. You can retry.")
       } else if (normalized === "Cancelled") {
-        setPaymentMessage("Payment cancelled.")
+        setPaymentMessage("Payment was cancelled. Please select seats again.")
       } else if (normalized === "Pending") {
         setPaymentMessage("Payment is pending confirmation.")
       } else {
@@ -292,9 +310,16 @@ export function CheckoutForm() {
     }
   }
 
-  const currentPayHoldId = primarySeatHoldId
+  const currentPayHoldId = seatHoldIds[0] ?? 0
   /** After create-intent, show Payment Element + confirm flow (status normalized to `Pending`). */
   const awaitingCardConfirmation = Boolean(paymentIntentMeta) && paymentState === "Pending"
+  const paymentStatusValue = String(paymentState ?? "none")
+  const isCancelled = paymentStatusValue === "Cancelled"
+  const isFailed = paymentStatusValue === "Failed"
+  const isRefunded = paymentStatusValue === "Refunded"
+  const isRestartable = isCancelled || isFailed || isRefunded
+  const isPending = paymentStatusValue === "Pending"
+  const isConfirmed = paymentStatusValue === "Confirmed" || paymentStatusValue === "Succeeded"
 
   const handlePayment = async () => {
     if (status !== "authenticated") {
@@ -305,7 +330,7 @@ export function CheckoutForm() {
 
     if (seatHoldIds.length === 0 || !Number.isFinite(currentPayHoldId) || currentPayHoldId <= 0) {
       setCheckoutError(
-        "No seat hold is linked to this checkout. Go back to seat selection, choose Continue to Checkout, then try Pay again."
+        "No seat hold is linked to this checkout. Please go back and reselect seats."
       )
       return
     }
@@ -354,9 +379,9 @@ export function CheckoutForm() {
   }
 
   useEffect(() => {
-    if (!primarySeatHoldId || status !== "authenticated") return
-    void checkPaymentStatusForHold(primarySeatHoldId)
-  }, [primarySeatHoldId, status])
+    if (!currentPayHoldId || status !== "authenticated") return
+    void checkPaymentStatusForHold(currentPayHoldId)
+  }, [currentPayHoldId, status])
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 lg:px-8">
@@ -374,7 +399,16 @@ export function CheckoutForm() {
             <h2 className="mb-4 text-sm font-semibold text-foreground">Booking Details</h2>
             <div className="flex gap-4">
               <div className="relative aspect-[2/3] w-20 shrink-0 overflow-hidden rounded-lg">
-                <Image src={movie.posterUrl || "/images/movie-1.jpg"} alt={movie.title} fill className="object-cover" />
+                {!movieLoaded ? (
+                  <div className="h-full w-full animate-pulse bg-secondary/60" />
+                ) : (
+                  <Image
+                    src={movie.posterUrl || "/images/movie-1.jpg"}
+                    alt={movie.title}
+                    fill
+                    className="object-cover"
+                  />
+                )}
               </div>
               <div className="flex flex-col gap-1.5 text-sm">
                 <h3 className="font-serif text-lg font-bold text-foreground">{movie.title}</h3>
@@ -385,7 +419,7 @@ export function CheckoutForm() {
                   <Clock className="h-3.5 w-3.5" />{time}
                 </span>
                 <span className="flex items-center gap-1.5 text-muted-foreground">
-                  <Armchair className="h-3.5 w-3.5" />Seats: {seats.join(", ") || "None"}
+                  <Armchair className="h-3.5 w-3.5" />Seats: {displaySeats.join(", ") || "None"}
                 </span>
               </div>
             </div>
@@ -496,37 +530,93 @@ export function CheckoutForm() {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => void handlePayment()}
-              disabled={
-                processing ||
-                status !== "authenticated" ||
-                awaitingCardConfirmation
-              }
-              className={cn(
-                "mt-5 flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition-all",
-                processing
-                  ? "bg-primary/70 text-primary-foreground"
-                  : "bg-primary text-primary-foreground hover:bg-primary/90"
-              )}
-            >
-              {processing ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="h-4 w-4" />
-                  {status !== "authenticated"
-                    ? "Sign in to Pay"
-                    : awaitingCardConfirmation
-                      ? "Payment session ready"
-                      : `Pay ${grandTotal} AZN`}
-                </>
-              )}
-            </button>
+            {isRestartable ? (
+              <button
+                type="button"
+                onClick={() => {
+                  console.log("SELECT_SEATS_AGAIN_CLICKED")
+
+                  // Clear checkout/payment state bound to old cancelled hold.
+                  setPaymentModalOpen(false)
+                  setPaymentIntentMeta(null)
+                  setProcessing(false)
+                  setCheckingStatus(false)
+                  setPaymentState("none")
+                  setPaymentMessage(null)
+                  setCheckoutError(null)
+                  setTicketId(null)
+                  setLastIntentTotal(null)
+                  setAuthRequired(false)
+
+                  localStorage.removeItem("seatHoldId")
+                  localStorage.removeItem("selectedSeats")
+                  localStorage.removeItem("checkoutState")
+                  localStorage.removeItem("bookingCheckout")
+                  localStorage.removeItem("paymentState")
+                  localStorage.removeItem("seatHoldIds")
+                  localStorage.removeItem("bookingState")
+
+                  sessionStorage.removeItem("seatHoldId")
+                  sessionStorage.removeItem("selectedSeats")
+                  sessionStorage.removeItem("checkoutState")
+                  sessionStorage.removeItem("seatHoldIds")
+                  sessionStorage.removeItem("bookingState")
+
+                  const id = screeningIdParam || searchParams.get("screeningId")
+                  if (!id) {
+                    console.error("Missing screeningId for Select seats again redirect")
+                    return
+                  }
+
+                  window.location.href = `/seats?movie=${movieId}&cinema=${encodeURIComponent(cinema)}&time=${encodeURIComponent(time)}&screeningId=${id}&resetCheckout=1`
+                }}
+                disabled={false}
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90"
+              >
+                Select seats again
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void handlePayment()}
+                disabled={
+                  processing ||
+                  status !== "authenticated" ||
+                  awaitingCardConfirmation ||
+                  seatHoldIds.length === 0 ||
+                  isPending ||
+                  isConfirmed
+                }
+                className={cn(
+                  "mt-5 flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition-all",
+                  isConfirmed && "cursor-not-allowed bg-green-500 text-white",
+                  isPending && "cursor-not-allowed bg-primary/60 text-primary-foreground opacity-70",
+                  processing
+                    ? "bg-primary/70 text-primary-foreground"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                )}
+              >
+                {processing ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="h-4 w-4" />
+                    {isConfirmed
+                      ? "Confirmed"
+                      : isPending
+                        ? "Processing..."
+                        : status !== "authenticated"
+                      ? "Sign in to Pay"
+                      : awaitingCardConfirmation
+                        ? "Payment session ready"
+                        : `Pay ${grandTotal} AZN`}
+                  </>
+                )}
+              </button>
+            )}
 
             <button
               type="button"
@@ -537,7 +627,7 @@ export function CheckoutForm() {
               {checkingStatus ? "Checking..." : "Check Payment Status"}
             </button>
 
-            {(paymentState === "Failed" || paymentState === "Cancelled") && (
+            {paymentState === "Failed" && (
               <button
                 type="button"
                 onClick={() => void handleRetry()}
@@ -569,7 +659,7 @@ export function CheckoutForm() {
       </div>
 
       <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
-        <DialogContent className="border-border/50 bg-card p-5 sm:max-w-xl sm:p-6">
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-border/50 bg-card p-5 pb-6 sm:max-w-xl sm:p-6 sm:pb-6">
           <DialogHeader>
             <DialogTitle className="font-serif text-xl text-foreground">Secure Checkout</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">

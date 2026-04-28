@@ -1,4 +1,5 @@
-﻿using Application.Common.Interfaces;
+﻿using Application.Common.Helpers;
+using Application.Common.Interfaces;
 using Application.Common.Responses;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -42,8 +43,9 @@ public sealed class DeleteMovieCommandHandler
         await _movieRepository.DeleteAsync(movie, cancellationToken);
         await _movieRepository.SaveChangesAsync(cancellationToken);
 
-        await _cacheService.RemoveAsync($"movies:id:{request.Id}", cancellationToken);
-        await _cacheService.RemoveAsync("movies:all", cancellationToken);
+        await _cacheService.RemoveAsync($"{CacheKeys.MovieByIdPrefix}{request.Id}", cancellationToken);
+        await _cacheService.RemoveByPrefixAsync(CacheKeys.MoviesPagedPrefix);
+        await _cacheService.RemoveByPrefixAsync(CacheKeys.MovieBySlugPrefix);
 
         _logger.LogInformation(
             "Movie with Id {MovieId} deleted successfully. Movie detail and movies list caches invalidated.",

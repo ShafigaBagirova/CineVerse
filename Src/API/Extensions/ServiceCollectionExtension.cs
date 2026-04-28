@@ -134,7 +134,6 @@ public static class ServiceCollectionExtensions
             options.AddPolicy(Policies.ViewFriendTicketActivity, p => p.RequireRole(RoleNames.Vip));
             options.AddPolicy(Policies.ViewTasteMatchSuggestions, p => p.RequireRole(RoleNames.Vip));
 
-           // options.AddPolicy(Policies.ReviewOwnerOrAdmin, p => p.Requirements.Add(new ReviewOwnerOrAdminRequirement()));
         });
         services.AddAutoMapper(cfg => { }, AppDomain.CurrentDomain.GetAssemblies());
 

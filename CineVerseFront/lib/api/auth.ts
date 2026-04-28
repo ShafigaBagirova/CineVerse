@@ -98,6 +98,8 @@ export async function getCurrentUser() {
   return apiRequest<JwtUserInfo>("/api/auth/me", { method: "GET", auth: true, quiet: true })
 }
 
+export { refreshSession } from "@/lib/api/http"
+
 export function logout() {
   clearTokens()
 }

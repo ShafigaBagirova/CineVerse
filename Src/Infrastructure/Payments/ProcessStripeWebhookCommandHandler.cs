@@ -1,5 +1,6 @@
 ﻿using Application.Common.Helpers;
 using Application.Common.Interfaces;
+using Application.Common.Dtos;
 using Application.Common.Options;
 using Application.Common.Responses;
 using Domain.Entities;
@@ -25,6 +26,9 @@ public sealed class ProcessStripeWebhookCommandHandler
     private readonly ICacheService _cacheService;
     private readonly IUserNotificationService _userNotificationService;
     private readonly IFoodOrderRepository _foodOrderRepository;
+    private readonly IIdentityService _identityService;
+    private readonly IScreeningRepository _screeningRepository;
+    private readonly ISeatRepository _seatRepository;
 
     public ProcessStripeWebhookCommandHandler(
         IPaymentRepository paymentRepository,
@@ -35,7 +39,10 @@ public sealed class ProcessStripeWebhookCommandHandler
         IOptions<StripeSettings> stripeSettings,
         ICacheService cacheService,
         IUserNotificationService userNotificationService,
-        IFoodOrderRepository foodOrderRepository)
+        IFoodOrderRepository foodOrderRepository,
+        IIdentityService identityService,
+        IScreeningRepository screeningRepository,
+        ISeatRepository seatRepository)
     {
         _paymentRepository = paymentRepository;
         _seatHoldRepository = seatHoldRepository;
@@ -46,6 +53,9 @@ public sealed class ProcessStripeWebhookCommandHandler
         _cacheService = cacheService;
         _userNotificationService = userNotificationService;
         _foodOrderRepository = foodOrderRepository;
+        _identityService = identityService;
+        _screeningRepository = screeningRepository;
+        _seatRepository = seatRepository;
     }
 
     public async Task<BaseResponse> Handle(ProcessStripeWebhookCommand request, CancellationToken cancellationToken)
@@ -99,6 +109,22 @@ public sealed class ProcessStripeWebhookCommandHandler
 
             if (payment is null)
             {
+                if (paymentIntent.Metadata is not null
+                    && paymentIntent.Metadata.TryGetValue("cineverse_kind", out var kind)
+                    && kind == "vip"
+                    && paymentIntent.Metadata.TryGetValue("user_id", out var vipUserId)
+                    && !string.IsNullOrWhiteSpace(vipUserId))
+                {
+                    var vipResult = await _identityService.SubscribeVipAsync(vipUserId, cancellationToken);
+                    await MarkEventAsProcessedAsync(stripeEvent.Id, cancellationToken);
+                    _logger.LogInformation(
+                        "VIP PaymentIntent succeeded. UserId: {UserId}, Success: {Success}, Message: {Message}",
+                        vipUserId,
+                        vipResult.Success,
+                        vipResult.Message);
+                    return BaseResponse.Ok(vipResult.Success ? "VIP activated." : (vipResult.Message ?? "VIP subscribe skipped."));
+                }
+
                 _logger.LogWarning(
                     "Stripe webhook failed. Payment not found. ProviderPaymentIntentId: {ProviderPaymentIntentId}",
                     paymentIntent.Id);
@@ -137,6 +163,12 @@ public sealed class ProcessStripeWebhookCommandHandler
                 await _paymentRepository.UpdateAsync(payment, cancellationToken);
                 await _paymentRepository.SaveChangesAsync(cancellationToken);
                 await _cacheService.RemoveAsync($"payment-status-seatHold:{payment.SeatHoldId}", cancellationToken);
+                await _cacheService.RemoveAsync(
+                    $"{ScreeningSeatCacheKeys.GetOccupiedSeatsByScreeningPrefix}{seatHold.ScreeningId}",
+                    cancellationToken);
+                await _cacheService.RemoveAsync(
+                    $"{ScreeningSeatCacheKeys.GetAvailableSeatsByScreeningPrefix}{seatHold.ScreeningId}",
+                    cancellationToken);
 
                 await MarkEventAsProcessedAsync(stripeEvent.Id, cancellationToken);
 
@@ -214,6 +246,12 @@ public sealed class ProcessStripeWebhookCommandHandler
                     seatHold.SeatId);
             }
             await _cacheService.RemoveAsync(PaymentCacheKey.GetBySeatHoldId(payment.SeatHoldId), cancellationToken);
+            await _cacheService.RemoveAsync(
+                $"{ScreeningSeatCacheKeys.GetOccupiedSeatsByScreeningPrefix}{seatHold.ScreeningId}",
+                cancellationToken);
+            await _cacheService.RemoveAsync(
+                $"{ScreeningSeatCacheKeys.GetAvailableSeatsByScreeningPrefix}{seatHold.ScreeningId}",
+                cancellationToken);
 
             await _cacheService.RemoveAsync(FoodOrderCacheKey.AllPrefix, cancellationToken);
             await _cacheService.RemoveByPrefixAsync(FoodOrderCacheKey.MyOrdersPrefix);
@@ -223,10 +261,33 @@ public sealed class ProcessStripeWebhookCommandHandler
             await MarkEventAsProcessedAsync(stripeEvent.Id, cancellationToken);
             try
             {
-                await _userNotificationService.SendPaymentSucceededEmailAsync(
-                    seatHold.UserId,
-                    seatHold.ScreeningId,
-                    cancellationToken);
+                var screening = await _screeningRepository.GetByIdWithDetailsAsync(seatHold.ScreeningId, cancellationToken);
+                var seat = await _seatRepository.GetByIdAsync(seatHold.SeatId, cancellationToken);
+                if (screening is not null && seat is not null)
+                {
+                    var notification = new PaymentSuccessNotificationDto
+                    {
+                        MovieTitle = screening.Movie?.Title ?? "Movie",
+                        StartTime = screening.StartTime,
+                        CinemaName = screening.Hall?.Cinema?.Name ?? "Cinema",
+                        HallName = screening.Hall?.Name ?? "Hall",
+                        SeatRow = seat.Row,
+                        SeatNumber = seat.Number
+                    };
+
+                    await _userNotificationService.SendPaymentSucceededEmailAsync(
+                        seatHold.UserId,
+                        notification,
+                        cancellationToken);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Payment success email skipped detailed payload because screening/seat details were missing. SeatHoldId: {SeatHoldId}, ScreeningId: {ScreeningId}, SeatId: {SeatId}",
+                        seatHold.Id,
+                        seatHold.ScreeningId,
+                        seatHold.SeatId);
+                }
             }
             catch (Exception ex)
             {
@@ -244,57 +305,6 @@ public sealed class ProcessStripeWebhookCommandHandler
                 stripeEvent.Id);
 
             return BaseResponse.Ok("Payment processed successfully.");
-        }
-        if (stripeEvent.Type == "payment_intent.succeeded")
-        {
-            var paymentIntent = stripeEvent.Data.Object as PaymentIntent;
-
-            _logger.LogInformation(
-                "DEBUG: payment_intent.succeeded received. Incoming PaymentIntentId: {PaymentIntentId}",
-                paymentIntent?.Id);
-
-            if (paymentIntent is null)
-            {
-                _logger.LogWarning("Stripe webhook failed. PaymentIntent payload is null.");
-                return BaseResponse.Fail("Invalid payment intent payload.");
-            }
-
-            var payment = await _paymentRepository.GetByProviderPaymentIntentIdAsync(
-                paymentIntent.Id,
-                cancellationToken);
-
-            _logger.LogInformation(
-                "DEBUG: Lookup Payment. Incoming PaymentIntentId: {PaymentIntentId}, PaymentFound: {PaymentFound}",
-                paymentIntent.Id,
-                payment is not null);
-
-            if (payment is not null)
-            {
-                _logger.LogInformation(
-                    "DEBUG: Matched Payment. PaymentId: {PaymentId}, SeatHoldId: {SeatHoldId}, StoredProviderPaymentIntentId: {StoredProviderPaymentIntentId}, Status: {Status}",
-                    payment.Id,
-                    payment.SeatHoldId,
-                    payment.ProviderPaymentIntentId,
-                    payment.Status);
-            }
-
-            if (payment is null)
-            {
-                _logger.LogWarning(
-                    "CRITICAL: Payment not found for PaymentIntentId: {PaymentIntentId}",
-                    paymentIntent.Id);
-
-                return BaseResponse.Fail("Payment not found.");
-            }
-
-
-            _logger.LogInformation(
-                "Stripe payment marked as failed. PaymentId: {PaymentId}, ProviderPaymentIntentId: {ProviderPaymentIntentId}, EventId: {EventId}",
-                payment.Id,
-                payment.ProviderPaymentIntentId,
-                stripeEvent.Id);
-
-            return BaseResponse.Ok("Payment marked as failed.");
         }
 
         await MarkEventAsProcessedAsync(stripeEvent.Id, cancellationToken);

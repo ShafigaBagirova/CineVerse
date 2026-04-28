@@ -111,9 +111,17 @@ public sealed class ReleaseSeatHoldCommandHandler : IRequestHandler<ReleaseSeatH
         await _seatHoldRepository.UpdateAsync(seatHold, cancellationToken);
         await _seatHoldRepository.SaveChangesAsync(cancellationToken);
 
-        await _cacheService.RemoveAsync(SeatHoldCacheKeys.GetAllSeatHolds, cancellationToken);
+        await _cacheService.RemoveByPrefixAsync(SeatHoldCacheKeys.GetAllSeatHoldsPrefix);
+        await _cacheService.RemoveByPrefixAsync(
+            $"{SeatHoldCacheKeys.GetSeatHoldsByScreeningPrefix}{seatHold.ScreeningId}");
         await _cacheService.RemoveAsync(
-            $"{SeatHoldCacheKeys.GetSeatHoldsByScreeningPrefix}{seatHold.ScreeningId}",
+            $"{SeatHoldCacheKeys.GetSeatHoldByIdPrefix}{seatHold.Id}",
+            cancellationToken);
+        await _cacheService.RemoveAsync(
+            $"{ScreeningSeatCacheKeys.GetOccupiedSeatsByScreeningPrefix}{seatHold.ScreeningId}",
+            cancellationToken);
+        await _cacheService.RemoveAsync(
+            $"{ScreeningSeatCacheKeys.GetAvailableSeatsByScreeningPrefix}{seatHold.ScreeningId}",
             cancellationToken);
 
         _logger.LogInformation(

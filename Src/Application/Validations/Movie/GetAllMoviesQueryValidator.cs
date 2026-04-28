@@ -23,6 +23,20 @@ public sealed class GetAllMoviesQueryValidator : AbstractValidator<GetAllMoviesQ
                 .WithMessage("Search must not exceed 200 characters.");
         });
 
+        When(x => !string.IsNullOrWhiteSpace(x.Request.ActorName), () =>
+        {
+            RuleFor(x => x.Request.ActorName!)
+                .MaximumLength(200)
+                .WithMessage("ActorName must not exceed 200 characters.");
+        });
+
+        When(x => !string.IsNullOrWhiteSpace(x.Request.DirectorName), () =>
+        {
+            RuleFor(x => x.Request.DirectorName!)
+                .MaximumLength(200)
+                .WithMessage("DirectorName must not exceed 200 characters.");
+        });
+
         When(x => x.Request.GenreId.HasValue, () =>
         {
             RuleFor(x => x.Request.GenreId!.Value)

@@ -36,7 +36,7 @@ export interface RetryPaymentResponse {
 export interface GetPaymentStatusBySeatHoldIdResponse {
   seatHoldId: number
   hasPayment: boolean
-  status: PaymentStatus
+  status?: PaymentStatus | null
   amount?: number | null
   currency?: string | null
   paymentIntentId?: string | null
@@ -73,6 +73,22 @@ function buildQuery(query: Record<string, string | number | boolean | undefined>
   return queryString ? `?${queryString}` : ""
 }
 
+/** POST /api/payment/vip/create-intent — monthly VIP; Stripe metadata drives webhook → SubscribeVip. */
+export interface CreateVipPaymentIntentResponse {
+  clientSecret: string
+  providerPaymentIntentId: string
+  amount: number
+  currency: string
+}
+
+export async function createVipPaymentIntent() {
+  return apiRequest<CreateVipPaymentIntentResponse>("/api/payment/vip/create-intent", {
+    method: "POST",
+    auth: true,
+    body: {},
+  })
+}
+
 export async function createPaymentIntent(request: CreatePaymentIntentRequest) {
   const seatHoldId = Number(request.seatHoldId)
   if (!Number.isFinite(seatHoldId) || seatHoldId <= 0) {
@@ -93,9 +109,14 @@ export async function retryPayment(seatHoldId: number) {
 }
 
 export async function getPaymentStatusBySeatHoldId(seatHoldId: number) {
-  return apiRequest<GetPaymentStatusBySeatHoldIdResponse>(`/api/payment/seat-hold/${seatHoldId}/status`, {
+  return apiRequest<GetPaymentStatusBySeatHoldIdResponse>(`/api/payment/seat-hold/${seatHoldId}/status?_ts=${Date.now()}`, {
     method: "GET",
     auth: true,
+    cache: "no-store",
+    headers: {
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
   })
 }
 
@@ -167,15 +188,64 @@ function isPlausibleUtc(iso: string): boolean {
   return d.getFullYear() >= 1970
 }
 
-/** Prefer `amount` / `totalAmount`; otherwise sum ticket + food when those fields exist (matches payment entity shape). */
+/** ISO 4217 currencies that have no minor unit (do not divide by 100). */
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  "BIF",
+  "CLP",
+  "DJF",
+  "GNF",
+  "JPY",
+  "KMF",
+  "KRW",
+  "MGA",
+  "PYG",
+  "RWF",
+  "UGX",
+  "VND",
+  "VUV",
+  "XAF",
+  "XOF",
+  "XPF",
+])
+
+function minorUnitsToMajor(amountMinor: number, currency: string | undefined): number {
+  const c = (currency ?? "").trim().toUpperCase()
+  if (c.length === 3 && ZERO_DECIMAL_CURRENCIES.has(c)) return amountMinor
+  return amountMinor / 100
+}
+
+/**
+ * Resolves display amount from API shapes: `totalAmount` / ticket+food parts / `amount` / minor-unit fields.
+ * Order matters: a literal `amount: 0` must not hide `totalAmount` or ticket+food lines.
+ */
 function resolvePaymentAmount(o: Record<string, unknown>): number | undefined {
-  const direct = pickFiniteNumber(o.amount, o.Amount, o.totalAmount, o.TotalAmount)
-  if (direct !== undefined) return direct
+  const total = pickFiniteNumber(o.totalAmount, o.TotalAmount)
+  if (total !== undefined) return total
+
   const ticket = pickFiniteNumber(o.ticketAmount, o.TicketAmount)
   const food = pickFiniteNumber(o.foodAmount, o.FoodAmount)
   if (ticket !== undefined && food !== undefined) return ticket + food
   if (ticket !== undefined) return ticket
   if (food !== undefined) return food
+
+  const direct = pickFiniteNumber(o.amount, o.Amount)
+  if (direct !== undefined) return direct
+
+  const minor = pickFiniteNumber(
+    o.amountMinor,
+    o.AmountMinor,
+    o.amountInCents,
+    o.AmountInCents,
+    o.amount_in_cents,
+  )
+  if (minor !== undefined) {
+    const cur =
+      optionalTrimmedString(o.currency) ??
+      optionalTrimmedString(o.Currency) ??
+      ""
+    return minorUnitsToMajor(minor, cur)
+  }
+
   return undefined
 }
 
@@ -200,9 +270,11 @@ export function normalizeGetAllPaymentsItem(raw: unknown): GetAllPaymentsRespons
 
   const amount = resolvePaymentAmount(o)
 
-  const currency =
+  const currencyRaw =
     optionalTrimmedString(o.currency) ??
     optionalTrimmedString(o.Currency)
+  // API maps enum with ToString() ("Azn"); Intl expects ISO 4217 ("AZN").
+  const currency = currencyRaw ? currencyRaw.toUpperCase() : undefined
 
   const statusRaw =
     optionalTrimmedString(o.status) ?? optionalTrimmedString(o.Status)

@@ -1,5 +1,6 @@
 ﻿using Application.Common.Interfaces;
 using Application.Common.Responses;
+using Application.Common.Helpers;
 using AutoMapper;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -73,17 +74,16 @@ public sealed class UpdateSeatCommandHandler : IRequestHandler<UpdateSeatCommand
             return BaseResponse.Fail("A seat with the same row and number already exists in this hall.");
         }
 
-        var oldHallId = seat.HallId;
-
         _mapper.Map(request.Request, seat);
 
         await _seatRepository.UpdateAsync(seat, cancellationToken);
         await _seatRepository.SaveChangesAsync(cancellationToken);
 
-        await _cacheService.RemoveAsync("seats_all");
+        await _cacheService.RemoveByPrefixAsync("seats_all_hall_");
         await _cacheService.RemoveAsync($"seat_{seat.Id}");
-        await _cacheService.RemoveAsync($"hall_{oldHallId}_seats");
-        await _cacheService.RemoveAsync($"hall_{seat.HallId}_seats");
+        await _cacheService.RemoveByPrefixAsync("screening_");
+        await _cacheService.RemoveByPrefixAsync(ScreeningSeatCacheKeys.GetOccupiedSeatsByScreeningPrefix);
+        await _cacheService.RemoveByPrefixAsync(ScreeningSeatCacheKeys.GetAvailableSeatsByScreeningPrefix);
 
         _logger.LogInformation("UpdateSeatCommand completed successfully. SeatId: {SeatId}", seat.Id);
 

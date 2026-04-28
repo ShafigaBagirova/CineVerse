@@ -65,6 +65,27 @@ export interface GetSeatHoldByIdResponse {
   userId: string
   expiresAtUtc: string
   status: SeatHoldStatus
+  isActive?: boolean
+}
+
+function normalizeSeatHold(raw: unknown): GetSeatHoldByIdResponse {
+  const o = raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {}
+  const isActiveRaw = o.isActive ?? o.IsActive
+  const isActive =
+    typeof isActiveRaw === "boolean"
+      ? isActiveRaw
+      : typeof isActiveRaw === "string"
+        ? isActiveRaw.trim().toLowerCase() === "true"
+        : undefined
+  return {
+    id: Number(o.id ?? o.Id ?? o.ID ?? 0),
+    screeningId: Number(o.screeningId ?? o.ScreeningId ?? 0),
+    seatId: Number(o.seatId ?? o.SeatId ?? 0),
+    userId: String(o.userId ?? o.UserId ?? ""),
+    expiresAtUtc: String(o.expiresAtUtc ?? o.ExpiresAtUtc ?? o.expiresAt ?? o.ExpiresAt ?? ""),
+    status: String(o.status ?? o.Status ?? "") as SeatHoldStatus,
+    ...(typeof isActive === "boolean" ? { isActive } : {}),
+  }
 }
 
 /**
@@ -124,10 +145,16 @@ export async function releaseSeatHold(id: number) {
 }
 
 export async function getSeatHoldById(id: number) {
-  return apiRequest<GetSeatHoldByIdResponse>(`/api/seathold/${id}`, {
+  const data = await apiRequest<GetSeatHoldByIdResponse>(`/api/seathold/${id}`, {
     method: "GET",
     auth: true,
+    cache: "no-store",
+    headers: {
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
   })
+  return normalizeSeatHold(data)
 }
 
 function normalizeSeatHoldPageSize(pageSize?: number): number {
@@ -144,11 +171,16 @@ export async function getSeatHoldsByScreening(screeningId: number, pageNumber = 
     {
       method: "GET",
       auth: true,
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
     }
   )
   const raw = data as PaginatedResponse<GetSeatHoldsByScreeningResponse> & { Items?: GetSeatHoldsByScreeningResponse[] }
   return {
     ...data,
-    items: data.items ?? raw.Items ?? [],
+    items: (data.items ?? raw.Items ?? []).map(normalizeSeatHold),
   }
 }

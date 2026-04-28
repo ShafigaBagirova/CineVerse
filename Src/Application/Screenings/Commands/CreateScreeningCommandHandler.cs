@@ -94,8 +94,14 @@ public sealed class CreateScreeningCommandHandler : IRequestHandler<CreateScreen
             screening.MovieId);
 
         await _cacheService.RemoveAsync("screenings_all");
+        await _cacheService.RemoveByPrefixAsync("screenings_all_");
+        await _cacheService.RemoveByPrefixAsync("screening_");
         await _cacheService.RemoveAsync($"hall_{screening.HallId}_screenings");
         await _cacheService.RemoveAsync($"movie_{screening.MovieId}_screenings");
+        _logger.LogInformation(
+            "Screening cache prefixes removed after create: {PrefixAll}, {PrefixById}",
+            "screenings_all_",
+            "screening_");
 
         _logger.LogInformation(
             "Screening cache invalidated. ScreeningId: {ScreeningId}, HallId: {HallId}, MovieId: {MovieId}",

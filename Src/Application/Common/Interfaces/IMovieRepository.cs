@@ -12,7 +12,7 @@ public interface IMovieRepository:IRepository<Movie,int>
     Task<bool> ExistsByTmdbIdAsync(long tmdbId, CancellationToken cancellationToken);
     Task<bool> ExistsByTitleAndReleaseDateAsync(string title, DateOnly? releaseDate, CancellationToken cancellationToken);
     Task<Movie?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default);
-    Task<(List<Movie> Items, int TotalCount)> GetPagedAsync(int pageNumber,int pageSize, string? search,int? genreId, string? language,MovieStatus? Status,
+    Task<(List<Movie> Items, int TotalCount)> GetPagedAsync(int pageNumber,int pageSize, string? search, string? actorName, string? directorName, int? genreId, string? language,MovieStatus? Status,
      int? year, decimal? minTmdbRating, decimal? maxTmdbRating, decimal? minUserRating, decimal? maxUserRating,string? sortBy,bool desc,
         CancellationToken cancellationToken);
     Task<int> CountAsync(CancellationToken cancellationToken = default);
