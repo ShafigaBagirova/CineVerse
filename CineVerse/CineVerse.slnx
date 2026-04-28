@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Src/">
+    <Project Path="Domain/CineVerse.Domain.csproj" />
+    <Project Path="Src/API/CineVerse.API.csproj" />
+    <Project Path="Src/Application/CineVerse.Application.csproj" />
+    <Project Path="Src/Infrastructure/CineVerse.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/Test/" />
+</Solution>
