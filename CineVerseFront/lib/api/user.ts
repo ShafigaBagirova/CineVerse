@@ -22,8 +22,10 @@ export interface UserRatingDto {
 export interface UserSearchDto {
   id: string
   userName: string
+  email?: string | null
   fullName?: string | null
   avatarUrl?: string | null
+  profileImageUrl?: string | null
 }
 
 function pickString(o: Record<string, unknown>, ...keys: string[]): string {
@@ -42,13 +44,16 @@ export function normalizeUserSearchItem(raw: unknown): UserSearchDto {
   const o = raw as Record<string, unknown>
   const id = pickString(o, "id", "userId", "Id", "UserId")
   const userName = pickString(o, "userName", "UserName")
+  const email = pickString(o, "email", "Email")
   const fn = o.fullName ?? o.FullName
-  const av = o.avatarUrl ?? o.AvatarUrl
+  const av = o.avatarUrl ?? o.AvatarUrl ?? o.profileImageUrl ?? o.ProfileImageUrl
   return {
     id,
     userName,
+    email: email || null,
     fullName: fn === null || fn === undefined ? null : String(fn),
     avatarUrl: av === null || av === undefined ? null : String(av),
+    profileImageUrl: av === null || av === undefined ? null : String(av),
   }
 }
 

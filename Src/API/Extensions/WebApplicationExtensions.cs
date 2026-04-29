@@ -5,6 +5,7 @@ using Infrastructure.Persistence.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Serilog;
+using API.Hubs;
 
 namespace API.Extensions;
 
@@ -25,6 +26,7 @@ public static class WebApplicationExtensions
         app.UseHttpsRedirection();
 
         app.UseRouting();
+        app.UseCors("Frontend");
        
         app.UseSerilogRequestLogging();
 
@@ -35,6 +37,8 @@ public static class WebApplicationExtensions
         app.UseMiddleware<ExceptionHandlingMiddleware>();
        
         app.MapControllers();
+        app.MapHub<ChatHub>("/chatHub");
+        app.MapHub<ChatHub>("/hubs/chat");
         return app;
     }
     private static void SeedOnce(WebApplication app)

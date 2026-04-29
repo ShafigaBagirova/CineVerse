@@ -40,5 +40,8 @@ public class CineVerseDbContext : IdentityDbContext<CineVerseUser>
     public DbSet<FoodOrder> FoodOrders { get; set; }
     public DbSet<FoodOrderItem> FoodOrderItems { get; set; }
     public DbSet<FoodCategory> FoodCategories { get; set; }
-    public DbSet<FoodItem> FoodItems { get; set; }  
+    public DbSet<FoodItem> FoodItems { get; set; }
+    public DbSet<Chat> Chats { get; set; }
+    public DbSet<ChatParticipant> ChatParticipants { get; set; }
+    public DbSet<Message> Messages { get; set; }
 }

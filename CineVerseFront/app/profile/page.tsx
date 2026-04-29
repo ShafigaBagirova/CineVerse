@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Star, Film, Heart, Crown, Bookmark, Eye, Users } from "lucide-react"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { isVipUser } from "@/lib/roles"
 import { useAuth } from "@/components/providers/auth-provider"
@@ -34,6 +36,7 @@ import {
 } from "@/lib/api/follow"
 import { FollowButton } from "@/components/follow/follow-button"
 import { useFollow } from "@/components/providers/follow-provider"
+import { createPrivateChat } from "@/lib/api/chats"
 
 const allTabs = ["Watchlist", "Watched", "Reviews", "Following"] as const
 const publicTabs = ["Reviews", "Following"] as const
@@ -56,6 +59,7 @@ const userProfile = {
 export type ProfilePageClientProps = { routeUserId?: string }
 
 export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
+  const router = useRouter()
   const { user, status, refreshUser } = useAuth()
   const profileUserId = routeUserId ?? user?.userId ?? null
   const isOwnProfile = !!(user?.userId && profileUserId && user.userId === profileUserId)
@@ -87,6 +91,7 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
   const [followLoading, setFollowLoading] = useState(false)
   const [followError, setFollowError] = useState<string | null>(null)
   const [vipDialogOpen, setVipDialogOpen] = useState(false)
+  const [startingChat, setStartingChat] = useState(false)
   const [tasteCompatibility, setTasteCompatibility] = useState<number | null>(null)
   const { ensureFollowStatus } = useFollow()
   const isVip = isVipUser(user)
@@ -303,6 +308,24 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
     await loadWatchData()
   }
 
+  const handleMessageUser = useCallback(async () => {
+    if (!profileUserId) return
+    if (profileUserId === user?.userId) {
+      toast.error("You cannot message yourself.")
+      return
+    }
+    try {
+      setStartingChat(true)
+      const chat = await createPrivateChat(profileUserId)
+      router.push(`/messages?chatId=${chat.id}`)
+    } catch (error) {
+      console.error("Failed to start private chat", error)
+      toast.error("Failed to open chat.")
+    } finally {
+      setStartingChat(false)
+    }
+  }, [profileUserId, router, user?.userId])
+
   if (!profileUserId) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-10 lg:px-8 text-center">
@@ -416,15 +439,25 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
           </Link>
         ) : (
           profileUserId && (
-            <FollowButton
-              userId={profileUserId}
-              displayLabel={
-                profileInfo?.userName
-                  ? `@${profileInfo.userName}`
-                  : profileInfo?.fullName?.trim() || undefined
-              }
-              onRelationshipChange={refreshProfileFollowStats}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                onClick={() => void handleMessageUser()}
+                disabled={startingChat}
+                className="rounded-lg bg-[#81D8D0] px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-[#6fd0c7]"
+              >
+                {startingChat ? "Opening..." : "Message"}
+              </Button>
+              <FollowButton
+                userId={profileUserId}
+                displayLabel={
+                  profileInfo?.userName
+                    ? `@${profileInfo.userName}`
+                    : profileInfo?.fullName?.trim() || undefined
+                }
+                onRelationshipChange={refreshProfileFollowStats}
+              />
+            </div>
           )
         )}
       </div>

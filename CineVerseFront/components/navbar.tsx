@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useState } from "react"
-import { Film, Search, Menu, X, Ticket, User, Clock, BarChart3, Bell, Bookmark } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Film, Search, Menu, X, Ticket, User, Clock, BarChart3, Bell, Bookmark, MessageCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useNotifications } from "@/components/providers/notification-provider"
 import { formatNotificationType } from "@/lib/api/notifications"
 import { searchUsers, type UserSearchDto } from "@/lib/api/user"
+import { createPrivateChat, getMyChats } from "@/lib/api/chats"
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -40,8 +41,62 @@ export function Navbar() {
   const [userSearchOpen, setUserSearchOpen] = useState(false)
   const [userSearchLoading, setUserSearchLoading] = useState(false)
   const [userSearchError, setUserSearchError] = useState<string | null>(null)
+  const [startingChatForUser, setStartingChatForUser] = useState<string | null>(null)
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0)
   const { status, user, logout } = useAuth()
+  const authenticated = status === "authenticated"
   const { notifications, unreadCount, loading, error, authRequired, markAsRead } = useNotifications()
+
+  const loadUnreadMessagesCount = async () => {
+    if (!authenticated) {
+      setUnreadMessagesCount(0)
+      return
+    }
+
+    try {
+      const chats = await getMyChats()
+
+      const total = chats.reduce((sum, chat) => {
+        const unread = Number(
+          (chat as Record<string, unknown>).unreadCount ??
+          (chat as Record<string, unknown>).UnreadCount ??
+          (chat as Record<string, unknown>).unreadMessagesCount ??
+          (chat as Record<string, unknown>).UnreadMessagesCount ??
+          0
+        )
+
+        return sum + unread
+      }, 0)
+
+      console.log("MESSAGE UNREAD TOTAL:", total)
+      setUnreadMessagesCount(total)
+    } catch (error) {
+      console.error("Failed to load unread messages count:", error)
+    }
+  }
+
+  useEffect(() => {
+    let intervalId: number | undefined
+
+    const run = async () => {
+      if (!authenticated) {
+        setUnreadMessagesCount(0)
+        return
+      }
+
+      await loadUnreadMessagesCount()
+    }
+
+    void run()
+
+    intervalId = window.setInterval(run, 5000)
+
+    return () => {
+      if (intervalId) {
+        window.clearInterval(intervalId)
+      }
+    }
+  }, [authenticated])
 
   if (pathname.startsWith("/admin")) {
     return null
@@ -74,6 +129,22 @@ export function Navbar() {
     logout()
     setMobileOpen(false)
     router.replace("/auth")
+  }
+
+  const handleStartPrivateChat = async (target: UserSearchDto) => {
+    if (!target.id) return
+    if (target.id === user?.userId) return
+    try {
+      setStartingChatForUser(target.id)
+      const chat = await createPrivateChat(target.id)
+      setUserSearchOpen(false)
+      setSearchText("")
+      router.push(`/messages?chatId=${chat.id}`)
+    } catch {
+      // Ignore UI interruption in navbar.
+    } finally {
+      setStartingChatForUser(null)
+    }
   }
 
   return (
@@ -140,21 +211,36 @@ export function Navbar() {
                     ) : (
                       userSearchResults.map((u, index) => {
                         if (!u.id) return null
+                        const isSelf = u.id === user?.userId
                         return (
                           <div key={`${u.id}-${index}`}>
-                            <Link
-                              href={`/profile/${u.id}`}
-                              onClick={() => setUserSearchOpen(false)}
-                              className="flex items-center gap-3 border-b border-[#8FD8D2] px-4 py-3 transition-all duration-200 hover:scale-[1.01] hover:bg-[#D7F3F0]/80"
-                            >
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                                {(u.fullName || u.userName).slice(0, 2).toUpperCase()}
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-foreground">{u.fullName || u.userName}</p>
-                                <p className="text-xs text-muted-foreground">@{u.userName}</p>
-                              </div>
-                            </Link>
+                            <div className="flex items-center gap-2 border-b border-[#8FD8D2] px-3 py-3 transition-all duration-200 hover:bg-[#D7F3F0]/80">
+                              <Link
+                                href={`/profile/${u.id}`}
+                                onClick={() => setUserSearchOpen(false)}
+                                className="flex min-w-0 flex-1 items-center gap-3"
+                              >
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                                  {(u.fullName || u.userName).slice(0, 2).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium text-foreground">{u.fullName || u.userName}</p>
+                                  <p className="truncate text-xs text-muted-foreground">@{u.userName}</p>
+                                </div>
+                              </Link>
+                              {!isSelf ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleStartPrivateChat(u)}
+                                  disabled={startingChatForUser === u.id}
+                                  className="shrink-0 rounded-lg border border-[#7ACCC5] bg-[#D7F3F0]/80 px-2 py-1 text-[11px] font-medium text-[#2C7A7B] transition-all duration-200 hover:bg-[#CBEDEA]/75 disabled:opacity-60"
+                                >
+                                  {startingChatForUser === u.id ? "..." : "Message"}
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-muted-foreground">You</span>
+                              )}
+                            </div>
                           </div>
                         )
                       })
@@ -171,6 +257,19 @@ export function Navbar() {
               <Search className="h-5 w-5" />
               <span className="sr-only">Search users</span>
             </button>
+            <Link
+              href="/messages"
+              className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-teal-300/60 bg-white/30 text-teal-700 hover:bg-white/50 overflow-visible"
+            >
+              <MessageCircle className="h-6 w-6" />
+              {unreadMessagesCount > 0 && (
+                <span
+                  className="absolute -top-2 -right-2 z-[99999] flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold leading-none text-white ring-2 ring-white"
+                >
+                  {unreadMessagesCount > 9 ? "9+" : unreadMessagesCount}
+                </span>
+              )}
+            </Link>
             <div className="relative">
               <button 
                 onClick={() => setNotificationOpen(!notificationOpen)}

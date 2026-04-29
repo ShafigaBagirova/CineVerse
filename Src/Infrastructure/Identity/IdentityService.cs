@@ -313,7 +313,8 @@ public sealed class IdentityService : IIdentityService
             user.Id,
             user.UserName ?? string.Empty,
             user.FullName ?? string.Empty,
-            user.AvatarUrl
+            user.AvatarUrl,
+            user.Email
         );
     }
     public async Task<Dictionary<string, string>> GetUserNamesByIdsAsync(
@@ -508,7 +509,8 @@ public sealed class IdentityService : IIdentityService
                 u.Id,
                 u.UserName ?? string.Empty,
                 u.FullName ?? string.Empty,
-                u.AvatarUrl
+                u.AvatarUrl,
+                u.Email
             ))
             .ToListAsync(cancellationToken);
 

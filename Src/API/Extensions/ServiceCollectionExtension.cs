@@ -18,6 +18,21 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddApi(this IServiceCollection services, IConfiguration config)
     {
+        services.AddCors(options =>
+        {
+            options.AddPolicy("Frontend", policy =>
+            {
+                policy.WithOrigins(
+                        "http://localhost:3000",
+                        "https://localhost:3000",
+                        "http://127.0.0.1:3000",
+                        "https://127.0.0.1:3000")
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
+            });
+        });
+
         services.AddControllers()
             .AddJsonOptions(options =>
             {
@@ -26,6 +41,7 @@ public static class ServiceCollectionExtensions
                 options.JsonSerializerOptions.Converters.Add(
                     new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
             });
+        services.AddSignalR();
 
         services.Configure<ApiBehaviorOptions>(options =>
         {
@@ -93,6 +109,26 @@ public static class ServiceCollectionExtensions
 
                 options.Events = new JwtBearerEvents
                 {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        var path = context.HttpContext.Request.Path;
+                        if (path.StartsWithSegments("/chatHub"))
+                        {
+                            var loggerFactory = context.HttpContext.RequestServices.GetService<ILoggerFactory>();
+                            var logger = loggerFactory?.CreateLogger("SignalR.Jwt");
+                            logger?.LogInformation(
+                                "SignalR JWT OnMessageReceived for /chatHub. HasAccessToken: {HasAccessToken}",
+                                !string.IsNullOrEmpty(accessToken));
+                        }
+
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            (path.StartsWithSegments("/hubs/chat") || path.StartsWithSegments("/chatHub")))
+                        {
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    },
                     OnChallenge = async context =>
                     {
                         context.HandleResponse();

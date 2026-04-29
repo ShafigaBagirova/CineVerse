@@ -134,6 +134,7 @@ public static class DependencyInjection
         services.AddScoped<IProcessedWebhookEventRepository,ProcessedWebhookEventRepository>();
         services.AddScoped<IUserNotificationService, UserNotificationService>();
         services.AddScoped<IUserEmailProvider, UserEmailProvider>();
+        services.AddScoped<IUserReadService, UserReadService>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IInAppNotificationService, InAppNotificationService>();
         services.AddScoped<IUserIdsProvider, UserIdsProvider>();
@@ -144,6 +145,8 @@ public static class DependencyInjection
         services.AddScoped<IFoodItemRepository, FoodItemRepository>();
         services.AddScoped<IFoodOrderRepository, FoodOrderRepository>();
         services.AddScoped<IFoodOrderItemRepository, FoodOrderItemRepository>();
+        services.AddScoped<IChatRepository, ChatRepository>();
+        services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
         services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
         return services;
