@@ -6,9 +6,11 @@ using Application.Common.Interfaces;
 using Application.Common.Responses;
 using Application.Follows.Dtos;
 using Domain.Constants;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
+using Application.Common.Options;
 
 namespace Infrastructure.Identity;
 
@@ -16,13 +18,38 @@ public sealed class IdentityService : IIdentityService
 {
     private readonly UserManager<CineVerseUser> _userManager;
     private readonly SignInManager<CineVerseUser> _signInManager;
+    private readonly MinioOptions _minioOptions;
 
     public IdentityService(
         UserManager<CineVerseUser> userManager,
-        SignInManager<CineVerseUser> signInManager)
+        SignInManager<CineVerseUser> signInManager,
+        IOptions<MinioOptions> minioOptions)
     {
         _userManager = userManager;
         _signInManager = signInManager;
+        _minioOptions = minioOptions.Value;
+    }
+
+    private string? ToPublicAvatarUrl(string? avatarValue)
+    {
+        if (string.IsNullOrWhiteSpace(avatarValue))
+            return null;
+
+        if (avatarValue.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            return avatarValue;
+
+        var bucket = _minioOptions.Bucket?.Trim().Trim('/');
+        if (string.IsNullOrWhiteSpace(bucket))
+            return avatarValue;
+
+        var objectName = avatarValue.Trim().TrimStart('/');
+        var bucketPrefix = $"{bucket}/";
+        if (objectName.StartsWith(bucketPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            objectName = objectName[bucketPrefix.Length..];
+        }
+
+        return $"/api/files/{bucket}/{objectName}";
     }
 
     public async Task<(bool Success, List<string> Errors, string? UserId)> RegisterAsync(RegisterRequest registerRequest) 
@@ -313,7 +340,7 @@ public sealed class IdentityService : IIdentityService
             user.Id,
             user.UserName ?? string.Empty,
             user.FullName ?? string.Empty,
-            user.AvatarUrl,
+            ToPublicAvatarUrl(user.AvatarUrl),
             user.Email
         );
     }
@@ -505,18 +532,29 @@ public sealed class IdentityService : IIdentityService
             .OrderBy(u => u.UserName)
             .Skip((request.PageNumber - 1) * request.PageSize)
             .Take(request.PageSize)
+            .Select(u => new
+            {
+                u.Id,
+                u.UserName,
+                u.FullName,
+                u.AvatarUrl,
+                u.Email
+            })
+            .ToListAsync(cancellationToken);
+
+        var mappedUsers = users
             .Select(u => new UserProfileDto(
                 u.Id,
                 u.UserName ?? string.Empty,
                 u.FullName ?? string.Empty,
-                u.AvatarUrl,
+                ToPublicAvatarUrl(u.AvatarUrl),
                 u.Email
             ))
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         return new PaginatedResponse<UserProfileDto>
         {
-            Items = users,
+            Items = mappedUsers,
             PageNumber = request.PageNumber,
             PageSize = request.PageSize,
             TotalCount = totalCount

@@ -1,10 +1,10 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Star, Film, Heart, Crown, Bookmark, Eye, Users } from "lucide-react"
+import { Star, Film, Heart, Crown, Bookmark, Eye, Users, Camera, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { isVipUser } from "@/lib/roles"
@@ -12,9 +12,11 @@ import { useAuth } from "@/components/providers/auth-provider"
 import { Button } from "@/components/ui/button"
 import { VipUpgradeDialog } from "@/components/profile/vip-upgrade-dialog"
 import {
+  getCurrentUserProfile,
   getUserProfile,
   getUserRatings,
   getUserReviews,
+  uploadUserAvatar,
   type UserPublicProfileDto,
 } from "@/lib/api/user"
 import {
@@ -93,43 +95,53 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
   const [vipDialogOpen, setVipDialogOpen] = useState(false)
   const [startingChat, setStartingChat] = useState(false)
   const [tasteCompatibility, setTasteCompatibility] = useState<number | null>(null)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarUploadError, setAvatarUploadError] = useState<string | null>(null)
+  const [avatarFailed, setAvatarFailed] = useState(false)
+  const avatarInputRef = useRef<HTMLInputElement | null>(null)
   const { ensureFollowStatus } = useFollow()
   const isVip = isVipUser(user)
+
+  const refreshProfileInfo = useCallback(async () => {
+    if (!profileUserId) {
+      setProfileInfo(undefined)
+      return
+    }
+    const isCurrentProfile = !routeUserId && !!user?.userId && profileUserId === user.userId
+    const p = isCurrentProfile ? await getCurrentUserProfile() : await getUserProfile(profileUserId)
+    console.log("PROFILE RESPONSE:", p)
+    if (p) {
+      setProfileInfo(p)
+      return
+    }
+    if (!routeUserId && user?.userId === profileUserId) {
+      setProfileInfo({
+        id: user.userId,
+        userId: user.userId,
+        userName: user.userName ?? "",
+        fullName: null,
+        avatarUrl: null,
+      })
+      return
+    }
+    setProfileInfo(null)
+  }, [profileUserId, routeUserId, user?.userId, user?.userName])
 
   useEffect(() => {
     if (routeUserId) setActiveTab("Reviews")
   }, [routeUserId])
 
   useEffect(() => {
-    if (!profileUserId) {
-      setProfileInfo(undefined)
-      return
-    }
     let cancelled = false
     setProfileInfo(undefined)
     void (async () => {
-      const p = await getUserProfile(profileUserId)
+      await refreshProfileInfo()
       if (cancelled) return
-      if (p) {
-        setProfileInfo(p)
-        return
-      }
-      if (!routeUserId && user?.userId === profileUserId) {
-        setProfileInfo({
-          id: user.userId,
-          userId: user.userId,
-          userName: user.userName ?? "",
-          fullName: null,
-          avatarUrl: null,
-        })
-        return
-      }
-      setProfileInfo(null)
     })()
     return () => {
       cancelled = true
     }
-  }, [profileUserId, routeUserId, user?.userId, user?.userName])
+  }, [refreshProfileInfo])
 
   useEffect(() => {
     const load = async () => {
@@ -326,6 +338,76 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
     }
   }, [profileUserId, router, user?.userId])
 
+  const handleAvatarPick = () => {
+    if (!isOwnProfile || avatarUploading) return
+    setAvatarUploadError(null)
+    avatarInputRef.current?.click()
+  }
+
+  const handleAvatarFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file) return
+
+    setAvatarUploadError(null)
+
+    if (!file.type.startsWith("image/")) {
+      const message = "Please select a valid image file."
+      setAvatarUploadError(message)
+      toast.error(message)
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      const message = "Image size cannot exceed 5 MB."
+      setAvatarUploadError(message)
+      toast.error(message)
+      return
+    }
+
+    try {
+      setAvatarUploading(true)
+      const uploadedUrl = await uploadUserAvatar(file)
+
+      setProfileInfo((prev) => {
+        if (!prev) return prev
+        return { ...prev, avatarUrl: uploadedUrl ?? prev.avatarUrl }
+      })
+
+      await Promise.all([refreshProfileInfo(), refreshUser()])
+      toast.success("Profile image updated.")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to upload profile image."
+      setAvatarUploadError(message)
+      toast.error(message)
+    } finally {
+      setAvatarUploading(false)
+    }
+  }, [refreshProfileInfo, refreshUser])
+
+  const profileRecord =
+    profileInfo && typeof profileInfo === "object"
+      ? (profileInfo as unknown as Record<string, unknown>)
+      : ({} as Record<string, unknown>)
+  const rawAvatar =
+    profileRecord.profileImageUrl ??
+    profileRecord.ProfileImageUrl ??
+    profileRecord.avatarUrl ??
+    profileRecord.AvatarUrl ??
+    profileRecord.imageUrl ??
+    profileRecord.ImageUrl
+  const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "")
+  const avatarUrl =
+    typeof rawAvatar === "string" && rawAvatar.trim()
+      ? rawAvatar.startsWith("http")
+        ? rawAvatar
+        : `${API_BASE_URL}${rawAvatar.startsWith("/") ? "" : "/"}${rawAvatar}`
+      : null
+
+  useEffect(() => {
+    setAvatarFailed(false)
+  }, [avatarUrl])
+
   if (!profileUserId) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-10 lg:px-8 text-center">
@@ -355,19 +437,68 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
 
   const displayName =
     profileInfo.fullName?.trim() || profileInfo.userName || user?.userName || userProfile.name
-  const initialsSource = profileInfo.fullName || profileInfo.userName || user?.userName || userProfile.avatar
+  const firstName = String(
+    (profileInfo as unknown as Record<string, unknown>).firstName ??
+    (profileInfo as unknown as Record<string, unknown>).FirstName ??
+    ""
+  )
+  const lastName = String(
+    (profileInfo as unknown as Record<string, unknown>).lastName ??
+    (profileInfo as unknown as Record<string, unknown>).LastName ??
+    ""
+  )
+  const initials =
+    `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase() ||
+    profileInfo.userName?.slice(0, 2).toUpperCase() ||
+    "U"
   const watchedDisplay = isOwnProfile ? watchedMovies.length : "—"
   const avgDisplay =
     avgRatingStat !== null ? Number(avgRatingStat).toFixed(1) : isOwnProfile ? String(userProfile.stats.avgRating) : "—"
+  console.log("PROFILE RESPONSE:", profileInfo)
+  console.log("RAW AVATAR:", rawAvatar)
+  console.log("FINAL AVATAR URL:", avatarUrl)
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 lg:px-8">
       {/* Profile Header */}
       <div className="flex flex-col items-center gap-6 rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm md:flex-row md:text-left">
-        <div className="relative">
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-primary">
-            {initialsSource.slice(0, 2).toUpperCase()}
+        <div className="relative h-36 w-36 flex-shrink-0">
+          <div
+            className={cn(
+              "h-36 w-36 overflow-hidden rounded-full border-2 border-teal-300 bg-teal-50 flex items-center justify-center",
+              isOwnProfile ? "cursor-pointer" : "cursor-default"
+            )}
+            onClick={handleAvatarPick}
+          >
+            {avatarUrl && !avatarFailed ? (
+              <img
+                src={avatarUrl}
+                alt="Profile avatar"
+                className="h-full w-full object-cover"
+                onError={() => setAvatarFailed(true)}
+              />
+            ) : (
+              <span className="text-4xl font-bold text-teal-400">{initials}</span>
+            )}
           </div>
+          {isOwnProfile && (
+            <button
+              type="button"
+              onClick={handleAvatarPick}
+              disabled={avatarUploading}
+              className="absolute bottom-1 right-1 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-teal-400 text-slate-900 shadow-lg transition hover:bg-teal-300 disabled:opacity-70"
+              aria-label="Edit avatar"
+            >
+              {avatarUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
+            </button>
+          )}
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarFileChange}
+          />
           {isOwnProfile && isVip && (
             <div className="absolute -right-1 -top-1 rounded-full bg-primary p-1.5">
               <Crown className="h-4 w-4 text-primary-foreground" />
@@ -384,6 +515,9 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
           <p className="mt-2 text-sm leading-relaxed text-gray-600">
             {isOwnProfile ? userProfile.bio : `@${profileInfo.userName}`}
           </p>
+          {avatarUploadError && isOwnProfile && (
+            <p className="mt-2 text-xs text-red-600">{avatarUploadError}</p>
+          )}
           <div className="mt-4 flex justify-center gap-6 md:justify-start">
             <div className="text-center">
               <div className="flex items-center gap-1.5">

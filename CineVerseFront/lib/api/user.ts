@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/api/http"
+import { ApiError } from "@/lib/api/types"
 import type { ReviewDto } from "@/lib/api/reviews"
 
 export interface PaginatedResponse<T> {
@@ -78,6 +79,7 @@ export interface UserPublicProfileDto {
   userName: string
   fullName: string | null
   avatarUrl: string | null
+  profileImageUrl?: string | null
 }
 
 function normalizeUserPublicProfile(raw: unknown): UserPublicProfileDto | null {
@@ -87,25 +89,67 @@ function normalizeUserPublicProfile(raw: unknown): UserPublicProfileDto | null {
   if (!id) return null
   const userName = pickString(o, "userName", "UserName")
   const fn = o.fullName ?? o.FullName
-  const av = o.avatarUrl ?? o.AvatarUrl
+  const av =
+    o.profileImageUrl ??
+    o.ProfileImageUrl ??
+    o.avatarUrl ??
+    o.AvatarUrl ??
+    o.imageUrl ??
+    o.ImageUrl
   return {
     id,
     userId: id,
     userName,
     fullName: fn === null || fn === undefined ? null : String(fn),
     avatarUrl: av === null || av === undefined ? null : String(av),
+    profileImageUrl: av === null || av === undefined ? null : String(av),
   }
 }
 
 /** Loads a user by backend user id (same string as search results and JWT NameIdentifier). */
 export async function getUserProfile(userId: string): Promise<UserPublicProfileDto | null> {
+  const url = `/api/user/${encodeURIComponent(userId)}`
   try {
-    const data = await apiRequest<unknown>(`/api/user/${encodeURIComponent(userId)}`, {
+    const data = await apiRequest<unknown>(url, {
       method: "GET",
       auth: false,
     })
     return normalizeUserPublicProfile(data)
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiError) {
+      console.error("[profile-api] getUserProfile failed", {
+        userId,
+        status: error.status,
+        message: error.message,
+        response: error.parsedJson ?? error.rawText,
+        url: error.path ?? url,
+      })
+    } else {
+      console.error("[profile-api] getUserProfile failed", { userId, response: error, url })
+    }
+    return null
+  }
+}
+
+export async function getCurrentUserProfile(): Promise<UserPublicProfileDto | null> {
+  const url = "/api/user/me"
+  try {
+    const data = await apiRequest<unknown>(url, {
+      method: "GET",
+      auth: true,
+    })
+    return normalizeUserPublicProfile(data)
+  } catch (error) {
+    if (error instanceof ApiError) {
+      console.error("[profile-api] getCurrentUserProfile failed", {
+        status: error.status,
+        message: error.message,
+        response: error.parsedJson ?? error.rawText,
+        url: error.path ?? url,
+      })
+    } else {
+      console.error("[profile-api] getCurrentUserProfile failed", { response: error, url })
+    }
     return null
   }
 }
@@ -169,4 +213,15 @@ export async function searchUsers(searchTerm: string, pageNumber = 1, pageSize =
     ...data,
     items,
   }
+}
+
+export async function uploadUserAvatar(file: File) {
+  const formData = new FormData()
+  formData.append("Avatar", file)
+
+  return apiRequest<string>("/api/user/avatar", {
+    method: "POST",
+    auth: true,
+    body: formData,
+  })
 }
