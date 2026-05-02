@@ -1,6 +1,6 @@
-using Application.Common.Options;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using Minio;
 using Minio.DataModel.Args;
 
@@ -11,15 +11,18 @@ namespace API.Controllers;
 public class FilesController : ControllerBase
 {
     private readonly IMinioClient _minioClient;
-    private readonly MinioOptions _minioOptions;
+    private readonly ILogger<FilesController> _logger;
 
-    public FilesController(IMinioClient minioClient, IOptions<MinioOptions> minioOptions)
+    public FilesController(
+        IMinioClient minioClient,
+        ILogger<FilesController> logger)
     {
         _minioClient = minioClient;
-        _minioOptions = minioOptions.Value;
+        _logger = logger;
     }
 
     [HttpGet("{bucket}/{**objectName}")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetFile(
         [FromRoute] string bucket,
         [FromRoute] string objectName,
@@ -33,32 +36,58 @@ public class FilesController : ControllerBase
 
         try
         {
-            var statArgs = new StatObjectArgs()
-                .WithBucket(normalizedBucket)
-                .WithObject(normalizedObject);
+            byte[] fileBytes;
 
-            var stat = await _minioClient.StatObjectAsync(statArgs, cancellationToken);
-            var contentType = string.IsNullOrWhiteSpace(stat.ContentType)
-                ? "application/octet-stream"
-                : stat.ContentType;
+            await using (var memoryStream = new MemoryStream())
+            {
+                await _minioClient.GetObjectAsync(
+                    new GetObjectArgs()
+                        .WithBucket(normalizedBucket)
+                        .WithObject(normalizedObject)
+                        .WithCallbackStream(async stream =>
+                        {
+                            await stream.CopyToAsync(memoryStream, cancellationToken);
+                        }),
+                    cancellationToken);
 
-            await using var memory = new MemoryStream();
-            var getArgs = new GetObjectArgs()
-                .WithBucket(normalizedBucket)
-                .WithObject(normalizedObject)
-                .WithCallbackStream(async stream =>
-                {
-                    await stream.CopyToAsync(memory, cancellationToken);
-                });
+                fileBytes = memoryStream.ToArray();
+            }
 
-            await _minioClient.GetObjectAsync(getArgs, cancellationToken);
-            memory.Position = 0;
+            if (fileBytes.Length == 0)
+                return NotFound();
 
-            return File(memory.ToArray(), contentType);
+            var contentType = GetContentType(normalizedObject);
+            return File(fileBytes, contentType);
         }
-        catch
+        catch (OperationCanceledException)
         {
+            _logger.LogWarning(
+                "File request cancelled. Bucket: {Bucket}, ObjectName: {ObjectName}",
+                normalizedBucket,
+                normalizedObject);
+            return new EmptyResult();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to get file. Bucket: {Bucket}, ObjectName: {ObjectName}",
+                normalizedBucket,
+                normalizedObject);
             return NotFound();
         }
+    }
+
+    private static string GetContentType(string objectName)
+    {
+        var ext = Path.GetExtension(objectName)?.ToLowerInvariant();
+        return ext switch
+        {
+            ".webp" => "image/webp",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            _ => "application/octet-stream"
+        };
     }
 }

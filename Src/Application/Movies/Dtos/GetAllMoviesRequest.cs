@@ -8,7 +8,10 @@ public class GetAllMoviesRequest
     public int PageSize { get; set; } = 10;
     public string? Search { get; set; }
     public string? ActorName { get; set; }
-    public string? DirectorName { get; set; }
+    public string? Actor { get; set; }
+    public string? Cast { get; set; }
+    public string? DirectorName { get; set; } 
+    public string? Director { get; set; }
     public int? GenreId { get; set; }
     public string? Language { get; set; }
     public MovieStatus? Status { get; set; }

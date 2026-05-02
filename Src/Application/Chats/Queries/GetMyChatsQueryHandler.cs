@@ -41,7 +41,9 @@ public sealed class GetMyChatsQueryHandler : IRequestHandler<GetMyChatsQuery, Ba
         {
             var chat = data[i];
             var sourceChat = chats[i];
-            chat.UnreadCount = sourceChat.Messages.Count(m => !m.IsRead && m.SenderId != currentUserId);
+            chat.UnreadCount = sourceChat.Messages == null
+                ? 0
+                : sourceChat.Messages.Count(m => !m.IsRead && m.SenderId != currentUserId);
 
             foreach (var participant in chat.Participants)
             {

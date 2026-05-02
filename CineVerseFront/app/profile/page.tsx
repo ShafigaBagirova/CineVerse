@@ -20,6 +20,8 @@ import {
   type UserPublicProfileDto,
 } from "@/lib/api/user"
 import {
+  getUserWatchedMovies,
+  getUserWatchlist,
   getMyWatchedMovies,
   getMyWatchlist,
   removeFromWatched,
@@ -41,7 +43,6 @@ import { useFollow } from "@/components/providers/follow-provider"
 import { createPrivateChat } from "@/lib/api/chats"
 
 const allTabs = ["Watchlist", "Watched", "Reviews", "Following"] as const
-const publicTabs = ["Reviews", "Following"] as const
 
 const userProfile = {
   name: "CineVerse User",
@@ -68,7 +69,7 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
   const [profileInfo, setProfileInfo] = useState<UserPublicProfileDto | null | undefined>(undefined)
   const [avgRatingStat, setAvgRatingStat] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState<string>("Watchlist")
-  const tabs = isOwnProfile ? allTabs : publicTabs
+  const tabs = allTabs
   const [watchlistMovies, setWatchlistMovies] = useState<WatchlistMovieDto[]>([])
   const [watchedMovies, setWatchedMovies] = useState<WatchedMovieDto[]>([])
   const [watchLoading, setWatchLoading] = useState(false)
@@ -193,16 +194,41 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
   }, [profileUserId])
 
   const loadWatchData = async () => {
-    if (!user || !isOwnProfile) return
+    if (!profileUserId) return
     try {
       setWatchLoading(true)
       setWatchError(null)
-      const [watchlist, watched] = await Promise.all([
-        getMyWatchlist(1, 50),
-        getMyWatchedMovies(1, 50),
-      ])
-      setWatchlistMovies(watchlist.items)
-      setWatchedMovies(watched.items)
+      if (isOwnProfile) {
+        const [watchlist, watched] = await Promise.all([
+          getMyWatchlist(1, 50),
+          getMyWatchedMovies(1, 50),
+        ])
+        setWatchlistMovies(watchlist.items)
+        setWatchedMovies(watched.items)
+      } else {
+        const [watchlist, watched] = await Promise.all([
+          getUserWatchlist(profileUserId),
+          getUserWatchedMovies(profileUserId),
+        ])
+        setWatchlistMovies(
+          watchlist.map((movie) => ({
+            movieId: movie.id,
+            title: movie.title,
+            posterUrl: movie.posterUrl ?? null,
+            userAverageRating: movie.userAverageRating ?? null,
+            addedAt: movie.releaseDate ?? new Date().toISOString(),
+          }))
+        )
+        setWatchedMovies(
+          watched.map((movie) => ({
+            movieId: movie.id,
+            title: movie.title,
+            posterPath: movie.posterUrl ?? null,
+            userAverageRating: movie.userAverageRating ?? null,
+            createdAt: movie.releaseDate ?? new Date().toISOString(),
+          }))
+        )
+      }
     } catch (err) {
       setWatchlistMovies([])
       setWatchedMovies([])
@@ -214,7 +240,7 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
 
   useEffect(() => {
     void loadWatchData()
-  }, [user?.userId, isOwnProfile])
+  }, [user?.userId, isOwnProfile, profileUserId])
 
   useEffect(() => {
     const loadFollowStats = async () => {
@@ -682,10 +708,7 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
 
       {/* Tab Content */}
       <div className="mt-6">
-        {activeTab === "Watchlist" && !isOwnProfile && (
-          <p className="text-sm text-muted-foreground">Watchlist is only visible on your own profile.</p>
-        )}
-        {activeTab === "Watchlist" && isOwnProfile && (
+        {activeTab === "Watchlist" && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
             {watchLoading && <p className="text-sm text-muted-foreground col-span-full">Loading watchlist...</p>}
             {watchError && <p className="text-sm text-muted-foreground col-span-full">{watchError}</p>}
@@ -705,16 +728,15 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
                 </div>
                 <h3 className="mt-2 text-sm font-semibold text-foreground group-hover:text-primary">{movie.title}</h3>
                 </Link>
-                <button onClick={() => moveToWatched(movie.movieId)} className="mt-1 text-xs text-muted-foreground hover:text-foreground">Remove</button>
+                {isOwnProfile && (
+                  <button onClick={() => moveToWatched(movie.movieId)} className="mt-1 text-xs text-muted-foreground hover:text-foreground">Remove</button>
+                )}
               </div>
             ))}
           </div>
         )}
 
-        {activeTab === "Watched" && !isOwnProfile && (
-          <p className="text-sm text-muted-foreground">Watched list is only visible on your own profile.</p>
-        )}
-        {activeTab === "Watched" && isOwnProfile && (
+        {activeTab === "Watched" && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
             {watchLoading && <p className="text-sm text-muted-foreground col-span-full">Loading watched list...</p>}
             {watchError && <p className="text-sm text-muted-foreground col-span-full">{watchError}</p>}
@@ -734,7 +756,9 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
                 </div>
                 <h3 className="mt-2 text-sm font-semibold text-foreground group-hover:text-primary">{movie.title}</h3>
                 </Link>
-                <button onClick={() => moveToWatchlist(movie.movieId)} className="mt-1 text-xs text-muted-foreground hover:text-foreground">Remove</button>
+                {isOwnProfile && (
+                  <button onClick={() => moveToWatchlist(movie.movieId)} className="mt-1 text-xs text-muted-foreground hover:text-foreground">Remove</button>
+                )}
               </div>
             ))}
           </div>

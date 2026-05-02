@@ -166,10 +166,15 @@ function appendMovieListQueryParams(
     params.set("search", String(query.search).trim())
   }
   if (query.actorName != null && String(query.actorName).trim() !== "") {
-    params.set("actorName", String(query.actorName).trim())
+    const actor = String(query.actorName).trim()
+    // Backend binds ?actor= / ?cast= to the same filter as actorName (see MovieController merge).
+    params.set("actor", actor)
+    params.set("actorName", actor)
   }
   if (query.directorName != null && String(query.directorName).trim() !== "") {
-    params.set("directorName", String(query.directorName).trim())
+    const director = String(query.directorName).trim()
+    params.set("director", director)
+    params.set("directorName", director)
   }
 
   if (query.language != null && String(query.language).trim() !== "") {
@@ -326,8 +331,15 @@ export async function getAllMovies(query: GetAllMoviesQuery = {}, options?: GetA
   params.set("_cb", String(Date.now()))
 
   const qs = params.toString() ? `?${params.toString()}` : ""
+  const url = `/api/movie${qs}`
+  console.log("MOVIE API URL:", url)
+  console.log("FILTERS:", {
+    actor: query.actorName ?? "",
+    director: query.directorName ?? "",
+    search: query.search ?? "",
+  })
 
-  const data = await apiRequest<PaginatedResponse<GetAllMoviesResponse>>(`/api/movie${qs}`, {
+  const data = await apiRequest<PaginatedResponse<GetAllMoviesResponse>>(url, {
     method: "GET",
     auth: options?.auth ?? false,
     quiet: options?.quiet,

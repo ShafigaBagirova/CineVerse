@@ -9,11 +9,75 @@ import { Button } from "@/components/ui/button"
 import { getAllGenres } from "@/lib/api/genres"
 import {
   getAllMovies,
+  getAllMoviesAllPages,
   getMovieReleaseYear,
   getMoviesGridSortQuery,
   mapMoviesGridLanguageToApi,
   type GetAllMoviesResponse,
 } from "@/lib/api/movies"
+
+function extractCastNameStrings(movie: GetAllMoviesResponse): string[] {
+  const raw = movie as unknown as Record<string, unknown>
+  const toNames = (arr: unknown): string[] => {
+    if (!Array.isArray(arr)) return []
+    return arr.flatMap((c) => {
+      if (c == null) return []
+      if (typeof c === "string") return [c]
+      if (typeof c === "object" && c !== null && "name" in c) {
+        return [String((c as { name?: unknown }).name ?? "")]
+      }
+      return [String(c)]
+    })
+  }
+  const fromCast = toNames(movie.cast ?? raw.cast ?? raw.Cast)
+  const fromCasts = toNames(raw.casts ?? raw.Casts)
+  const fromMembers = toNames(raw.castMembers ?? raw.CastMembers)
+  if (fromCast.length > 0 || fromCasts.length > 0 || fromMembers.length > 0) {
+    return [...fromCast, ...fromCasts, ...fromMembers]
+  }
+  const actors = movie.actors ?? raw.actors ?? raw.Actors
+  if (typeof actors === "string" && actors.trim() !== "") {
+    return actors
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+  }
+  return []
+}
+
+function extractDirectorNameStrings(movie: GetAllMoviesResponse): string[] {
+  const raw = movie as unknown as Record<string, unknown>
+  const out: string[] = []
+  const d = movie.director ?? raw.director ?? raw.Director
+  if (typeof d === "string" && d.trim() !== "") out.push(d.trim())
+  else if (d && typeof d === "object" && d !== null && "name" in d) {
+    const n = (d as { name?: unknown }).name
+    if (n != null && String(n).trim() !== "") out.push(String(n).trim())
+  }
+  const dn = raw.directorName ?? raw.DirectorName
+  if (typeof dn === "string" && dn.trim() !== "") out.push(dn.trim())
+  return out
+}
+
+function movieMatchesPersonFilters(
+  movie: GetAllMoviesResponse,
+  normalizedActor: string,
+  normalizedDirector: string
+): boolean {
+  if (normalizedActor !== "") {
+    const castNames = extractCastNameStrings(movie)
+    if (!castNames.some((name) => String(name).toLowerCase().includes(normalizedActor))) {
+      return false
+    }
+  }
+  if (normalizedDirector !== "") {
+    const dirNames = extractDirectorNameStrings(movie)
+    if (!dirNames.some((name) => String(name).toLowerCase().includes(normalizedDirector))) {
+      return false
+    }
+  }
+  return true
+}
 const sortOptions = [
   { value: "rating", label: "Top Rated" },
   { value: "year", label: "Newest" },
@@ -117,6 +181,11 @@ export function MoviesGrid({
     [genreOptions, selectedGenreId]
   )
 
+  const personBrowseActive = useMemo(
+    () => !!(activeActorFilter.trim() || activeDirectorFilter.trim()),
+    [activeActorFilter, activeDirectorFilter]
+  )
+
   useEffect(() => {
     let mounted = true
     const loadGenres = async () => {
@@ -136,33 +205,68 @@ export function MoviesGrid({
 
   useEffect(() => {
     setPageNumber(1)
-  }, [sortBy, selectedLanguages, yearFrom, yearTo, selectedGenreId, search])
+  }, [sortBy, selectedLanguages, yearFrom, yearTo, selectedGenreId, search, activeActorFilter, activeDirectorFilter])
 
+  // Keep person-filters in sync when the URL query changes (client navigations reuse this component).
   useEffect(() => {
+    const a = initialActor.trim()
+    const d = initialDirector.trim()
+    const s = initialSearch.trim()
+    setActiveActorFilter(a)
+    setActiveDirectorFilter(d)
+    setSearch(a || d || s)
+    setPageNumber(1)
+  }, [initialActor, initialDirector, initialSearch])
+
+  const buildListQuery = () => {
+    const { sortBy: sortByQuery, desc: sortDesc } = getMoviesGridSortQuery(sortBy)
+    const primaryLanguage = selectedLanguages.length === 1 ? selectedLanguages[0] : undefined
+    const yearQuery = yearFrom === yearTo ? Math.trunc(Number(yearFrom)) : undefined
+    const trimmedSearch = search.trim()
+    const searchForApi =
+      trimmedSearch !== "" &&
+      !(activeActorFilter && trimmedSearch === activeActorFilter.trim()) &&
+      !(activeDirectorFilter && trimmedSearch === activeDirectorFilter.trim())
+        ? trimmedSearch
+        : undefined
+
+    return {
+      search: searchForApi,
+      genreId: selectedGenreId != null && selectedGenreId > 0 ? selectedGenreId : undefined,
+      language:
+        selectedLanguages.length === 1 ? mapMoviesGridLanguageToApi(primaryLanguage) : undefined,
+      year: yearQuery !== undefined && Number.isFinite(yearQuery) ? yearQuery : undefined,
+      sortBy: sortByQuery,
+      desc: sortDesc,
+    }
+  }
+
+  // Server-paged list when not browsing by actor/director (normal search and filters).
+  useEffect(() => {
+    if (personBrowseActive) return
+
     const controller = new AbortController()
     const loadMovies = async () => {
       try {
         setLoading(true)
         setError(null)
 
-        const { sortBy: sortByQuery, desc: sortDesc } = getMoviesGridSortQuery(sortBy)
-
-        const primaryLanguage = selectedLanguages.length === 1 ? selectedLanguages[0] : undefined
-        const yearQuery =
-          yearFrom === yearTo ? Math.trunc(Number(yearFrom)) : undefined
+        const q = buildListQuery()
+        console.log("movie filters:", {
+          search: q.search ?? "",
+          actor: activeActorFilter,
+          director: activeDirectorFilter,
+        })
 
         const response = await getAllMovies({
           pageNumber,
           pageSize: PAGE_SIZE,
-          search: search.trim() !== "" ? search.trim() : undefined,
-          actorName: activeActorFilter || undefined,
-          directorName: activeDirectorFilter || undefined,
-          genreId: selectedGenreId != null && selectedGenreId > 0 ? selectedGenreId : undefined,
-          language:
-            selectedLanguages.length === 1 ? mapMoviesGridLanguageToApi(primaryLanguage) : undefined,
-          year: yearQuery !== undefined && Number.isFinite(yearQuery) ? yearQuery : undefined,
-          sortBy: sortByQuery,
-          desc: sortDesc,
+          search: q.search,
+          genreId: q.genreId,
+          language: q.language,
+          year: q.year,
+          sortBy: q.sortBy,
+          desc: q.desc,
         })
 
         if (!controller.signal.aborted) {
@@ -186,7 +290,70 @@ export function MoviesGrid({
 
     void loadMovies()
     return () => controller.abort()
-  }, [sortBy, selectedLanguages, yearFrom, yearTo, selectedGenreId, search, activeActorFilter, activeDirectorFilter, pageNumber])
+  }, [
+    personBrowseActive,
+    pageNumber,
+    sortBy,
+    selectedLanguages,
+    yearFrom,
+    yearTo,
+    selectedGenreId,
+    search,
+    activeActorFilter,
+    activeDirectorFilter,
+  ])
+
+  // Full catalog for actor/director URL browse: fetch without person query params, then filter locally.
+  useEffect(() => {
+    if (!personBrowseActive) return
+
+    const controller = new AbortController()
+    const loadAllForPersonFilter = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const q = buildListQuery()
+        console.log("movie filters (person browse — API without actor/director):", {
+          search: q.search ?? "",
+          actor: activeActorFilter,
+          director: activeDirectorFilter,
+        })
+
+        const all = await getAllMoviesAllPages(q)
+
+        if (!controller.signal.aborted) {
+          setMovies(all)
+          setTotalCount(all.length)
+          setTotalPages(Math.max(1, Math.ceil(all.length / PAGE_SIZE)))
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : "Failed to load movies.")
+          setMovies([])
+          setTotalPages(1)
+          setTotalCount(0)
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void loadAllForPersonFilter()
+    return () => controller.abort()
+  }, [
+    personBrowseActive,
+    sortBy,
+    selectedLanguages,
+    yearFrom,
+    yearTo,
+    selectedGenreId,
+    search,
+    activeActorFilter,
+    activeDirectorFilter,
+  ])
 
   const filtered = useMemo(() => {
     let result = [...normalizedMovies]
@@ -203,21 +370,55 @@ export function MoviesGrid({
     return result
   }, [normalizedMovies, yearFrom, yearTo, selectedLanguageCodes])
 
+  const personFiltered = useMemo(() => {
+    const normalizedActor = activeActorFilter.trim().toLowerCase()
+    const normalizedDirector = activeDirectorFilter.trim().toLowerCase()
+    if (!normalizedActor && !normalizedDirector) {
+      return filtered
+    }
+
+    const rawById = new Map(movies.map((m) => [m.id, m]))
+    return filtered.filter((row) => {
+      const raw = rawById.get(row.id)
+      if (!raw) return false
+      return movieMatchesPersonFilters(raw, normalizedActor, normalizedDirector)
+    })
+  }, [filtered, movies, activeActorFilter, activeDirectorFilter])
+
+  const displayTotalPages = personBrowseActive
+    ? Math.max(1, Math.ceil(personFiltered.length / PAGE_SIZE))
+    : totalPages
+
+  const displayTotalCount = personBrowseActive ? personFiltered.length : totalCount
+
+  const displayRows = useMemo(() => {
+    if (!personBrowseActive) return personFiltered
+    return personFiltered.slice((pageNumber - 1) * PAGE_SIZE, pageNumber * PAGE_SIZE)
+  }, [personBrowseActive, personFiltered, pageNumber])
+
+  useEffect(() => {
+    if (loading) return
+    console.log("MOVIES RAW:", movies)
+    console.log("ACTOR PARAM:", activeActorFilter)
+    console.log("DIRECTOR PARAM:", activeDirectorFilter)
+    console.log("FILTERED MOVIES:", personFiltered)
+  }, [loading, movies, activeActorFilter, activeDirectorFilter, personFiltered])
+
   const paginationItems = useMemo(() => {
-    if (totalPages <= 1) return [1]
+    if (displayTotalPages <= 1) return [1]
     const pages: Array<number | string> = []
     const start = Math.max(1, pageNumber - 1)
-    const end = Math.min(totalPages, pageNumber + 1)
+    const end = Math.min(displayTotalPages, pageNumber + 1)
 
     pages.push(1)
     if (start > 2) pages.push("left-ellipsis")
-    for (let p = Math.max(2, start); p <= Math.min(totalPages - 1, end); p++) {
+    for (let p = Math.max(2, start); p <= Math.min(displayTotalPages - 1, end); p++) {
       pages.push(p)
     }
-    if (end < totalPages - 1) pages.push("right-ellipsis")
-    if (totalPages > 1) pages.push(totalPages)
+    if (end < displayTotalPages - 1) pages.push("right-ellipsis")
+    if (displayTotalPages > 1) pages.push(displayTotalPages)
     return pages
-  }, [pageNumber, totalPages])
+  }, [pageNumber, displayTotalPages])
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
@@ -569,7 +770,7 @@ export function MoviesGrid({
         )}
         {!loading && !error && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-6 xl:grid-cols-4">
-          {filtered.map((movie) => (
+          {displayRows.map((movie) => (
             <Link
               key={movie.id}
               href={`/movies/${movie.id}`}
@@ -607,11 +808,11 @@ export function MoviesGrid({
           ))}
         </div>
         )}
-        {!loading && !error && filtered.length > 0 && (
+        {!loading && !error && displayRows.length > 0 && (
           <div className="mt-8 space-y-2">
             <p className="text-center text-sm text-muted-foreground">
-              Page {pageNumber} of {totalPages}
-              {totalCount > 0 ? ` • ${totalCount} movies` : ""}
+              Page {pageNumber} of {displayTotalPages}
+              {displayTotalCount > 0 ? ` • ${displayTotalCount} movies` : ""}
             </p>
             <div className="flex items-center justify-center gap-5">
               <button
@@ -656,11 +857,11 @@ export function MoviesGrid({
               <button
                 type="button"
                 aria-label="Next page"
-                disabled={pageNumber >= totalPages}
-                onClick={() => setPageNumber((p) => Math.min(totalPages, p + 1))}
+                disabled={pageNumber >= displayTotalPages}
+                onClick={() => setPageNumber((p) => Math.min(displayTotalPages, p + 1))}
                 className={cn(
                   "inline-flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors duration-200",
-                  pageNumber >= totalPages ? "cursor-not-allowed text-muted-foreground/40" : "hover:text-primary"
+                  pageNumber >= displayTotalPages ? "cursor-not-allowed text-muted-foreground/40" : "hover:text-primary"
                 )}
               >
                 <ChevronRight className="h-5 w-5" />
@@ -668,7 +869,7 @@ export function MoviesGrid({
             </div>
           </div>
         )}
-        {!loading && !error && filtered.length === 0 && (
+        {!loading && !error && displayRows.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <p className="text-lg font-medium text-foreground">No movies found</p>
             <p className="mt-1 text-sm text-muted-foreground">
