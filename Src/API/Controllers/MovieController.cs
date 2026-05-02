@@ -90,6 +90,13 @@ public class MovieController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<BaseResponse<PaginatedResponse<GetAllMoviesResponse>>>> GetAllMMovies([FromQuery] GetAllMoviesRequest request)
     {
+  
+        if (string.IsNullOrWhiteSpace(request.DirectorName))
+            request.DirectorName = request.Director;
+
+        if (string.IsNullOrWhiteSpace(request.ActorName))
+            request.ActorName = request.Actor ?? request.Cast;
+
         var result = await _mediator.Send(
          new GetAllMoviesQuery(request));
 

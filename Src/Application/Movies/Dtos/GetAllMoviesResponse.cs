@@ -10,6 +10,7 @@ public class GetAllMoviesResponse
     public string? Description { get; set; }
     public string? Director { get; set; }
     public string? Actors { get; set; }
+    public List<string> Cast { get; set; } = new();
 
     public string? PosterUrl { get; set; }
     public string? BackdropUrl { get; set; }

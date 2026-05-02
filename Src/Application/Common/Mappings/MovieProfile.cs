@@ -1,6 +1,7 @@
 ﻿using Application.Movies.Dtos;
 using AutoMapper;
 using Domain.Entities;
+using System.Linq;
 
 namespace Application.Common.Mappings;
 
@@ -49,11 +50,28 @@ public class MovieProfile : Profile
             opt => opt.MapFrom(src =>
                 src.BackdropPath != null
                     ? "https://image.tmdb.org/t/p/original" + src.BackdropPath
-                    : null));
+                    : null))
+        .ForMember(
+            d => d.Cast,
+            opt => opt.MapFrom(src =>
+                src.CastMembers.Count > 0
+                    ? src.CastMembers
+                        .OrderBy(c => c.DisplayOrder)
+                        .ThenBy(c => c.Name)
+                        .Select(c => c.Name)
+                        .ToList()
+                    : string.IsNullOrWhiteSpace(src.Actors)
+                        ? new List<string>()
+                        : src.Actors
+                            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList()));
 
         CreateMap<MovieVideo, MovieVideoDto>();
 
         CreateMap<Movie, GetMovieByIdResponse>()
+          .ForMember(d => d.Cast, opt => opt.Ignore())
           .ForMember(d => d.PosterUrl,
               opt => opt.MapFrom(src =>
                   src.PosterPath == null

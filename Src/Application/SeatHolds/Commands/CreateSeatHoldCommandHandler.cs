@@ -114,7 +114,6 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
                             "Seat hold already active.");
                     }
 
-                    // Terminal payment outcomes (Failed/Cancelled/Refunded) should not reuse old hold.
                     activeHold.Status = SeatHoldStatus.Released;
                     await _seatHoldRepository.UpdateAsync(activeHold, cancellationToken);
                     _logger.LogInformation(
@@ -124,7 +123,7 @@ public sealed class CreateSeatHoldCommandHandler : IRequestHandler<CreateSeatHol
                 else
                 {
                     _logger.LogInformation(
-                        "CreateSeatHoldCommand failed. Active seat hold already exists. SeatHoldId: {SeatHoldId}, ScreeningId: {ScreeningId}, SeatId: {SeatId}, ExpiresAtUtc: {ExpiresAtUtc}",
+                        "CreateSeatHoldCommand failed. Active seat hold already exists. SeatHoldId: {SeatHoldId}",
                         activeHold.Id);
                     return BaseResponse<GetSeatHoldByIdResponse>.Fail("This seat is currently on hold.");
                 }

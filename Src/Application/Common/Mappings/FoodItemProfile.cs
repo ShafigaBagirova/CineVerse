@@ -26,8 +26,9 @@ public class FoodItemProfile:Profile
                 return true;
             }));
 
-        CreateMap<FoodItem, FoodItemResponse>();
         CreateMap<FoodItem, FoodItemResponse>()
+        .ForMember(dest => dest.Image,
+        opt => opt.MapFrom(src => src.ImageObjectKey))
          .ForMember(dest => dest.FoodCategoryName,
         opt => opt.MapFrom(src => src.FoodCategory.Name))
         .ForMember(dest => dest.CinemaId,

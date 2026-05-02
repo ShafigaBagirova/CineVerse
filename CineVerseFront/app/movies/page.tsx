@@ -7,8 +7,15 @@ import { MoviesGrid } from "@/components/movies/movies-grid"
 export default function MoviesPage() {
   const searchParams = useSearchParams()
   const initialSearch = useMemo(() => searchParams.get("search") ?? "", [searchParams])
-  const initialActor = useMemo(() => searchParams.get("actor") ?? "", [searchParams])
-  const initialDirector = useMemo(() => searchParams.get("director") ?? "", [searchParams])
+  const initialActor = useMemo(() => {
+    const actor = searchParams.get("actor")
+    const cast = searchParams.get("cast")
+    return actor ?? cast ?? ""
+  }, [searchParams])
+  const initialDirector = useMemo(() => {
+    const director = searchParams.get("director")
+    return director ?? ""
+  }, [searchParams])
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 lg:px-8">

@@ -48,12 +48,12 @@ export function Navbar() {
   const { notifications, unreadCount, loading, error, authRequired, markAsRead } = useNotifications()
 
   const loadUnreadMessagesCount = async () => {
-    if (!authenticated) {
-      setUnreadMessagesCount(0)
-      return
-    }
-
     try {
+      if (!authenticated) {
+        setUnreadMessagesCount(0)
+        return
+      }
+
       const chats = await getMyChats()
 
       const total = chats.reduce((sum, chat) => {
@@ -68,10 +68,10 @@ export function Navbar() {
         return sum + unread
       }, 0)
 
-      console.log("MESSAGE UNREAD TOTAL:", total)
       setUnreadMessagesCount(total)
     } catch (error) {
-      console.error("Failed to load unread messages count:", error)
+      console.warn("Unread messages count failed, fallback to 0", error)
+      setUnreadMessagesCount(0)
     }
   }
 

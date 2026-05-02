@@ -23,6 +23,26 @@ import {
   type FoodItemResponse,
 } from "@/lib/api/foods"
 
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "")
+
+function resolveSnackImageUrl(snack: FoodItemResponse) {
+  const rawImage =
+    (snack as unknown as Record<string, unknown>).imageUrl ??
+    (snack as unknown as Record<string, unknown>).ImageUrl ??
+    (snack as unknown as Record<string, unknown>).photoUrl ??
+    (snack as unknown as Record<string, unknown>).PhotoUrl ??
+    (snack as unknown as Record<string, unknown>).pictureUrl ??
+    (snack as unknown as Record<string, unknown>).PictureUrl ??
+    (snack as unknown as Record<string, unknown>).image ??
+    (snack as unknown as Record<string, unknown>).Image
+
+  if (typeof rawImage !== "string" || !rawImage.trim()) return "/placeholder-food.png"
+  const value = rawImage.trim()
+  return value.startsWith("http")
+    ? value
+    : `${API_BASE_URL}${value.startsWith("/") ? "" : "/"}${value}`
+}
+
 /** API returns enum strings in camelCase (`pending`); keep UI logic on canonical `PaymentStatus` labels. */
 function normalizePaymentStatus(raw: unknown): PaymentStatus | "none" {
   if (raw === undefined || raw === null || raw === "") return "none"
@@ -133,6 +153,7 @@ export function CheckoutForm() {
         setFoodLoading(true)
         setFoodError(null)
         const items = await getAllFoodItems({ isAvailable: true, pageNumber: 1, pageSize: 50 })
+        console.log("SNACK DATA:", items)
         setFoodItems(items)
       } catch (err) {
         setFoodItems([])
@@ -464,24 +485,35 @@ export function CheckoutForm() {
               <p className="mb-3 text-xs text-muted-foreground">No food items available.</p>
             )}
             <div className="grid gap-3 sm:grid-cols-2">
-              {foodItems.map((item) => {
-                const qty = foodOrders[item.id] || 0
+              {foodItems.map((snack) => {
+                const qty = foodOrders[snack.id] || 0
+                const snackImageUrl = resolveSnackImageUrl(snack)
                 return (
                   <div
-                    key={item.id}
+                    key={snack.id}
                     className={cn(
-                      "flex items-center justify-between rounded-xl border p-4 transition-colors",
+                      "flex items-center gap-4 rounded-2xl border border-teal-100 p-4 transition-colors",
                       qty > 0 ? "border-primary/30 bg-primary/5" : "border-border/50 bg-secondary/30"
                     )}
                   >
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">{item.price} AZN</p>
+                    <img
+                      src={snackImageUrl}
+                      alt={snack.name}
+                      className="h-20 w-20 flex-shrink-0 rounded-xl border border-teal-100 bg-slate-100 object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = "/placeholder-food.png"
+                      }}
+                    />
+
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{snack.name}</h3>
+                      <p>{snack.price} AZN</p>
                     </div>
+
                     <div className="flex items-center gap-2">
                       {qty > 0 && (
                         <button
-                          onClick={() => updateFood(item.id, -1)}
+                          onClick={() => updateFood(snack.id, -1)}
                           className="flex h-7 w-7 items-center justify-center rounded-full bg-secondary text-foreground transition-colors hover:bg-secondary/80"
                         >
                           <Minus className="h-3.5 w-3.5" />
@@ -491,7 +523,7 @@ export function CheckoutForm() {
                         <span className="w-5 text-center text-sm font-bold text-foreground">{qty}</span>
                       )}
                       <button
-                        onClick={() => updateFood(item.id, 1)}
+                        onClick={() => updateFood(snack.id, 1)}
                         className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
                       >
                         <Plus className="h-3.5 w-3.5" />

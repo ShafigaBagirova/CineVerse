@@ -13,9 +13,11 @@ public sealed class ChatMappingProfile : Profile
         CreateMap<Message, MessageDto>();
         CreateMap<Chat, ChatDto>()
             .ForMember(dest => dest.LastMessage,
-                opt => opt.MapFrom(src => src.Messages
-                    .OrderByDescending(m => m.CreatedAt)
-                    .FirstOrDefault()));
+                opt => opt.MapFrom(src => src.Messages == null
+                    ? null
+                    : src.Messages
+                        .OrderByDescending(m => m.CreatedAt)
+                        .FirstOrDefault()));
 
         CreateMap<CreatePrivateChatCommand, Chat>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())

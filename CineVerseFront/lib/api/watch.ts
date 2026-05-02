@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/api/http"
+import type { GetAllMoviesResponse } from "@/lib/api/movies"
 
 export interface PaginatedResponse<T> {
   items: T[]
@@ -66,4 +67,18 @@ export async function getMyWatchedMovies(page = 1, pageSize = 50) {
     `/api/watchlog/watched/me?page=${page}&pageSize=${pageSize}`,
     { method: "GET", auth: true }
   )
+}
+
+export async function getUserWatchlist(userId: string) {
+  return apiRequest<GetAllMoviesResponse[]>(`/api/users/${encodeURIComponent(userId)}/watchlist`, {
+    method: "GET",
+    auth: false,
+  })
+}
+
+export async function getUserWatchedMovies(userId: string) {
+  return apiRequest<GetAllMoviesResponse[]>(`/api/users/${encodeURIComponent(userId)}/watched`, {
+    method: "GET",
+    auth: false,
+  })
 }

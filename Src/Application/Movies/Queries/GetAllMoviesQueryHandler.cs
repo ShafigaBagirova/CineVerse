@@ -5,6 +5,7 @@ using Application.Movies.Dtos;
 using AutoMapper;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using System.Linq;
 
 namespace Application.Movies.Queries;
 
@@ -32,11 +33,18 @@ public class GetAllMoviesQueryHandler
         GetAllMoviesQuery request,
         CancellationToken cancellationToken)
     {
+        var actorForFilter = new[] { request.Request.Actor, request.Request.ActorName, request.Request.Cast }
+            .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
+        var directorForFilter = new[] { request.Request.Director, request.Request.DirectorName }
+            .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
+
         _logger.LogInformation(
-            "GetAllMoviesQuery started. PageNumber: {PageNumber}, PageSize: {PageSize}, Search: {Search}, GenreId: {GenreId}, Language: {Language}, Status: {Status}, Year: {Year}, MinTmdbRating: {MinTmdbRating}, MaxTmdbRating: {MaxTmdbRating}, MinUserRating: {MinUserRating}, MaxUserRating: {MaxUserRating}, SortBy: {SortBy}, Desc: {Desc}",
+            "GetAllMoviesQuery started. PageNumber: {PageNumber}, PageSize: {PageSize}, Search: {Search}, Actor: {Actor}, Director: {Director}, GenreId: {GenreId}, Language: {Language}, Status: {Status}, Year: {Year}, MinTmdbRating: {MinTmdbRating}, MaxTmdbRating: {MaxTmdbRating}, MinUserRating: {MinUserRating}, MaxUserRating: {MaxUserRating}, SortBy: {SortBy}, Desc: {Desc}",
             request.Request.PageNumber,
             request.Request.PageSize,
             request.Request.Search,
+            actorForFilter,
+            directorForFilter,
             request.Request.GenreId,
             request.Request.Language,
             request.Request.Status,
@@ -52,8 +60,8 @@ public class GetAllMoviesQueryHandler
           request.Request.PageNumber,
           request.Request.PageSize,
           request.Request.Search,
-          request.Request.ActorName,
-          request.Request.DirectorName,
+          actorForFilter,
+          directorForFilter,
           request.Request.GenreId,
           request.Request.Language,
           request.Request.Status,
@@ -81,8 +89,8 @@ public class GetAllMoviesQueryHandler
             request.Request.PageNumber,
             request.Request.PageSize,
             request.Request.Search,
-            request.Request.ActorName,
-            request.Request.DirectorName,
+            actorForFilter,
+            directorForFilter,
             request.Request.GenreId,
             request.Request.Language,
             request.Request.Status,

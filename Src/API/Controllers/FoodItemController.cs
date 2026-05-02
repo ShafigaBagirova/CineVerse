@@ -14,10 +14,27 @@ namespace API.Controllers;
 public class FoodItemController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private const string DefaultBucket = "posters";
 
     public FoodItemController(IMediator mediator)
     {
         _mediator = mediator;
+    }
+
+    private static string? ToApiFileUrl(string? imageValue)
+    {
+        if (string.IsNullOrWhiteSpace(imageValue))
+            return null;
+
+        if (imageValue.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            return imageValue;
+
+        var objectName = imageValue.Trim().TrimStart('/');
+        var bucketPrefix = $"{DefaultBucket}/";
+        if (objectName.StartsWith(bucketPrefix, StringComparison.OrdinalIgnoreCase))
+            objectName = objectName[bucketPrefix.Length..];
+
+        return $"/api/files/{DefaultBucket}/{objectName}";
     }
 
     [Authorize(Policy = Policies.AdminOnly)]
@@ -79,6 +96,14 @@ public class FoodItemController : ControllerBase
         if (!result.Success)
             return BadRequest(result);
 
+        if (result.Data is not null)
+        {
+            foreach (var item in result.Data)
+            {
+                item.Image = ToApiFileUrl(item.Image);
+            }
+        }
+
         return Ok(result);
     }
     [AllowAnonymous]
@@ -89,6 +114,11 @@ public class FoodItemController : ControllerBase
 
         if (!result.Success)
             return NotFound(result);
+
+        if (result.Data is not null)
+        {
+            result.Data.Image = ToApiFileUrl(result.Data.Image);
+        }
 
         return Ok(result);
     }
