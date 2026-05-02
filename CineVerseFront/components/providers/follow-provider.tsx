@@ -110,6 +110,7 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
       const raw = Array.isArray(response?.items) ? response.items : []
       setSuggestedUsers(raw.filter((item) => item.userId !== user?.userId))
     } catch (err) {
+      console.warn("[user-api] getSuggestedUsers failed (showing empty list):", err)
       setSuggestedUsers([])
       setSuggestedError(null)
       if (err instanceof ApiError) {

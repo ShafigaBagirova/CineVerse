@@ -102,10 +102,13 @@ export async function getFollowings(userId: string, page = 1, pageSize = 20) {
 }
 
 export async function getSuggestedUsers(page = 1, pageSize = 12) {
-  return apiRequest<PaginatedResponse<SuggestedUserItemDto>>(
-    `/api/follow/suggested-users?page=${page}&pageSize=${pageSize}`,
-    { method: "GET", auth: true, quiet: true }
-  )
+  const url = `/api/follow/suggested-users?page=${page}&pageSize=${pageSize}`
+  console.log("[user-api] request url:", url)
+  return apiRequest<PaginatedResponse<SuggestedUserItemDto>>(url, {
+    method: "GET",
+    auth: true,
+    quiet: true,
+  })
 }
 
 export async function getFollowRelationship(userId: string) {

@@ -22,12 +22,6 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
             .FirstOrDefaultAsync(x => x.TmdbId == tmdbId, cancellationToken);
     }
 
-    public async Task<Movie?> GetByTmdbIdWithCastMembersAsync(long tmdbId, CancellationToken cancellationToken = default)
-    {
-        return await _context.Movies
-            .Include(m => m.CastMembers)
-            .FirstOrDefaultAsync(x => x.TmdbId == tmdbId, cancellationToken);
-    }
     public async Task<bool> ExistsBySlugAsync(string slug, CancellationToken cancellationToken)
     {
         return await _context.Movies
@@ -70,8 +64,7 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
     {
         IQueryable<Movie> query = _context.Movies
             .AsNoTracking()
-            .Include(x => x.MovieGenres)
-            .Include(x => x.CastMembers);
+            .Include(x => x.MovieGenres);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -85,10 +78,10 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
 
         if (!string.IsNullOrWhiteSpace(actorName))
         {
-            var actor = actorName.Trim().ToLowerInvariant();
+            var actor = actorName.Trim().ToLower();
             query = query.Where(x =>
-                x.CastMembers.Any(c => c.Name.ToLower().Contains(actor))
-                || (x.Actors != null && x.Actors.ToLower().Contains(actor)));
+                x.Actors != null &&
+                x.Actors.ToLower().Contains(actor));
         }
 
         if (!string.IsNullOrWhiteSpace(directorName))
@@ -185,7 +178,6 @@ public sealed class MovieRepository :GenericRepository<Movie,int>, IMovieReposit
         return await _context.Movies
     .Include(m => m.MovieGenres)
         .ThenInclude(mg => mg.Genre)
-    .Include(m => m.CastMembers)
     .Include(m => m.Videos)
     .Include(m => m.Reviews.Where(r => !r.IsDeleted))
     .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
