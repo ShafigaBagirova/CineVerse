@@ -54,19 +54,13 @@ public class MovieProfile : Profile
         .ForMember(
             d => d.Cast,
             opt => opt.MapFrom(src =>
-                src.CastMembers.Count > 0
-                    ? src.CastMembers
-                        .OrderBy(c => c.DisplayOrder)
-                        .ThenBy(c => c.Name)
-                        .Select(c => c.Name)
-                        .ToList()
-                    : string.IsNullOrWhiteSpace(src.Actors)
-                        ? new List<string>()
-                        : src.Actors
-                            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                            .Where(x => !string.IsNullOrWhiteSpace(x))
-                            .Distinct(StringComparer.OrdinalIgnoreCase)
-                            .ToList()));
+                string.IsNullOrWhiteSpace(src.Actors)
+                    ? new List<string>()
+                    : src.Actors
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList()));
 
         CreateMap<MovieVideo, MovieVideoDto>();
 

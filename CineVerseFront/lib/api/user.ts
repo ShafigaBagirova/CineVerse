@@ -37,6 +37,25 @@ function pickString(o: Record<string, unknown>, ...keys: string[]): string {
   return ""
 }
 
+const INVALID_ROUTE_USER_IDS = new Set(["null", "undefined", ""])
+
+/** Rejects literal "null"/"undefined" and empty ids so we never request `/api/user/null`. */
+export function isValidUserIdForPublicApi(id: string | null | undefined): id is string {
+  if (id == null) return false
+  const t = String(id).trim()
+  if (!t) return false
+  return !INVALID_ROUTE_USER_IDS.has(t.toLowerCase())
+}
+
+/** Strips junk route params from `[userId]` dynamic segment. */
+export function sanitizeProfileRouteUserId(routeUserId: string | null | undefined): string | undefined {
+  if (routeUserId == null) return undefined
+  const t = routeUserId.trim()
+  if (!t) return undefined
+  if (INVALID_ROUTE_USER_IDS.has(t.toLowerCase())) return undefined
+  return t
+}
+
 /** Maps API rows (userId or id) so `UserSearchDto.id` is always set when the backend sends userId. */
 export function normalizeUserSearchItem(raw: unknown): UserSearchDto {
   if (raw === null || typeof raw !== "object") {
@@ -59,17 +78,23 @@ export function normalizeUserSearchItem(raw: unknown): UserSearchDto {
 }
 
 export async function getUserReviews(userId: string, page = 1, pageSize = 20) {
-  return apiRequest<PaginatedResponse<ReviewDto>>(
-    `/api/user/${encodeURIComponent(userId)}/reviews?page=${page}&pageSize=${pageSize}`,
-    { method: "GET", auth: false }
-  )
+  if (!isValidUserIdForPublicApi(userId)) {
+    console.warn("[user-api] skip getUserReviews: invalid userId", userId)
+    return { items: [], pageNumber: page, pageSize, totalCount: 0, totalPages: 0, hasPreviousPage: false, hasNextPage: false }
+  }
+  const url = `/api/user/${encodeURIComponent(userId)}/reviews?page=${page}&pageSize=${pageSize}`
+  console.log("[user-api] request url:", url)
+  return apiRequest<PaginatedResponse<ReviewDto>>(url, { method: "GET", auth: false })
 }
 
 export async function getUserRatings(userId: string, page = 1, pageSize = 50) {
-  return apiRequest<PaginatedResponse<UserRatingDto>>(
-    `/api/user/${encodeURIComponent(userId)}/ratings?page=${page}&pageSize=${pageSize}`,
-    { method: "GET", auth: false }
-  )
+  if (!isValidUserIdForPublicApi(userId)) {
+    console.warn("[user-api] skip getUserRatings: invalid userId", userId)
+    return { items: [], pageNumber: page, pageSize, totalCount: 0, totalPages: 0, hasPreviousPage: false, hasNextPage: false }
+  }
+  const url = `/api/user/${encodeURIComponent(userId)}/ratings?page=${page}&pageSize=${pageSize}`
+  console.log("[user-api] request url:", url)
+  return apiRequest<PaginatedResponse<UserRatingDto>>(url, { method: "GET", auth: false })
 }
 
 /** Public profile row from GET /api/user/{id} (ASP.NET Identity user id string). */
@@ -108,7 +133,12 @@ function normalizeUserPublicProfile(raw: unknown): UserPublicProfileDto | null {
 
 /** Loads a user by backend user id (same string as search results and JWT NameIdentifier). */
 export async function getUserProfile(userId: string): Promise<UserPublicProfileDto | null> {
+  if (!isValidUserIdForPublicApi(userId)) {
+    console.warn("[user-api] skip getUserProfile: invalid userId", userId)
+    return null
+  }
   const url = `/api/user/${encodeURIComponent(userId)}`
+  console.log("[user-api] request url:", url)
   try {
     const data = await apiRequest<unknown>(url, {
       method: "GET",
@@ -133,6 +163,7 @@ export async function getUserProfile(userId: string): Promise<UserPublicProfileD
 
 export async function getCurrentUserProfile(): Promise<UserPublicProfileDto | null> {
   const url = "/api/user/me"
+  console.log("[user-api] request url:", url)
   try {
     const data = await apiRequest<unknown>(url, {
       method: "GET",
@@ -171,7 +202,9 @@ export async function getUsersList(params: { pageNumber?: number; pageSize?: num
   const term = params.searchTerm?.trim()
   if (term) query.set("searchTerm", term)
 
-  const data = await apiRequest<PaginatedResponse<UserListItemDto>>(`/api/user?${query.toString()}`, {
+  const url = `/api/user?${query.toString()}`
+  console.log("[user-api] request url:", url)
+  const data = await apiRequest<PaginatedResponse<UserListItemDto>>(url, {
     method: "GET",
     auth: true,
   })
@@ -201,7 +234,9 @@ export async function searchUsers(searchTerm: string, pageNumber = 1, pageSize =
   })
   if (term) query.set("searchTerm", term)
 
-  const data = await apiRequest<PaginatedResponse<UserSearchDto>>(`/api/user?${query.toString()}`, {
+  const url = `/api/user?${query.toString()}`
+  console.log("[user-api] request url:", url)
+  const data = await apiRequest<PaginatedResponse<UserSearchDto>>(url, {
     method: "GET",
     auth: false,
     quiet: true,
@@ -219,6 +254,7 @@ export async function uploadUserAvatar(file: File) {
   const formData = new FormData()
   formData.append("Avatar", file)
 
+  console.log("[user-api] request url:", "/api/user/avatar")
   return apiRequest<string>("/api/user/avatar", {
     method: "POST",
     auth: true,

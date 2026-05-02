@@ -60,15 +60,7 @@ public sealed class GetMovieByIdQueryHandler
 
             response = _mapper.Map<GetMovieByIdResponse>(movie);
             response.Director = movie.Director;
-            if (movie.CastMembers.Count > 0)
-            {
-                response.Cast = movie.CastMembers
-                    .OrderBy(c => c.DisplayOrder)
-                    .ThenBy(c => c.Name)
-                    .Select(c => c.Name)
-                    .ToList();
-            }
-            else if (!string.IsNullOrWhiteSpace(movie.Actors))
+            if (!string.IsNullOrWhiteSpace(movie.Actors))
             {
                 response.Cast = movie.Actors
                     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

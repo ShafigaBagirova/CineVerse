@@ -16,6 +16,7 @@ import {
   getUserProfile,
   getUserRatings,
   getUserReviews,
+  isValidUserIdForPublicApi,
   uploadUserAvatar,
   type UserPublicProfileDto,
 } from "@/lib/api/user"
@@ -108,8 +109,17 @@ export function ProfilePageClient({ routeUserId }: ProfilePageClientProps) {
       setProfileInfo(undefined)
       return
     }
-    const isCurrentProfile = !routeUserId && !!user?.userId && profileUserId === user.userId
-    const p = isCurrentProfile ? await getCurrentUserProfile() : await getUserProfile(profileUserId)
+    const isCurrentProfile = !!(user?.userId && profileUserId === user.userId)
+    let p: UserPublicProfileDto | null = null
+    if (isCurrentProfile) {
+      p = await getCurrentUserProfile()
+    } else if (isValidUserIdForPublicApi(profileUserId)) {
+      p = await getUserProfile(profileUserId)
+    } else {
+      console.warn("[profile] invalid public profile user id; skipping GET /api/user/{id}", profileUserId)
+      setProfileInfo(null)
+      return
+    }
     console.log("PROFILE RESPONSE:", p)
     if (p) {
       setProfileInfo(p)
