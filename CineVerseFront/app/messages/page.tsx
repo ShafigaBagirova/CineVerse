@@ -1,5 +1,10 @@
+import { Suspense } from "react"
 import { MessagesPage } from "@/components/messages/messages-page"
 
 export default function MessagesRoute() {
-  return <MessagesPage />
+  return (
+    <Suspense fallback={null}>
+      <MessagesPage />
+    </Suspense>
+  )
 }

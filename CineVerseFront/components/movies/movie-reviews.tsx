@@ -16,6 +16,7 @@ import { useAuth } from "@/components/providers/auth-provider"
 import { FollowButton } from "@/components/follow/follow-button"
 import { useFollow } from "@/components/providers/follow-provider"
 import { isOptionalAbsenceError } from "@/lib/api/optional-absence"
+import { ApiError } from "@/lib/api/types"
 
 interface ReviewViewModel {
   id: number

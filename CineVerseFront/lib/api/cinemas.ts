@@ -44,14 +44,18 @@ export type GetAllCinemasOptions = {
   quiet?: boolean
   auth?: boolean
   cacheBust?: boolean
+  sortBy?: string
+  desc?: boolean
 }
 
 export async function getAllCinemas(pageNumber = 1, pageSize = 50, options?: GetAllCinemasOptions) {
   const pn = Math.max(1, Math.trunc(Number(pageNumber)) || 1)
   const ps = Math.min(100, Math.max(1, Math.trunc(Number(pageSize)) || 10))
   const cb = options?.cacheBust ? `&_cb=${Date.now()}` : ""
+  const sort = options?.sortBy?.trim() ? `&sortBy=${encodeURIComponent(options.sortBy.trim())}` : ""
+  const desc = options?.desc !== undefined ? `&desc=${options.desc ? "true" : "false"}` : ""
   return apiRequest<PaginatedResponse<GetAllCinemasResponse>>(
-    `/api/cinema?pageNumber=${pn}&pageSize=${ps}${cb}`,
+    `/api/cinema?pageNumber=${pn}&pageSize=${ps}${sort}${desc}${cb}`,
     {
       method: "GET",
       auth: options?.auth ?? false,

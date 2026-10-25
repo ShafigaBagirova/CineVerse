@@ -1,10 +1,10 @@
 "use client"
 
-import { useMemo } from "react"
+import { Suspense, useMemo } from "react"
 import { useSearchParams } from "next/navigation"
 import { MoviesGrid } from "@/components/movies/movies-grid"
 
-export default function MoviesPage() {
+function MoviesContent() {
   const searchParams = useSearchParams()
   const initialSearch = useMemo(() => searchParams.get("search") ?? "", [searchParams])
   const initialActor = useMemo(() => {
@@ -25,5 +25,13 @@ export default function MoviesPage() {
       </div>
       <MoviesGrid initialSearch={initialSearch} initialActor={initialActor} initialDirector={initialDirector} />
     </div>
+  )
+}
+
+export default function MoviesPage() {
+  return (
+    <Suspense fallback={null}>
+      <MoviesContent />
+    </Suspense>
   )
 }

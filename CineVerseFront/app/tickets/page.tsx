@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { MapPin, Clock, Armchair, QrCode, Ticket } from "lucide-react"
 import { useAuth } from "@/components/providers/auth-provider"
 import { ApiError } from "@/lib/api/types"
 import { getMyTickets, getTicketById, type GetMyTicketsResponse } from "@/lib/api/tickets"
 
-export default function TicketsPage() {
+function TicketsContent() {
   const searchParams = useSearchParams()
   const focusedTicketId = Number(searchParams.get("ticketId")) || 0
   const { status } = useAuth()
@@ -155,5 +155,13 @@ export default function TicketsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function TicketsPage() {
+  return (
+    <Suspense fallback={null}>
+      <TicketsContent />
+    </Suspense>
   )
 }
