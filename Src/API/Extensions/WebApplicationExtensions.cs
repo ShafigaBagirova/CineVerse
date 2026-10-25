@@ -39,6 +39,7 @@ public static class WebApplicationExtensions
         app.MapControllers();
         app.MapHub<ChatHub>("/chatHub");
         app.MapHub<ChatHub>("/hubs/chat");
+        app.MapHub<WatchRoomHub>("/hubs/watchroom");
         return app;
     }
     private static void SeedOnce(WebApplication app)

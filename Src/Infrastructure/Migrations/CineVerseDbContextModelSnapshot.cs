@@ -1205,6 +1205,88 @@ namespace Infrastructure.Migrations
                     b.ToTable("WatchLogs", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.WatchRoom", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("ContentId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ContentUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("HostUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("HostUserId");
+
+                    b.ToTable("WatchRooms", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.WatchRoomMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("WatchRoomId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("WatchRoomId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("WatchRoomMembers", (string)null);
+                });
+
             modelBuilder.Entity("Infrastructure.Identity.CineVerseUser", b =>
                 {
                     b.Property<string>("Id")
@@ -1758,6 +1840,17 @@ namespace Infrastructure.Migrations
                     b.Navigation("Movie");
                 });
 
+            modelBuilder.Entity("Domain.Entities.WatchRoomMember", b =>
+                {
+                    b.HasOne("Domain.Entities.WatchRoom", "WatchRoom")
+                        .WithMany("Members")
+                        .HasForeignKey("WatchRoomId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WatchRoom");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -1894,6 +1987,11 @@ namespace Infrastructure.Migrations
                     b.Navigation("FoodOrders");
 
                     b.Navigation("Payments");
+                });
+
+            modelBuilder.Entity("Domain.Entities.WatchRoom", b =>
+                {
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("Infrastructure.Identity.CineVerseUser", b =>

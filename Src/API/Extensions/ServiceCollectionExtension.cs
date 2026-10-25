@@ -123,7 +123,9 @@ public static class ServiceCollectionExtensions
                         }
 
                         if (!string.IsNullOrEmpty(accessToken) &&
-                            (path.StartsWithSegments("/hubs/chat") || path.StartsWithSegments("/chatHub")))
+                            (path.StartsWithSegments("/hubs/chat") ||
+                             path.StartsWithSegments("/chatHub") ||
+                             path.StartsWithSegments("/hubs/watchroom")))
                         {
                             context.Token = accessToken;
                         }

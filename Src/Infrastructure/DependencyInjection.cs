@@ -10,6 +10,8 @@ using Infrastructure.Persistence.Repositories;
 using Infrastructure.Recommendation;
 using Infrastructure.Redis;
 using Infrastructure.Tmdb;
+using Infrastructure.WatchRooms;
+using Infrastructure.YouTube;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -147,6 +149,14 @@ public static class DependencyInjection
         services.AddScoped<IFoodOrderItemRepository, FoodOrderItemRepository>();
         services.AddScoped<IChatRepository, ChatRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
+        services.Configure<YouTubeOptions>(config.GetSection(YouTubeOptions.SectionName));
+        services.AddHttpClient<IYouTubeSearchService, YouTubeSearchService>((sp, client) =>
+        {
+            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<YouTubeOptions>>().Value;
+            client.BaseAddress = new Uri(options.BaseUrl);
+        });
+        services.AddScoped<IWatchRoomRepository, WatchRoomRepository>();
+        services.AddSingleton<IWatchRoomStateStore, InMemoryWatchRoomStateStore>();
         services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
         services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
         return services;

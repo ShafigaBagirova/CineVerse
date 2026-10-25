@@ -44,4 +44,6 @@ public class CineVerseDbContext : IdentityDbContext<CineVerseUser>
     public DbSet<Chat> Chats { get; set; }
     public DbSet<ChatParticipant> ChatParticipants { get; set; }
     public DbSet<Message> Messages { get; set; }
+    public DbSet<WatchRoom> WatchRooms { get; set; }
+    public DbSet<WatchRoomMember> WatchRoomMembers { get; set; }
 }
