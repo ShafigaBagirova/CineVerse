@@ -6,6 +6,8 @@ namespace Application.WatchRooms;
 public static class WatchContentUrlParser
 {
     private static readonly Regex YouTubeIdPattern = new("^[A-Za-z0-9_-]{11}$", RegexOptions.Compiled);
+    private static readonly Regex NetflixIdPattern = new("^[0-9]{3,12}$", RegexOptions.Compiled);
+    private static readonly Regex NetflixLocalePattern = new("^[a-z]{2}(-[A-Za-z]{2,4})?$", RegexOptions.Compiled);
 
     public static bool TryParse(string? url, out WatchPlatform platform, out string contentId)
     {
@@ -18,6 +20,35 @@ public static class WatchContentUrlParser
             return false;
 
         var host = uri.Host.ToLowerInvariant();
+
+        if (TryParseYouTube(uri, host, out var youTubeId))
+        {
+            platform = WatchPlatform.YouTube;
+            contentId = youTubeId;
+            return true;
+        }
+
+        if (TryParseNetflix(uri, host, out var netflixId))
+        {
+            platform = WatchPlatform.Netflix;
+            contentId = netflixId;
+            return true;
+        }
+
+        return false;
+    }
+
+    public static string BuildCanonicalUrl(WatchPlatform platform, string contentId)
+        => platform switch
+        {
+            WatchPlatform.YouTube => $"https://www.youtube.com/watch?v={contentId}",
+            WatchPlatform.Netflix => $"https://www.netflix.com/watch/{contentId}",
+            _ => throw new ArgumentOutOfRangeException(nameof(platform), platform, null)
+        };
+
+    private static bool TryParseYouTube(Uri uri, string host, out string contentId)
+    {
+        contentId = string.Empty;
         string? candidate = null;
 
         if (host == "youtu.be")
@@ -36,8 +67,27 @@ public static class WatchContentUrlParser
         if (candidate is null || !YouTubeIdPattern.IsMatch(candidate))
             return false;
 
-        platform = WatchPlatform.YouTube;
         contentId = candidate;
+        return true;
+    }
+
+    // Accepts netflix.com/watch/<id> with an optional locale prefix such as /tr/watch/<id>.
+    private static bool TryParseNetflix(Uri uri, string host, out string contentId)
+    {
+        contentId = string.Empty;
+
+        if (host is not ("netflix.com" or "www.netflix.com"))
+            return false;
+
+        var segments = uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var offset = segments.Length > 0 && NetflixLocalePattern.IsMatch(segments[0]) ? 1 : 0;
+
+        if (segments.Length != offset + 2 ||
+            segments[offset] != "watch" ||
+            !NetflixIdPattern.IsMatch(segments[offset + 1]))
+            return false;
+
+        contentId = segments[offset + 1];
         return true;
     }
 

@@ -13,5 +13,12 @@ public class CreateWatchRoomCommandValidator : AbstractValidator<CreateWatchRoom
 
         RuleFor(x => x.Request.Title)
             .MaximumLength(200).WithMessage("Title maksimum 200 simvol ola bilər.");
+
+        When(x => x.Request.StartPositionSeconds.HasValue, () =>
+        {
+            RuleFor(x => x.Request.StartPositionSeconds!.Value)
+                .InclusiveBetween(0, 360000)
+                .WithMessage("Start position 0 ilə 360000 saniyə arasında olmalıdır.");
+        });
     }
 }

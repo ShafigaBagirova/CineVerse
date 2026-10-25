@@ -8,7 +8,11 @@ public interface IWatchRoomStateStore
     WatchRoomPlaybackState ApplyAction(string roomCode, string action, double positionSeconds);
     void AddConnection(string roomCode, string connectionId, string userId);
     void RemoveConnection(string roomCode, string connectionId);
+    bool HasConnection(string roomCode, string connectionId);
     IReadOnlyCollection<string> GetOnlineUserIds(string roomCode);
+
+    /// <summary>Forgets the playback state and every connection of a room that no longer exists.</summary>
+    void RemoveRoom(string roomCode);
 }
 
 public static class WatchRoomActions

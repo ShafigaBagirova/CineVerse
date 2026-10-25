@@ -84,6 +84,19 @@ public class WatchRoomController : ControllerBase
     }
 
     [Authorize(Policy = Policies.Authenticated)]
+    [HttpGet("youtube/popular")]
+    public async Task<ActionResult<BaseResponse<GetPopularYouTubeVideosResponse>>> GetPopularYouTube(
+        [FromQuery] string? pageToken)
+    {
+        var result = await _mediator.Send(new GetPopularYouTubeVideosQuery(pageToken));
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    [Authorize(Policy = Policies.Authenticated)]
     [HttpGet("{id:int}")]
     public async Task<ActionResult<BaseResponse<GetWatchRoomByIdResponse>>> GetById([FromRoute] int id)
     {

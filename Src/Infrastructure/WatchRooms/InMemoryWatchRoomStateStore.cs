@@ -4,6 +4,9 @@ namespace Infrastructure.WatchRooms;
 
 public sealed class InMemoryWatchRoomStateStore : IWatchRoomStateStore
 {
+    // Same upper bound the create-room validator uses for the start position (100 hours).
+    private const double MaxPositionSeconds = 360000;
+
     private readonly object _gate = new();
     private readonly Dictionary<string, WatchRoomPlaybackState> _playback = new();
     private readonly Dictionary<string, Dictionary<string, string>> _connections = new();
@@ -18,7 +21,7 @@ public sealed class InMemoryWatchRoomStateStore : IWatchRoomStateStore
 
     public WatchRoomPlaybackState ApplyAction(string roomCode, string action, double positionSeconds)
     {
-        var position = double.IsFinite(positionSeconds) ? Math.Max(0, positionSeconds) : 0;
+        var position = double.IsFinite(positionSeconds) ? Math.Clamp(positionSeconds, 0, MaxPositionSeconds) : 0;
 
         lock (_gate)
         {
@@ -55,8 +58,22 @@ public sealed class InMemoryWatchRoomStateStore : IWatchRoomStateStore
                 return;
 
             room.Remove(connectionId);
-            if (room.Count == 0)
-                _connections.Remove(roomCode);
+            if (room.Count > 0)
+                return;
+
+            _connections.Remove(roomCode);
+
+            // Nobody is watching any more, so the clock must not keep running: whoever joins next starts from here.
+            if (_playback.TryGetValue(roomCode, out var state) && state.IsPlaying)
+                _playback[roomCode] = CurrentLocked(roomCode) with { IsPlaying = false };
+        }
+    }
+
+    public bool HasConnection(string roomCode, string connectionId)
+    {
+        lock (_gate)
+        {
+            return _connections.TryGetValue(roomCode, out var room) && room.ContainsKey(connectionId);
         }
     }
 
@@ -70,6 +87,15 @@ public sealed class InMemoryWatchRoomStateStore : IWatchRoomStateStore
         }
     }
 
+    public void RemoveRoom(string roomCode)
+    {
+        lock (_gate)
+        {
+            _playback.Remove(roomCode);
+            _connections.Remove(roomCode);
+        }
+    }
+
     private WatchRoomPlaybackState CurrentLocked(string roomCode)
     {
         if (!_playback.TryGetValue(roomCode, out var state))
@@ -80,6 +106,7 @@ public sealed class InMemoryWatchRoomStateStore : IWatchRoomStateStore
 
         var now = DateTime.UtcNow;
         var elapsed = (now - state.UpdatedAtUtc).TotalSeconds;
-        return state with { PositionSeconds = state.PositionSeconds + Math.Max(0, elapsed), UpdatedAtUtc = now };
+        var position = Math.Min(state.PositionSeconds + Math.Max(0, elapsed), MaxPositionSeconds);
+        return state with { PositionSeconds = position, UpdatedAtUtc = now };
     }
 }

@@ -21,6 +21,12 @@ public class WatchRoomHub : Hub
     private const string UserNameKey = "watchroom:userName";
     private const int MaxMessageLength = 500;
     private const int MaxReactionLength = 8;
+    private const string RateLimitKey = "watchroom:rateLimit";
+    private const int MaxMessagesPerWindow = 10;
+    private const int MaxReactionsPerWindow = 20;
+    private const int MaxSyncCallsPerWindow = 30;
+    private static readonly TimeSpan RateLimitWindow = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan RecentActionWindow = TimeSpan.FromSeconds(3);
 
     private readonly IMediator _mediator;
     private readonly IWatchRoomStateStore _stateStore;
@@ -75,6 +81,8 @@ public class WatchRoomHub : Hub
         if (!WatchRoomActions.IsValid(action))
             throw new HubException("Unknown action.");
 
+        EnforceRateLimit("sync", MaxSyncCallsPerWindow);
+
         var state = _stateStore.ApplyAction(roomCode, action, positionSeconds);
 
         await Clients.OthersInGroup(GroupName(roomCode)).SendAsync("StateChanged", new
@@ -90,6 +98,11 @@ public class WatchRoomHub : Hub
         var roomCode = EnsureJoined(code);
         var userId = GetUserId();
         if (JoinedRooms()[roomCode] != userId)
+            return;
+
+        // A heartbeat sent just before someone paused must not start the room again.
+        var current = _stateStore.GetPlayback(roomCode);
+        if (!current.IsPlaying && DateTime.UtcNow - current.UpdatedAtUtc < RecentActionWindow)
             return;
 
         var state = _stateStore.ApplyAction(roomCode, WatchRoomActions.Play, positionSeconds);
@@ -108,6 +121,8 @@ public class WatchRoomHub : Hub
         if (string.IsNullOrEmpty(text) || text.Length > MaxMessageLength)
             throw new HubException($"Message must be between 1 and {MaxMessageLength} characters.");
 
+        EnforceRateLimit("message", MaxMessagesPerWindow);
+
         await Clients.Group(GroupName(roomCode)).SendAsync("ReceiveMessage", new
         {
             RoomCode = roomCode,
@@ -124,6 +139,8 @@ public class WatchRoomHub : Hub
         var value = emoji?.Trim();
         if (string.IsNullOrEmpty(value) || value.Length > MaxReactionLength)
             throw new HubException("Invalid reaction.");
+
+        EnforceRateLimit("reaction", MaxReactionsPerWindow);
 
         await Clients.Group(GroupName(roomCode)).SendAsync("ReceiveReaction", new
         {
@@ -156,7 +173,8 @@ public class WatchRoomHub : Hub
     private string EnsureJoined(string code)
     {
         var roomCode = NormalizeCode(code);
-        if (!JoinedRooms().ContainsKey(roomCode))
+        // The store forgets a room's connections when it is closed, which ends everything this connection may do in it.
+        if (!JoinedRooms().ContainsKey(roomCode) || !_stateStore.HasConnection(roomCode, Context.ConnectionId))
             throw new HubException("You have not joined this watch room.");
         return roomCode;
     }
@@ -177,5 +195,28 @@ public class WatchRoomHub : Hub
 
     private static string NormalizeCode(string? code) => (code ?? string.Empty).Trim().ToUpperInvariant();
 
-    private static string GroupName(string roomCode) => $"watchroom:{roomCode}";
+    public static string GroupName(string roomCode) => $"watchroom:{roomCode}";
+
+    // Hub calls of one connection run one after another, so the timestamps need no locking.
+    private void EnforceRateLimit(string bucket, int maxCalls)
+    {
+        var buckets = Context.Items[RateLimitKey] as Dictionary<string, Queue<DateTime>>;
+        if (buckets is null)
+        {
+            buckets = new Dictionary<string, Queue<DateTime>>();
+            Context.Items[RateLimitKey] = buckets;
+        }
+
+        if (!buckets.TryGetValue(bucket, out var calls))
+            buckets[bucket] = calls = new Queue<DateTime>();
+
+        var now = DateTime.UtcNow;
+        while (calls.Count > 0 && now - calls.Peek() > RateLimitWindow)
+            calls.Dequeue();
+
+        if (calls.Count >= maxCalls)
+            throw new HubException("You are doing that too fast. Slow down a little.");
+
+        calls.Enqueue(now);
+    }
 }

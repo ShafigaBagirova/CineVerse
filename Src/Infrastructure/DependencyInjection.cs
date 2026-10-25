@@ -149,6 +149,7 @@ public static class DependencyInjection
         services.AddScoped<IFoodOrderItemRepository, FoodOrderItemRepository>();
         services.AddScoped<IChatRepository, ChatRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddMemoryCache();
         services.Configure<YouTubeOptions>(config.GetSection(YouTubeOptions.SectionName));
         services.AddHttpClient<IYouTubeSearchService, YouTubeSearchService>((sp, client) =>
         {

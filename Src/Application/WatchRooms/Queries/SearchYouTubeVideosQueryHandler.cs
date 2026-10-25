@@ -44,6 +44,13 @@ public class SearchYouTubeVideosQueryHandler
 
             return BaseResponse<List<SearchYouTubeVideosResponse>>.Ok(results, "Videos fetched successfully.");
         }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            // Google answers 403 when the daily quota is used up or the key is restricted away from this server.
+            _logger.LogWarning(ex, "SearchYouTubeVideosQuery failed. YouTube refused the request (quota or key restrictions).");
+            return BaseResponse<List<SearchYouTubeVideosResponse>>.Fail(
+                "YouTube search limit reached for now. Paste a video link instead or try again later.");
+        }
         catch (HttpRequestException ex)
         {
             _logger.LogWarning(ex, "SearchYouTubeVideosQuery failed. YouTube request error.");

@@ -42,6 +42,7 @@ public static class ServiceCollectionExtensions
                     new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
             });
         services.AddSignalR();
+        services.AddSingleton<Application.Common.Interfaces.IWatchRoomNotifier, API.Hubs.WatchRoomNotifier>();
 
         services.Configure<ApiBehaviorOptions>(options =>
         {

@@ -6,4 +6,5 @@ public interface IYouTubeSearchService
 {
     bool IsConfigured { get; }
     Task<List<SearchYouTubeVideosResponse>> SearchAsync(string query, CancellationToken cancellationToken);
+    Task<GetPopularYouTubeVideosResponse> GetPopularAsync(string? pageToken, CancellationToken cancellationToken);
 }

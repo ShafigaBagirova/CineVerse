@@ -18,6 +18,7 @@ public class CreateWatchRoomCommandHandler : IRequestHandler<CreateWatchRoomComm
     private readonly IWatchRoomRepository _watchRoomRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserReadService _userReadService;
+    private readonly IWatchRoomStateStore _stateStore;
     private readonly IMapper _mapper;
     private readonly ILogger<CreateWatchRoomCommandHandler> _logger;
 
@@ -25,12 +26,14 @@ public class CreateWatchRoomCommandHandler : IRequestHandler<CreateWatchRoomComm
         IWatchRoomRepository watchRoomRepository,
         ICurrentUserService currentUserService,
         IUserReadService userReadService,
+        IWatchRoomStateStore stateStore,
         IMapper mapper,
         ILogger<CreateWatchRoomCommandHandler> logger)
     {
         _watchRoomRepository = watchRoomRepository;
         _currentUserService = currentUserService;
         _userReadService = userReadService;
+        _stateStore = stateStore;
         _mapper = mapper;
         _logger = logger;
     }
@@ -53,7 +56,7 @@ public class CreateWatchRoomCommandHandler : IRequestHandler<CreateWatchRoomComm
                 "CreateWatchRoomCommand failed. Unsupported content url. ContentUrl: {ContentUrl}",
                 request.Request.ContentUrl);
 
-            return BaseResponse<GetWatchRoomByIdResponse>.Fail("Only valid YouTube links are supported right now.");
+            return BaseResponse<GetWatchRoomByIdResponse>.Fail("Only valid YouTube or Netflix links are supported.");
         }
 
         var code = await GenerateUniqueCodeAsync(cancellationToken);
@@ -70,12 +73,22 @@ public class CreateWatchRoomCommandHandler : IRequestHandler<CreateWatchRoomComm
         room.HostUserId = currentUserId;
         room.Platform = platform;
         room.ContentId = contentId;
+        room.ContentUrl = WatchContentUrlParser.BuildCanonicalUrl(platform, contentId);
         room.IsActive = true;
         room.CreatedAt = now;
         room.Members = [new WatchRoomMember { UserId = currentUserId, JoinedAt = now }];
 
         await _watchRoomRepository.AddAsync(room, cancellationToken);
         await _watchRoomRepository.SaveChangesAsync(cancellationToken);
+
+        if (request.Request.StartPositionSeconds is { } startPosition)
+        {
+            // The host may already be watching (for example in their Netflix window), so the room starts from there.
+            _stateStore.ApplyAction(
+                room.Code,
+                request.Request.StartPlaying ? WatchRoomActions.Play : WatchRoomActions.Pause,
+                startPosition);
+        }
 
         _logger.LogInformation(
             "CreateWatchRoomCommand completed successfully. WatchRoomId: {WatchRoomId}, Code: {Code}",

@@ -25,6 +25,16 @@ public class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            // The browser gave up on the request (page refresh, navigation, React dev double-fetch); nobody reads the answer.
+            _logger.LogDebug(
+                "Request canceled by the client. Method: {Method}, RequestPath: {RequestPath}",
+                context.Request.Method,
+                context.Request.Path.Value);
+
+            context.Response.StatusCode = 499;
+        }
         catch (ValidationException ex)
         {
             var requestPath = context.Request.Path.Value ?? string.Empty;
