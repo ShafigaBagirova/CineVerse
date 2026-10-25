@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useNetflixSupport } from "@/hooks/use-netflix-support"
 import { userFacingApiErrorMessage } from "@/lib/api/types"
 import {
   deleteWatchRoom,
@@ -54,7 +55,7 @@ const SOURCES: SourceTile[] = [
   {
     id: "netflix",
     name: "Netflix",
-    enabled: false,
+    enabled: true,
     logoSrc: "/platforms/netflix.svg",
     tileClassName: "bg-black",
     fallback: <span className="text-2xl font-black uppercase tracking-[0.2em] text-red-600">Netflix</span>,
@@ -80,12 +81,13 @@ function SourceLogo({ source }: { source: SourceTile }) {
 export function WatchHome() {
   const router = useRouter()
   const { status, user } = useAuth()
+  const netflixSupport = useNetflixSupport()
   const [rooms, setRooms] = useState<WatchRoomListItemDto[]>([])
   const [loading, setLoading] = useState(true)
   const [joinOpen, setJoinOpen] = useState(false)
   const [joinCode, setJoinCode] = useState("")
   const [joining, setJoining] = useState(false)
-  const [titleOpen, setTitleOpen] = useState(false)
+  const [selectedSource, setSelectedSource] = useState<SourceTile["id"] | null>(null)
   const [roomTitle, setRoomTitle] = useState("")
 
   const loadRooms = useCallback(async () => {
@@ -125,8 +127,9 @@ export function WatchHome() {
     event.preventDefault()
     const title = roomTitle.trim()
     if (!title) return
-    setTitleOpen(false)
-    router.push(`/watch/youtube?title=${encodeURIComponent(title)}`)
+    if (!selectedSource) return
+    setSelectedSource(null)
+    router.push(`/watch/${selectedSource}?title=${encodeURIComponent(title)}`)
   }
 
   const handleDelete = async (room: WatchRoomListItemDto) => {
@@ -173,26 +176,34 @@ export function WatchHome() {
 
       <h2 className="mb-3 mt-8 text-sm font-medium">Create a room</h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {SOURCES.map((source) => (
-          <button
-            key={source.id}
-            type="button"
-            disabled={!source.enabled}
-            onClick={() => source.id === "youtube" && setTitleOpen(true)}
-            className={cn(
-              "relative flex aspect-[4/3] items-center justify-center rounded-2xl shadow-sm transition",
-              source.tileClassName,
-              source.enabled ? "hover:scale-[1.02] hover:shadow-md" : "cursor-not-allowed opacity-60"
-            )}
-          >
-            <SourceLogo source={source} />
-            {!source.enabled ? (
-              <span className="absolute right-2 top-2 rounded-full bg-zinc-500/40 px-2 py-0.5 text-[10px] font-medium uppercase text-white">
-                Soon
-              </span>
-            ) : null}
-          </button>
-        ))}
+        {SOURCES.map((source) => {
+          // Netflix rooms need the browser extension, which phones, Firefox and Safari cannot have.
+          const browserUnsupported =
+            source.id === "netflix" && (netflixSupport === "mobile" || netflixSupport === "unsupported-browser")
+          const available = source.enabled && !browserUnsupported
+
+          return (
+            <button
+              key={source.id}
+              type="button"
+              disabled={!available}
+              title={browserUnsupported ? "Netflix rooms need Chrome or Edge on a computer" : undefined}
+              onClick={() => setSelectedSource(source.id)}
+              className={cn(
+                "relative flex aspect-[4/3] items-center justify-center rounded-2xl shadow-sm transition",
+                source.tileClassName,
+                available ? "hover:scale-[1.02] hover:shadow-md" : "cursor-not-allowed opacity-60"
+              )}
+            >
+              <SourceLogo source={source} />
+              {!source.enabled || browserUnsupported ? (
+                <span className="absolute right-2 top-2 rounded-full bg-zinc-500/40 px-2 py-0.5 text-[10px] font-medium uppercase text-white">
+                  {browserUnsupported ? "Chrome or Edge" : "Soon"}
+                </span>
+              ) : null}
+            </button>
+          )
+        })}
       </div>
 
       <h2 className="mb-3 mt-8 text-sm font-medium">Your rooms</h2>
@@ -257,12 +268,15 @@ export function WatchHome() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={titleOpen} onOpenChange={setTitleOpen}>
+      <Dialog open={selectedSource !== null} onOpenChange={(open) => !open && setSelectedSource(null)}>
         <DialogContent>
           <form onSubmit={handleTitleContinue} className="space-y-4">
             <DialogHeader>
               <DialogTitle>Name your room</DialogTitle>
-              <DialogDescription>Friends will see this name. Next you will pick a YouTube video.</DialogDescription>
+              <DialogDescription>
+                Friends will see this name.{" "}
+                {selectedSource === "netflix" ? "Next Netflix opens so you can pick something to watch." : "Next you will pick a YouTube video."}
+              </DialogDescription>
             </DialogHeader>
             <Input
               autoFocus

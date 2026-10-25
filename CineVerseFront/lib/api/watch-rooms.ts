@@ -40,6 +40,8 @@ export interface YouTubeVideoDto {
 export interface CreateWatchRoomRequest {
   contentUrl: string
   title?: string
+  startPositionSeconds?: number
+  startPlaying?: boolean
 }
 
 export interface UpdateWatchRoomRequest {
@@ -138,6 +140,21 @@ export async function deleteWatchRoom(id: number) {
   return apiRequest<void>(`/api/WatchRoom/${id}`, {
     method: "DELETE",
     auth: true,
+  })
+}
+
+export interface YouTubePopularPageDto {
+  items: YouTubeVideoDto[]
+  nextPageToken: string | null
+}
+
+export async function getPopularYouTubeVideos(pageToken?: string | null) {
+  const query = pageToken ? `?pageToken=${encodeURIComponent(pageToken)}` : ""
+  return apiRequest<YouTubePopularPageDto>(`/api/WatchRoom/youtube/popular${query}`, {
+    method: "GET",
+    auth: true,
+    quiet: true,
+    cache: "no-store",
   })
 }
 

@@ -2,11 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { Check, Copy, Play, Send, Users, Wifi, WifiOff } from "lucide-react"
+import { toast } from "sonner"
 import { useAuth } from "@/components/providers/auth-provider"
 import { EmojiPicker } from "@/components/watch/emoji-picker"
-import { YouTubePlayer, YT_STATE, type YouTubePlayerHandle } from "@/components/watch/youtube-player"
+import { NetflixBridgePlayer } from "@/components/watch/netflix-bridge-player"
+import type { PlayerHandle } from "@/components/watch/player-types"
+import { YouTubePlayer, YT_STATE } from "@/components/watch/youtube-player"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -20,6 +24,7 @@ import type {
   WatchReaction,
   WatchRoomDto,
 } from "@/lib/api/watch-rooms"
+import { listenToExtension, sendToExtension, type OverlayChatMessage } from "@/lib/netflix-bridge"
 import { cn } from "@/lib/utils"
 
 const REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "👏", "🔥"]
@@ -32,10 +37,21 @@ const HEARTBEAT_DRIFT_SECONDS = 2.5
 const REACTION_LIFETIME_MS = 4000
 const MAX_MESSAGES = 200
 const MAX_MESSAGE_LENGTH = 500
+const OVERLAY_HISTORY_SIZE = 30
 
 type FloatingReaction = WatchReaction & { id: number }
 
+function toOverlayMessage(message: WatchChatMessage, userId: string | null): OverlayChatMessage {
+  return {
+    senderName: message.senderName?.trim() || "Someone",
+    mine: message.senderId === userId,
+    content: message.content,
+    sentAtUtc: message.sentAtUtc,
+  }
+}
+
 export function WatchRoom({ code }: { code: string }) {
+  const router = useRouter()
   const { status: authStatus, user } = useAuth()
   const [room, setRoom] = useState<WatchRoomDto | null>(null)
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set())
@@ -46,7 +62,7 @@ export function WatchRoom({ code }: { code: string }) {
   const [needsInteraction, setNeedsInteraction] = useState(false)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
 
-  const playerRef = useRef<YouTubePlayerHandle>(null)
+  const playerRef = useRef<PlayerHandle>(null)
   const playerReadyRef = useRef(false)
   const pendingPlaybackRef = useRef<PlaybackState | null>(null)
   const suppressUntilRef = useRef(0)
@@ -57,13 +73,19 @@ export function WatchRoom({ code }: { code: string }) {
   const reactionIdRef = useRef(0)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const draftInputRef = useRef<HTMLInputElement | null>(null)
+  const autoplayPromptRef = useRef(true)
+  const isNetflixRef = useRef(false)
+  const userIdRef = useRef<string | null>(null)
+  const messagesRef = useRef<WatchChatMessage[]>([])
+
+  const isNetflix = room?.platform === "Netflix"
 
   const scheduleAutoplayCheck = useCallback(() => {
     if (autoplayCheckRef.current !== null) window.clearTimeout(autoplayCheckRef.current)
     autoplayCheckRef.current = window.setTimeout(() => {
       autoplayCheckRef.current = null
       const player = playerRef.current
-      if (!player || !desiredRef.current.playing) return
+      if (!autoplayPromptRef.current || !player || !desiredRef.current.playing) return
       const state = player.getState()
       if (state !== YT_STATE.PLAYING && state !== YT_STATE.BUFFERING) setNeedsInteraction(true)
     }, AUTOPLAY_CHECK_MS)
@@ -74,6 +96,7 @@ export function WatchRoom({ code }: { code: string }) {
       const player = playerRef.current
       if (!player || !playerReadyRef.current) {
         pendingPlaybackRef.current = state
+        desiredRef.current = { position: state.positionSeconds, wall: Date.now(), playing: state.isPlaying }
         return
       }
 
@@ -122,11 +145,22 @@ export function WatchRoom({ code }: { code: string }) {
           lastKnownRef.current = { time: target, wall: now, playing: true }
         }
       },
-      onMessage: (message) => setMessages((prev) => [...prev, message].slice(-MAX_MESSAGES)),
+      onMessage: (message) => {
+        setMessages((prev) => [...prev, message].slice(-MAX_MESSAGES))
+        if (isNetflixRef.current) {
+          sendToExtension({ type: "CHAT_MESSAGE", payload: toOverlayMessage(message, userIdRef.current) })
+        }
+      },
       onReaction: (reaction) => {
         const id = ++reactionIdRef.current
         setReactions((prev) => [...prev, { ...reaction, id }])
         window.setTimeout(() => setReactions((prev) => prev.filter((r) => r.id !== id)), REACTION_LIFETIME_MS)
+        if (isNetflixRef.current) {
+          sendToExtension({
+            type: "REACTION",
+            payload: { emoji: reaction.emoji, senderName: reaction.senderName?.trim() || "" },
+          })
+        }
       },
       onMemberJoined: (member) => {
         setOnlineUserIds((prev) => new Set(prev).add(member.userId))
@@ -148,18 +182,76 @@ export function WatchRoom({ code }: { code: string }) {
           next.delete(member.userId)
           return next
         }),
+      onRoomClosed: () => {
+        toast.info("The host closed this watch room.")
+        router.push("/watch")
+      },
     }),
-    [applyRemote]
+    [applyRemote, router]
   )
 
   const hub = useWatchRoomHub({ code, enabled: authStatus === "authenticated", handlers })
-  const hubActionsRef = useRef({ syncState: hub.syncState, sendHeartbeat: hub.sendHeartbeat })
+  const hubActionsRef = useRef({
+    syncState: hub.syncState,
+    sendHeartbeat: hub.sendHeartbeat,
+    sendMessage: hub.sendMessage,
+    sendReaction: hub.sendReaction,
+  })
 
   useEffect(() => {
-    hubActionsRef.current = { syncState: hub.syncState, sendHeartbeat: hub.sendHeartbeat }
-  }, [hub.syncState, hub.sendHeartbeat])
+    hubActionsRef.current = {
+      syncState: hub.syncState,
+      sendHeartbeat: hub.sendHeartbeat,
+      sendMessage: hub.sendMessage,
+      sendReaction: hub.sendReaction,
+    }
+  }, [hub.syncState, hub.sendHeartbeat, hub.sendMessage, hub.sendReaction])
 
   const isHost = !!room && !!user && room.hostUserId === user.userId
+
+  useEffect(() => {
+    autoplayPromptRef.current = !isNetflix
+    isNetflixRef.current = isNetflix
+  }, [isNetflix])
+
+  useEffect(() => {
+    userIdRef.current = user?.userId ?? null
+  }, [user?.userId])
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
+  // In a Netflix room the chat also lives in a panel inside the Netflix window. The panel gets the room's
+  // details here, and what is typed or reacted there is sent to the room like it was typed on this page.
+  const overlayTitle = room?.title?.trim() || "Watch room"
+
+  useEffect(() => {
+    if (!isNetflix) return
+
+    const sendRoomDetails = () => {
+      sendToExtension({ type: "ROOM_INFO", payload: { title: overlayTitle, code } })
+      sendToExtension({
+        type: "CHAT_HISTORY",
+        payload: {
+          messages: messagesRef.current.slice(-OVERLAY_HISTORY_SIZE).map((m) => toOverlayMessage(m, userIdRef.current)),
+        },
+      })
+    }
+
+    sendRoomDetails()
+
+    return listenToExtension((message) => {
+      if (message.type === "OVERLAY_READY") {
+        sendRoomDetails()
+      } else if (message.type === "SEND_CHAT" && typeof message.content === "string") {
+        const content = message.content.trim().slice(0, MAX_MESSAGE_LENGTH)
+        if (content) void hubActionsRef.current.sendMessage(content)
+      } else if (message.type === "SEND_REACTION" && REACTION_EMOJIS.includes(message.emoji)) {
+        void hubActionsRef.current.sendReaction(message.emoji)
+      }
+    })
+  }, [isNetflix, overlayTitle, code])
 
   const handlePlayerReady = useCallback(() => {
     playerReadyRef.current = true
@@ -167,9 +259,28 @@ export function WatchRoom({ code }: { code: string }) {
     if (pendingPlaybackRef.current) {
       const pending = pendingPlaybackRef.current
       pendingPlaybackRef.current = null
-      applyRemote(pending)
+
+      // The room kept playing while the player was loading, so catch up to where it is now.
+      const desired = desiredRef.current
+      const elapsed = desired.playing ? (Date.now() - desired.wall) / 1000 : 0
+      applyRemote({ ...pending, positionSeconds: desired.position + elapsed })
     }
   }, [applyRemote])
+
+  const handlePlayerUnready = useCallback(() => {
+    playerReadyRef.current = false
+    setPlayerReady(false)
+  }, [])
+
+  const handlePlayerSeek = useCallback((time: number) => {
+    if (Date.now() < suppressUntilRef.current) return
+
+    const now = Date.now()
+    const playing = playerRef.current?.isPlaying() ?? lastKnownRef.current.playing
+    lastKnownRef.current = { time, wall: now, playing }
+    desiredRef.current = { position: time, wall: now, playing }
+    void hubActionsRef.current.syncState("seek", time)
+  }, [])
 
   const handlePlayerStateChange = useCallback((state: number) => {
     if (state === YT_STATE.PLAYING) setNeedsInteraction(false)
@@ -370,12 +481,24 @@ export function WatchRoom({ code }: { code: string }) {
         <div>
           <div className="relative aspect-video overflow-hidden rounded-xl bg-black">
             {room ? (
-              <YouTubePlayer
-                videoId={room.contentId}
-                onReady={handlePlayerReady}
-                onStateChange={handlePlayerStateChange}
-                ref={playerRef}
-              />
+              isNetflix ? (
+                <NetflixBridgePlayer
+                  contentId={room.contentId}
+                  contentUrl={room.contentUrl}
+                  onReady={handlePlayerReady}
+                  onUnready={handlePlayerUnready}
+                  onStateChange={handlePlayerStateChange}
+                  onSeek={handlePlayerSeek}
+                  ref={playerRef}
+                />
+              ) : (
+                <YouTubePlayer
+                  videoId={room.contentId}
+                  onReady={handlePlayerReady}
+                  onStateChange={handlePlayerStateChange}
+                  ref={playerRef}
+                />
+              )
             ) : (
               <Skeleton className="absolute inset-0 rounded-none" />
             )}
@@ -416,8 +539,9 @@ export function WatchRoom({ code }: { code: string }) {
             ))}
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Play, pause and seeking are shared with everyone in the room. If the browser blocks autoplay, press
-            &quot;Click to sync&quot; once.
+            {isNetflix
+              ? "Play, pause and seeking in your Netflix window are shared with everyone in the room. The chat button inside the Netflix window opens this same chat. Keep this page open."
+              : "Play, pause and seeking are shared with everyone in the room. If the browser blocks autoplay, press \"Click to sync\" once."}
           </p>
         </div>
 

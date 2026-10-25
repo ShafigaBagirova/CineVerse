@@ -1,6 +1,7 @@
 "use client"
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react"
+import type { PlayerHandle } from "@/components/watch/player-types"
 
 interface YouTubePlayerApi {
   playVideo: () => void
@@ -41,14 +42,7 @@ export const YT_STATE = {
   BUFFERING: 3,
 } as const
 
-export interface YouTubePlayerHandle {
-  play: () => void
-  pause: () => void
-  seekTo: (seconds: number) => void
-  getCurrentTime: () => number
-  getState: () => number
-  isPlaying: () => boolean
-}
+export type YouTubePlayerHandle = PlayerHandle
 
 type YouTubePlayerProps = {
   videoId: string

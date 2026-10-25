@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Link2, Search } from "lucide-react"
@@ -11,7 +11,12 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { userFacingApiErrorMessage } from "@/lib/api/types"
-import { createWatchRoom, searchYouTubeVideos, type YouTubeVideoDto } from "@/lib/api/watch-rooms"
+import {
+  createWatchRoom,
+  getPopularYouTubeVideos,
+  searchYouTubeVideos,
+  type YouTubeVideoDto,
+} from "@/lib/api/watch-rooms"
 
 const NOT_CONFIGURED_MARKER = "not configured"
 
@@ -23,6 +28,12 @@ export function YouTubePicker() {
 
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<YouTubeVideoDto[] | null>(null)
+  const [popular, setPopular] = useState<YouTubeVideoDto[] | null>(null)
+  const [loadingPopular, setLoadingPopular] = useState(false)
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const loadingMoreRef = useRef(false)
+  const endRef = useRef<HTMLDivElement | null>(null)
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [creatingKey, setCreatingKey] = useState<string | null>(null)
@@ -38,6 +49,65 @@ export function YouTubePicker() {
       setCreatingKey(null)
     }
   }
+
+  useEffect(() => {
+    if (status !== "authenticated" || !title) return
+
+    let cancelled = false
+    setLoadingPopular(true)
+    getPopularYouTubeVideos()
+      .then((page) => {
+        if (cancelled) return
+        setPopular(page.items)
+        setNextPageToken(page.nextPageToken)
+      })
+      .catch((e) => {
+        // Popular videos are only a start page, so a failure just leaves the search and the link box.
+        if (!cancelled) setSearchError(userFacingApiErrorMessage(e, "Could not load popular videos."))
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPopular(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [status, title])
+
+  const loadMore = useCallback(async () => {
+    if (!nextPageToken || loadingMoreRef.current) return
+    loadingMoreRef.current = true
+    setLoadingMore(true)
+    try {
+      const page = await getPopularYouTubeVideos(nextPageToken)
+      setPopular((prev) => {
+        const seen = new Set((prev ?? []).map((video) => video.videoId))
+        return [...(prev ?? []), ...page.items.filter((video) => !seen.has(video.videoId))]
+      })
+      setNextPageToken(page.nextPageToken)
+    } catch {
+      // Stop asking so a failing request is not repeated in a loop; the videos already shown stay usable.
+      setNextPageToken(null)
+    } finally {
+      loadingMoreRef.current = false
+      setLoadingMore(false)
+    }
+  }, [nextPageToken])
+
+  // Asks for the next page when the end of the list scrolls close to the screen.
+  useEffect(() => {
+    const target = endRef.current
+    if (!target || results !== null || !nextPageToken) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) void loadMore()
+      },
+      { rootMargin: "400px" }
+    )
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [results, nextPageToken, loadMore, popular])
 
   const handleSearch = async (event: FormEvent) => {
     event.preventDefault()
@@ -88,6 +158,7 @@ export function YouTubePicker() {
     )
   }
 
+  const shown = results ?? popular
   const notConfigured = searchError?.toLowerCase().includes(NOT_CONFIGURED_MARKER) ?? false
 
   return (
@@ -102,7 +173,11 @@ export function YouTubePicker() {
       <form onSubmit={handleSearch} className="flex gap-2">
         <Input
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            setQuery(event.target.value)
+            // Emptying the box brings the popular videos back.
+            if (!event.target.value.trim()) setResults(null)
+          }}
           placeholder="Search YouTube"
           maxLength={100}
           autoFocus
@@ -121,18 +196,20 @@ export function YouTubePicker() {
         </p>
       ) : null}
 
-      {searching ? (
+      {searching || (results === null && loadingPopular) ? (
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
             <Skeleton key={index} className="aspect-video w-full" />
           ))}
         </div>
-      ) : results ? (
-        results.length === 0 ? (
+      ) : shown ? (
+        shown.length === 0 ? (
           <p className="mt-5 text-sm text-muted-foreground">No videos found.</p>
         ) : (
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {results.map((video) => (
+          <div className="mt-5">
+            <h2 className="mb-3 text-sm font-medium">{results ? "Search results" : "Popular on YouTube"}</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {shown.map((video) => (
               <button
                 key={video.videoId}
                 type="button"
@@ -155,6 +232,19 @@ export function YouTubePicker() {
                 </div>
               </button>
             ))}
+            </div>
+            {results === null ? (
+              <>
+                {loadingMore ? (
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {Array.from({ length: 3 }).map((_, index) => (
+                      <Skeleton key={index} className="aspect-video w-full" />
+                    ))}
+                  </div>
+                ) : null}
+                <div ref={endRef} className="h-1" />
+              </>
+            ) : null}
           </div>
         )
       ) : null}

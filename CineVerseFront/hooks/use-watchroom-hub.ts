@@ -23,6 +23,7 @@ export type WatchRoomHubHandlers = {
   onReaction?: (reaction: WatchReaction) => void
   onMemberJoined?: (member: WatchMemberEvent) => void
   onMemberLeft?: (member: WatchMemberEvent) => void
+  onRoomClosed?: () => void
 }
 
 type UseWatchRoomHubOptions = {
@@ -76,6 +77,7 @@ export function useWatchRoomHub({ code, enabled, handlers }: UseWatchRoomHubOpti
     hub.on("ReceiveReaction", (reaction: WatchReaction) => handlersRef.current.onReaction?.(reaction))
     hub.on("MemberJoined", (member: WatchMemberEvent) => handlersRef.current.onMemberJoined?.(member))
     hub.on("MemberLeft", (member: WatchMemberEvent) => handlersRef.current.onMemberLeft?.(member))
+    hub.on("RoomClosed", () => handlersRef.current.onRoomClosed?.())
 
     const joinRoom = async () => {
       const snapshot = await hub.invoke<WatchRoomSnapshot>("JoinRoom", code)
