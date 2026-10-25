@@ -367,4 +367,8 @@ FodyWeavers.xsd
 /CineVerseFront/.next/
 /CineVerseFront/.env.local
 /CineVerseFront/.env
-/CineVerseFront/dist/
+/CineVerseFront/dist/seq-data/
+seqlog.txt
+
+# Local settings with real secrets, never commit
+appsettings.Development.json
