@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { Film, Search, Menu, X, Ticket, User, Clock, BarChart3, Bell, Bookmark, MessageCircle } from "lucide-react"
+import { Film, Search, Menu, X, Ticket, User, Clock, BarChart3, Bell, Bookmark, MessageCircle, Tv } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useNotifications } from "@/components/providers/notification-provider"
@@ -17,6 +17,7 @@ const navLinks = [
   { href: "/suggestions", label: "Suggestions" },
   { href: "/showtimes", label: "Showtimes" },
   { href: "/tickets", label: "Tickets" },
+  { href: "/watch", label: "Watch" },
   { href: "/profile", label: "Profile" },
   { href: "/vip", label: "VIP" },
 ]
@@ -27,6 +28,7 @@ const mobileNavLinks = [
   { href: "/suggestions", label: "Suggestions", icon: Bookmark },
   { href: "/showtimes", label: "Showtimes", icon: Clock },
   { href: "/tickets", label: "Tickets", icon: Ticket },
+  { href: "/watch", label: "Watch", icon: Tv },
   { href: "/profile", label: "Profile", icon: User },
   { href: "/vip", label: "VIP", icon: BarChart3 },
 ]
